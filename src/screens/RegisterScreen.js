@@ -15,8 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import BrandHeader from '../components/BrandHeader';
 
-// Alert cross-platform (Alert.alert ne fonctionne pas bien sur le web)
+// Alert cross-platform
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
     window.alert(`${title}\n\n${message}`);
@@ -25,82 +26,95 @@ const showAlert = (title, message) => {
   }
 };
 
-export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+export default function RegisterScreen({ navigation }) {
+  // État du formulaire
+  const [form, setForm] = useState({
+    nom: '',
+    prenom: '',
+    nomSociete: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  // Dimensions de la fenêtre pour le responsive
+  // Responsive
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
-  // Validation des champs
+  // Mise à jour d'un champ + effacement de son erreur
+  const updateField = (field, value) => {
+    setForm({ ...form, [field]: value });
+    if (errors[field]) setErrors({ ...errors, [field]: null });
+  };
+
+  // Validation du formulaire
   const validate = () => {
     const newErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!email.trim()) {
+    if (!form.nom.trim()) newErrors.nom = 'Le nom est requis';
+    if (!form.prenom.trim()) newErrors.prenom = 'Le prénom est requis';
+    if (!form.nomSociete.trim()) newErrors.nomSociete = 'Le nom de société est requis';
+
+    if (!form.email.trim()) {
       newErrors.email = 'L\'email est requis';
-    } else if (!emailRegex.test(email.trim())) {
+    } else if (!emailRegex.test(form.email.trim())) {
       newErrors.email = 'Format d\'email invalide';
     }
 
-    if (!password) {
+    if (!form.password) {
       newErrors.password = 'Le mot de passe est requis';
-    } else if (password.length < 6) {
-      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    } else if (form.password.length < 8) {
+      newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
+    }
+
+    if (!form.confirmPassword) {
+      newErrors.confirmPassword = 'Veuillez confirmer le mot de passe';
+    } else if (form.password !== form.confirmPassword) {
+      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Gestion de la connexion
-  const handleLogin = async () => {
+  // Gestion de l'inscription
+  const handleRegister = async () => {
     if (!validate()) return;
 
     setLoading(true);
     try {
-      // 1. Authentification auprès de Supabase
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
+      const email = form.email.trim().toLowerCase();
+
+      // Inscription auprès de Supabase.
+      // Les données nom/prenom/nomSociete sont passées dans options.data
+      // et seront récupérées par le trigger SQL `handle_new_user` qui
+      // créera automatiquement le profil dans la table `profiles`.
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: form.password,
+        options: {
+          data: {
+            nom: form.nom.trim(),
+            prenom: form.prenom.trim(),
+            nom_societe: form.nomSociete.trim(),
+          },
+        },
       });
 
-      if (authError) {
-        if (authError.message.includes('Invalid login credentials')) {
-          showAlert('Erreur', 'Email ou mot de passe incorrect.');
+      if (error) {
+        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+          showAlert('Erreur', 'Cet email est déjà associé à un compte.');
         } else {
-          showAlert('Erreur', authError.message);
+          showAlert('Erreur', error.message);
         }
         return;
       }
 
-      // 2. Récupération du profil pour connaître le rôle
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, nom, prenom, nom_societe')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (profileError) {
-        showAlert('Erreur', 'Impossible de récupérer votre profil.');
-        return;
-      }
-
-      // 3. Redirection selon le rôle
-      if (profile.role === 'admin') {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'AdminDashboard' }],
-        });
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'ClientHome' }],
-        });
-      }
+      // Inscription réussie -> redirection vers l'écran de confirmation
+      navigation.replace('ConfirmEmail', { email });
     } catch (err) {
       showAlert('Erreur', 'Une erreur inattendue est survenue.');
       console.error(err);
@@ -108,6 +122,23 @@ export default function LoginScreen({ navigation }) {
       setLoading(false);
     }
   };
+
+  // Composant réutilisable pour un champ de formulaire
+  const renderField = (field, label, placeholder, options = {}) => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, errors[field] && styles.inputError]}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textLight}
+        value={form[field]}
+        onChangeText={(text) => updateField(field, text)}
+        editable={!loading}
+        {...options}
+      />
+      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -119,87 +150,69 @@ export default function LoginScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Conteneur centré avec largeur max sur desktop */}
           <View style={[styles.card, isDesktop && styles.cardDesktop]}>
-            {/* En-tête avec branding Sof Pain */}
-            <View style={styles.header}>
-              <Text style={styles.brandName}>Sof Pain</Text>
-              <Text style={styles.tagline}>L'artisan des professionnels</Text>
-            </View>
+            <BrandHeader compact />
 
-            {/* Titre de la page */}
             <View style={styles.titleBlock}>
-              <Text style={styles.title}>Connexion</Text>
+              <Text style={styles.title}>Créer un compte</Text>
               <Text style={styles.subtitle}>
-                Accédez à votre espace de commande
+                Rejoignez les professionnels qui nous font confiance
               </Text>
             </View>
 
-            {/* Formulaire */}
             <View style={styles.form}>
-              {/* Email */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={[styles.input, errors.email && styles.inputError]}
-                  placeholder="exemple@societe.fr"
-                  placeholderTextColor={colors.textLight}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    if (errors.email) setErrors({ ...errors, email: null });
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              {/* Nom + Prénom côte à côte sur desktop, empilés sur mobile */}
+              <View style={isDesktop ? styles.row : null}>
+                <View style={isDesktop ? styles.halfField : null}>
+                  {renderField('nom', 'Nom', 'Dupont', { autoCapitalize: 'words' })}
+                </View>
+                <View style={isDesktop ? styles.halfField : null}>
+                  {renderField('prenom', 'Prénom', 'Jean', { autoCapitalize: 'words' })}
+                </View>
               </View>
 
-              {/* Mot de passe */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Mot de passe</Text>
-                <TextInput
-                  style={[styles.input, errors.password && styles.inputError]}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textLight}
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (errors.password) setErrors({ ...errors, password: null });
-                  }}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  editable={!loading}
-                />
-                {errors.password && (
-                  <Text style={styles.errorText}>{errors.password}</Text>
-                )}
-              </View>
+              {renderField('nomSociete', 'Nom de société', 'Boulangerie Dupont SARL', {
+                autoCapitalize: 'words',
+              })}
 
-              {/* Bouton de connexion */}
+              {renderField('email', 'Email', 'exemple@societe.fr', {
+                keyboardType: 'email-address',
+                autoCapitalize: 'none',
+                autoCorrect: false,
+              })}
+
+              {renderField('password', 'Mot de passe', 'Au moins 8 caractères', {
+                secureTextEntry: true,
+                autoCapitalize: 'none',
+              })}
+
+              {renderField('confirmPassword', 'Confirmer le mot de passe', '••••••••', {
+                secureTextEntry: true,
+                autoCapitalize: 'none',
+              })}
+
+              {/* Bouton d'inscription */}
               <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={handleLogin}
+                onPress={handleRegister}
                 disabled={loading}
                 activeOpacity={0.8}
               >
                 {loading ? (
                   <ActivityIndicator color={colors.textOnPrimary} />
                 ) : (
-                  <Text style={styles.buttonText}>Se connecter</Text>
+                  <Text style={styles.buttonText}>Créer mon compte</Text>
                 )}
               </TouchableOpacity>
 
-              {/* Lien inscription */}
+              {/* Lien vers la connexion */}
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Pas encore de compte ? </Text>
+                <Text style={styles.footerText}>Déjà un compte ? </Text>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('Register')}
+                  onPress={() => navigation.navigate('Login')}
                   disabled={loading}
                 >
-                  <Text style={styles.footerLink}>Créer un compte</Text>
+                  <Text style={styles.footerLink}>Se connecter</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -226,7 +239,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 480,
   },
   cardDesktop: {
     backgroundColor: colors.surface,
@@ -237,27 +250,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  logo: {
-    fontSize: 64,
-    marginBottom: spacing.sm,
-  },
-  brandName: {
-    fontSize: fontSizes.title,
-    fontWeight: 'bold',
-    color: colors.primary,
-    letterSpacing: 0.5,
-  },
-  tagline: {
-    fontSize: fontSizes.sm,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
-    textAlign: 'center',
   },
   titleBlock: {
     alignItems: 'center',
@@ -276,6 +268,13 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  halfField: {
+    flex: 1,
   },
   inputGroup: {
     marginBottom: spacing.lg,

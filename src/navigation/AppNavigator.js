@@ -3,6 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import ConfirmEmailScreen from '../screens/ConfirmEmailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -13,14 +15,13 @@ export default function AppNavigator() {
         initialRouteName="Login"
         screenOptions={{
           headerShown: false,
+          animation: 'slide_from_right',
         }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
-        {/* Les écrans suivants seront ajoutés au fur et à mesure :
-            - Register
-            - ClientHome
-            - AdminDashboard
-        */}
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="ConfirmEmail" component={ConfirmEmailScreen} />
+     
       </Stack.Navigator>
     </NavigationContainer>
   );
