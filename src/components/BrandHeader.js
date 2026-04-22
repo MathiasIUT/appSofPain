@@ -7,13 +7,16 @@ import { colors, spacing } from '../config/theme';
  * Affiche le logo officiel de l'entreprise.
  *
  * Props :
- *   - size ('sm' | 'md' | 'lg') : taille du logo (default: 'md')
+ *   - size ('sm' | 'md' | 'lg') : taille du logo
+ *     - sm : 140px (utilisé dans les écrans secondaires type ConfirmEmail)
+ *     - md : 200px (défaut, utilisé sur la page de connexion/inscription)
+ *     - lg : 260px (utilisé si on veut vraiment que ça crève l'écran)
  */
 export default function BrandHeader({ size = 'md' }) {
   const logoSize = {
-    sm: 60,
-    md: 100,
-    lg: 140,
+    sm: 220,
+    md: 280,
+    lg: 340,
   }[size];
 
   return (
@@ -33,6 +36,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   logo: {
-    // width et height définies dynamiquement via la prop size
+    // Dimensions définies dynamiquement via la prop size
   },
 });

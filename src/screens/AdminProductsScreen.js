@@ -13,14 +13,14 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
+import ProductFormModal from '../components/ProductFormModal';
 
-// Slug des catégories qu'on souhaite afficher dans l'UI.
-// Modifier cette liste si on veut ré-afficher le surgelé plus tard.
+// Slugs des catégories affichées dans l'UI.
+// Ajouter 'surgele' dans ce tableau pour ré-activer les produits surgelés.
 const VISIBLE_CATEGORY_SLUGS = ['frais'];
 
 /**
- * Écran admin : liste des produits avec filtres.
- * Livraison 1 : lecture seule. Livraison 2 ajoutera la création/modification.
+ * Écran admin : liste des produits avec filtres + création/modification via modal.
  */
 export default function AdminProductsScreen() {
   const [products, setProducts] = useState([]);
@@ -29,11 +29,15 @@ export default function AdminProductsScreen() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
 
+  // État du modal d'édition
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
+  // Chargement initial et rafraîchissement
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
       const [catRes, prodRes] = await Promise.all([
         supabase.from('categories').select('*').order('ordre'),
@@ -46,13 +50,13 @@ export default function AdminProductsScreen() {
       if (catRes.error) throw catRes.error;
       if (prodRes.error) throw prodRes.error;
 
-      // On ne garde que les catégories visibles
+      // Filtrer les catégories visibles dans l'UI
       const visibleCategories = (catRes.data || []).filter((c) =>
         VISIBLE_CATEGORY_SLUGS.includes(c.slug)
       );
       setCategories(visibleCategories);
 
-      // On ne garde que les produits des catégories visibles
+      // Filtrer les produits des catégories visibles
       const visibleProducts = (prodRes.data || []).filter((p) =>
         VISIBLE_CATEGORY_SLUGS.includes(p.category?.slug)
       );
@@ -68,6 +72,23 @@ export default function AdminProductsScreen() {
     loadData();
   }, [loadData]);
 
+  // Ouverture du modal en création
+  const handleCreate = () => {
+    setEditingProduct(null);
+    setModalVisible(true);
+  };
+
+  // Ouverture du modal en modification
+  const handleEdit = (product) => {
+    setEditingProduct(product);
+    setModalVisible(true);
+  };
+
+  // Callback après enregistrement : on rafraîchit la liste
+  const handleSaved = () => {
+    loadData();
+  };
+
   // Filtres appliqués
   const filteredProducts = products.filter((p) => {
     if (!showInactive && !p.actif) return false;
@@ -75,7 +96,6 @@ export default function AdminProductsScreen() {
     return true;
   });
 
-  // Statistiques
   const stats = {
     total: products.length,
     actifs: products.filter((p) => p.actif).length,
@@ -91,78 +111,87 @@ export default function AdminProductsScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-    >
-      {/* En-tête */}
-      <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Gestion des produits</Text>
-          <Text style={styles.subtitle}>
-            {stats.actifs} produit{stats.actifs > 1 ? 's' : ''} actif
-            {stats.actifs > 1 ? 's' : ''} sur {stats.total} au total
-          </Text>
-        </View>
-        <Button
-          title="Ajouter un produit"
-          onPress={() => {
-            // TODO: Livraison 2 - ouvrir le modal de création
-            alert('Fonctionnalité disponible dans la prochaine livraison.');
-          }}
-        />
-      </View>
-
-      {/* Filtres (seulement si plus d'une catégorie visible) */}
-      {categories.length > 1 && (
-        <View style={styles.filtersRow}>
-          <FilterChip
-            label="Toutes"
-            active={filterCategory === 'all'}
-            onPress={() => setFilterCategory('all')}
-          />
-          {categories.map((cat) => (
-            <FilterChip
-              key={cat.id}
-              label={cat.nom}
-              active={filterCategory === cat.id}
-              onPress={() => setFilterCategory(cat.id)}
-            />
-          ))}
-        </View>
-      )}
-
-      <TouchableOpacity
-        style={styles.toggleInactive}
-        onPress={() => setShowInactive(!showInactive)}
-        activeOpacity={0.7}
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
       >
-        <View style={[styles.checkbox, showInactive && styles.checkboxChecked]}>
-          {showInactive && <View style={styles.checkboxInner} />}
+        {/* En-tête */}
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Gestion des produits</Text>
+            <Text style={styles.subtitle}>
+              {stats.actifs} produit{stats.actifs > 1 ? 's' : ''} actif
+              {stats.actifs > 1 ? 's' : ''} sur {stats.total} au total
+            </Text>
+          </View>
+          <Button title="Ajouter un produit" onPress={handleCreate} />
         </View>
-        <Text style={styles.toggleInactiveLabel}>
-          Afficher les produits désactivés
-        </Text>
-      </TouchableOpacity>
 
-      {/* Liste des produits */}
-      {filteredProducts.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Aucun produit</Text>
-          <Text style={styles.emptyText}>
-            {products.length === 0
-              ? 'Commencez par ajouter votre premier produit.'
-              : 'Aucun produit ne correspond aux filtres sélectionnés.'}
+        {/* Filtres (seulement si plus d'une catégorie visible) */}
+        {categories.length > 1 && (
+          <View style={styles.filtersRow}>
+            <FilterChip
+              label="Toutes"
+              active={filterCategory === 'all'}
+              onPress={() => setFilterCategory('all')}
+            />
+            {categories.map((cat) => (
+              <FilterChip
+                key={cat.id}
+                label={cat.nom}
+                active={filterCategory === cat.id}
+                onPress={() => setFilterCategory(cat.id)}
+              />
+            ))}
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.toggleInactive}
+          onPress={() => setShowInactive(!showInactive)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.checkbox, showInactive && styles.checkboxChecked]}>
+            {showInactive && <View style={styles.checkboxInner} />}
+          </View>
+          <Text style={styles.toggleInactiveLabel}>
+            Afficher les produits désactivés
           </Text>
-        </View>
-      ) : (
-        <View style={[styles.productsGrid, isDesktop && styles.productsGridDesktop]}>
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </View>
-      )}
-    </ScrollView>
+        </TouchableOpacity>
+
+        {/* Liste des produits */}
+        {filteredProducts.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Aucun produit</Text>
+            <Text style={styles.emptyText}>
+              {products.length === 0
+                ? 'Commencez par ajouter votre premier produit.'
+                : 'Aucun produit ne correspond aux filtres sélectionnés.'}
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.productsGrid, isDesktop && styles.productsGridDesktop]}>
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onEdit={() => handleEdit(product)}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Modal de création/modification */}
+      <ProductFormModal
+        visible={modalVisible}
+        product={editingProduct}
+        categories={categories}
+        onClose={() => setModalVisible(false)}
+        onSaved={handleSaved}
+      />
+    </>
   );
 }
 
@@ -184,12 +213,12 @@ function FilterChip({ label, active, onPress }) {
   );
 }
 
-function ProductCard({ product }) {
+function ProductCard({ product, onEdit }) {
   const totalCartons = 24;
 
   return (
     <View style={[styles.productCard, !product.actif && styles.productCardInactive]}>
-      {/* Image ou placeholder neutre */}
+      {/* Image ou placeholder */}
       <View style={styles.productImage}>
         {product.image_url ? (
           <Image source={{ uri: product.image_url }} style={styles.productImg} />
@@ -227,7 +256,8 @@ function ProductCard({ product }) {
             {totalCartons} cartons par palette
           </Text>
           <Text style={styles.productDetailItem}>
-            {product.unites_par_carton} unité{product.unites_par_carton > 1 ? 's' : ''} par carton
+            {product.unites_par_carton} unité
+            {product.unites_par_carton > 1 ? 's' : ''} par carton
           </Text>
         </View>
 
@@ -238,14 +268,7 @@ function ProductCard({ product }) {
           <Text style={styles.productPriceUnit}>/ palette</Text>
         </View>
 
-        <Button
-          title="Modifier"
-          variant="secondary"
-          size="sm"
-          onPress={() => {
-            alert('Fonctionnalité disponible dans la prochaine livraison.');
-          }}
-        />
+        <Button title="Modifier" variant="secondary" size="sm" onPress={onEdit} />
       </View>
     </View>
   );
@@ -275,7 +298,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
   },
-
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -298,8 +320,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-
-  // Filtres
   filtersRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -359,8 +379,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.textSecondary,
   },
-
-  // Empty state
   emptyState: {
     alignItems: 'center',
     padding: spacing.xxl,
@@ -381,8 +399,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-
-  // Grille de produits
   productsGrid: {
     gap: spacing.md,
   },

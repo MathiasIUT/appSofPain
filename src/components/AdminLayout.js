@@ -14,7 +14,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
 /**
  * Layout commun pour tous les écrans admin.
- * - Desktop : sidebar à gauche
+ * - Desktop : sidebar à gauche (large, avec grand logo)
  * - Mobile : onglets en bas
  */
 
@@ -43,7 +43,6 @@ export default function AdminLayout({
     });
   };
 
-  // Rendu d'un item de navigation (utilisé pour sidebar et tabs)
   const renderNavItem = (section) => {
     const isActive = currentSection === section.key;
     const isDisabled = section.disabled;
@@ -148,8 +147,9 @@ const styles = StyleSheet.create({
   },
 
   // --- SIDEBAR (desktop) ---
+  // Largeur augmentée pour laisser de la place au logo
   sidebar: {
-    width: 260,
+    width: 300,
     backgroundColor: colors.surface,
     borderRightWidth: 1,
     borderRightColor: colors.border,
@@ -164,9 +164,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     marginBottom: spacing.lg,
   },
+  // Logo sidebar : nettement plus grand pour que le slogan soit lisible
   logo: {
-    width: 100,
-    height: 100,
+    width: 250,
+    height: 250,
     marginBottom: spacing.sm,
   },
   brandRole: {
@@ -260,9 +261,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  // Logo mobile : plus grand pour être lisible
   mobileLogo: {
-    width: 40,
-    height: 40,
+    width: 135,
+    height: 135,
   },
   mobileLogout: {
     paddingVertical: spacing.xs,
