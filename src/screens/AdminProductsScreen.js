@@ -14,23 +14,24 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
 
+// Slug des catégories qu'on souhaite afficher dans l'UI.
+// Modifier cette liste si on veut ré-afficher le surgelé plus tard.
+const VISIBLE_CATEGORY_SLUGS = ['frais'];
+
 /**
  * Écran admin : liste des produits avec filtres.
- *
- * Pour l'instant (Livraison 1), l'écran est en lecture seule.
- * Les boutons "Ajouter" et "Modifier" seront fonctionnels dans la Livraison 2.
+ * Livraison 1 : lecture seule. Livraison 2 ajoutera la création/modification.
  */
 export default function AdminProductsScreen() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterCategory, setFilterCategory] = useState('all'); // 'all' | category_id
+  const [filterCategory, setFilterCategory] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
 
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  // Chargement des catégories et produits
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -45,8 +46,17 @@ export default function AdminProductsScreen() {
       if (catRes.error) throw catRes.error;
       if (prodRes.error) throw prodRes.error;
 
-      setCategories(catRes.data || []);
-      setProducts(prodRes.data || []);
+      // On ne garde que les catégories visibles
+      const visibleCategories = (catRes.data || []).filter((c) =>
+        VISIBLE_CATEGORY_SLUGS.includes(c.slug)
+      );
+      setCategories(visibleCategories);
+
+      // On ne garde que les produits des catégories visibles
+      const visibleProducts = (prodRes.data || []).filter((p) =>
+        VISIBLE_CATEGORY_SLUGS.includes(p.category?.slug)
+      );
+      setProducts(visibleProducts);
     } catch (err) {
       console.error('Erreur chargement produits :', err);
     } finally {
@@ -65,12 +75,10 @@ export default function AdminProductsScreen() {
     return true;
   });
 
-  // Statistiques en haut de l'écran
+  // Statistiques
   const stats = {
     total: products.length,
     actifs: products.filter((p) => p.actif).length,
-    frais: products.filter((p) => p.category?.slug === 'frais' && p.actif).length,
-    surgele: products.filter((p) => p.category?.slug === 'surgele' && p.actif).length,
   };
 
   if (loading) {
@@ -87,18 +95,17 @@ export default function AdminProductsScreen() {
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
     >
-      {/* En-tête avec titre et bouton ajouter */}
+      {/* En-tête */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerText}>
           <Text style={styles.title}>Gestion des produits</Text>
           <Text style={styles.subtitle}>
             {stats.actifs} produit{stats.actifs > 1 ? 's' : ''} actif
-            {stats.actifs > 1 ? 's' : ''} ({stats.total} au total)
+            {stats.actifs > 1 ? 's' : ''} sur {stats.total} au total
           </Text>
         </View>
         <Button
           title="Ajouter un produit"
-          icon="➕"
           onPress={() => {
             // TODO: Livraison 2 - ouvrir le modal de création
             alert('Fonctionnalité disponible dans la prochaine livraison.');
@@ -106,18 +113,9 @@ export default function AdminProductsScreen() {
         />
       </View>
 
-      {/* Cartes de stats */}
-      <View style={[styles.statsGrid, isDesktop && styles.statsGridDesktop]}>
-        <StatCard label="Total produits" value={stats.total} icon="📦" />
-        <StatCard label="Produits actifs" value={stats.actifs} icon="✅" />
-        <StatCard label="Pain frais" value={stats.frais} icon="🥖" />
-        <StatCard label="Pain surgelé" value={stats.surgele} icon="❄️" />
-      </View>
-
-      {/* Filtres */}
-      <View style={styles.filters}>
-        <Text style={styles.filtersLabel}>Filtrer par :</Text>
-        <View style={styles.filterChips}>
+      {/* Filtres (seulement si plus d'une catégorie visible) */}
+      {categories.length > 1 && (
+        <View style={styles.filtersRow}>
           <FilterChip
             label="Toutes"
             active={filterCategory === 'all'}
@@ -132,28 +130,29 @@ export default function AdminProductsScreen() {
             />
           ))}
         </View>
-        <TouchableOpacity
-          style={styles.toggleInactive}
-          onPress={() => setShowInactive(!showInactive)}
-        >
-          <Text style={styles.toggleInactiveIcon}>
-            {showInactive ? '☑️' : '⬜'}
-          </Text>
-          <Text style={styles.toggleInactiveLabel}>
-            Afficher les produits désactivés
-          </Text>
-        </TouchableOpacity>
-      </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.toggleInactive}
+        onPress={() => setShowInactive(!showInactive)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.checkbox, showInactive && styles.checkboxChecked]}>
+          {showInactive && <View style={styles.checkboxInner} />}
+        </View>
+        <Text style={styles.toggleInactiveLabel}>
+          Afficher les produits désactivés
+        </Text>
+      </TouchableOpacity>
 
       {/* Liste des produits */}
       {filteredProducts.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>📭</Text>
           <Text style={styles.emptyTitle}>Aucun produit</Text>
           <Text style={styles.emptyText}>
             {products.length === 0
               ? 'Commencez par ajouter votre premier produit.'
-              : 'Aucun produit ne correspond aux filtres.'}
+              : 'Aucun produit ne correspond aux filtres sélectionnés.'}
           </Text>
         </View>
       ) : (
@@ -171,16 +170,6 @@ export default function AdminProductsScreen() {
 // Sous-composants
 // ---------------------------------------------------------
 
-function StatCard({ label, value, icon }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statIcon}>{icon}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function FilterChip({ label, active, onPress }) {
   return (
     <TouchableOpacity
@@ -196,17 +185,18 @@ function FilterChip({ label, active, onPress }) {
 }
 
 function ProductCard({ product }) {
-  const totalCartons = 24; // Fixe pour Sof Pain
+  const totalCartons = 24;
+
   return (
     <View style={[styles.productCard, !product.actif && styles.productCardInactive]}>
-      {/* Image ou placeholder */}
+      {/* Image ou placeholder neutre */}
       <View style={styles.productImage}>
         {product.image_url ? (
           <Image source={{ uri: product.image_url }} style={styles.productImg} />
         ) : (
-          <Text style={styles.productImgPlaceholder}>
-            {product.category?.slug === 'surgele' ? '❄️' : '🥖'}
-          </Text>
+          <View style={styles.productImgEmpty}>
+            <Text style={styles.productImgEmptyText}>Sof Pain</Text>
+          </View>
         )}
         {!product.actif && (
           <View style={styles.inactiveBadge}>
@@ -226,18 +216,18 @@ function ProductCard({ product }) {
           {product.nom}
         </Text>
 
-        {product.description && (
+        {product.description ? (
           <Text style={styles.productDesc} numberOfLines={2}>
             {product.description}
           </Text>
-        )}
+        ) : null}
 
         <View style={styles.productDetails}>
           <Text style={styles.productDetailItem}>
-            📦 {totalCartons} cartons / palette
+            {totalCartons} cartons par palette
           </Text>
           <Text style={styles.productDetailItem}>
-            🔢 {product.unites_par_carton} unités / carton
+            {product.unites_par_carton} unité{product.unites_par_carton > 1 ? 's' : ''} par carton
           </Text>
         </View>
 
@@ -248,17 +238,14 @@ function ProductCard({ product }) {
           <Text style={styles.productPriceUnit}>/ palette</Text>
         </View>
 
-        <View style={styles.productActions}>
-          <Button
-            title="Modifier"
-            variant="secondary"
-            size="sm"
-            onPress={() => {
-              // TODO: Livraison 2 - ouvrir le modal d'édition
-              alert('Fonctionnalité disponible dans la prochaine livraison.');
-            }}
-          />
-        </View>
+        <Button
+          title="Modifier"
+          variant="secondary"
+          size="sm"
+          onPress={() => {
+            alert('Fonctionnalité disponible dans la prochaine livraison.');
+          }}
+        />
       </View>
     </View>
   );
@@ -292,10 +279,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexWrap: 'wrap',
     gap: spacing.md,
     marginBottom: spacing.xl,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 200,
   },
   title: {
     fontSize: fontSizes.xxl,
@@ -308,53 +299,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 
-  // Stats cards
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  statsGridDesktop: {
-    // sur desktop, grosses cartes alignées
-  },
-  statCard: {
-    flex: 1,
-    minWidth: 140,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  statIcon: {
-    fontSize: 28,
-    marginBottom: spacing.xs,
-  },
-  statValue: {
-    fontSize: fontSizes.xxl,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: fontSizes.xs,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-
   // Filtres
-  filters: {
-    marginBottom: spacing.lg,
-  },
-  filtersLabel: {
-    fontSize: fontSizes.sm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  filterChips: {
+  filtersRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
@@ -384,11 +330,30 @@ const styles = StyleSheet.create({
   toggleInactive: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: spacing.xl,
+    alignSelf: 'flex-start',
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  toggleInactiveIcon: {
-    fontSize: fontSizes.md,
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 3,
     marginRight: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  checkboxChecked: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  checkboxInner: {
+    width: 10,
+    height: 10,
+    backgroundColor: colors.white,
+    borderRadius: 1,
   },
   toggleInactiveLabel: {
     fontSize: fontSizes.sm,
@@ -399,10 +364,11 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     padding: spacing.xxl,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
   },
   emptyTitle: {
     fontSize: fontSizes.xl,
@@ -416,7 +382,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Products grid
+  // Grille de produits
   productsGrid: {
     gap: spacing.md,
   },
@@ -441,8 +407,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 160,
     backgroundColor: colors.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
     position: 'relative',
   },
   productImg: {
@@ -450,8 +414,17 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  productImgPlaceholder: {
-    fontSize: 64,
+  productImgEmpty: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  productImgEmptyText: {
+    color: colors.primary,
+    fontSize: fontSizes.lg,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
   inactiveBadge: {
     position: 'absolute',
@@ -517,9 +490,5 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.textSecondary,
     marginLeft: spacing.xs,
-  },
-  productActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
   },
 });

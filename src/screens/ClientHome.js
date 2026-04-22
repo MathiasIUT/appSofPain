@@ -24,7 +24,6 @@ export default function ClientHome({ navigation }) {
       <View style={styles.content}>
         <BrandHeader />
 
-        <Text style={styles.icon}>🚧</Text>
         <Text style={styles.title}>Espace Client</Text>
         <Text style={styles.subtitle}>
           Le catalogue et la prise de commande seront bientôt disponibles.
@@ -49,15 +48,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.xl,
   },
-  icon: {
-    fontSize: 72,
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-  },
   title: {
     fontSize: fontSizes.xxl,
     fontWeight: 'bold',
     color: colors.textPrimary,
+    marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
   subtitle: {

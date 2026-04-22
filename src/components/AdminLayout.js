@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Platform,
@@ -13,23 +14,16 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
 /**
  * Layout commun pour tous les écrans admin.
- * - Desktop : sidebar à gauche avec les sections
+ * - Desktop : sidebar à gauche
  * - Mobile : onglets en bas
- *
- * Props :
- *   - children : le contenu de l'écran actif
- *   - currentSection (string) : clé de la section active
- *   - onNavigate (function) : callback pour changer de section
- *   - navigation : prop de react-navigation (pour logout)
  */
 
 // Liste des sections du panneau admin
-// Pour ajouter une section plus tard, il suffira d'ajouter un objet ici
 const SECTIONS = [
-  { key: 'products', label: 'Produits', icon: '🥖' },
-  { key: 'orders', label: 'Commandes', icon: '📦', disabled: true, badge: 'Bientôt' },
-  { key: 'clients', label: 'Clients', icon: '👥', disabled: true, badge: 'Bientôt' },
-  { key: 'stats', label: 'Statistiques', icon: '📊', disabled: true, badge: 'Bientôt' },
+  { key: 'products', label: 'Produits' },
+  { key: 'orders', label: 'Commandes', disabled: true, badge: 'Bientôt' },
+  { key: 'clients', label: 'Clients', disabled: true, badge: 'Bientôt' },
+  { key: 'stats', label: 'Statistiques', disabled: true, badge: 'Bientôt' },
 ];
 
 export default function AdminLayout({
@@ -41,7 +35,6 @@ export default function AdminLayout({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  // Déconnexion
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigation.reset({
@@ -67,9 +60,6 @@ export default function AdminLayout({
         disabled={isDisabled}
         activeOpacity={0.7}
       >
-        <Text style={isDesktop ? styles.sidebarIcon : styles.tabIcon}>
-          {section.icon}
-        </Text>
         <Text
           style={[
             isDesktop ? styles.sidebarLabel : styles.tabLabel,
@@ -94,9 +84,12 @@ export default function AdminLayout({
         {isDesktop && (
           <View style={styles.sidebar}>
             <View style={styles.sidebarHeader}>
-              <Text style={styles.logo}>🥖</Text>
-              <Text style={styles.brandName}>Sof Pain</Text>
-              <Text style={styles.brandRole}>Espace Admin</Text>
+              <Image
+                source={require('../../assets/logo1.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+              <Text style={styles.brandRole}>Espace Administrateur</Text>
             </View>
 
             <View style={styles.sidebarNav}>
@@ -105,7 +98,6 @@ export default function AdminLayout({
 
             <View style={styles.sidebarFooter}>
               <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutIcon}>🚪</Text>
                 <Text style={styles.logoutText}>Déconnexion</Text>
               </TouchableOpacity>
             </View>
@@ -117,15 +109,17 @@ export default function AdminLayout({
           {/* Header mobile */}
           {!isDesktop && (
             <View style={styles.mobileHeader}>
-              <Text style={styles.mobileHeaderLogo}>🥖</Text>
-              <Text style={styles.mobileHeaderTitle}>Sof Pain Admin</Text>
+              <Image
+                source={require('../../assets/logo1.png')}
+                style={styles.mobileLogo}
+                resizeMode="contain"
+              />
               <TouchableOpacity onPress={handleLogout} style={styles.mobileLogout}>
-                <Text style={styles.mobileLogoutIcon}>🚪</Text>
+                <Text style={styles.mobileLogoutText}>Déconnexion</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Enfant (écran actif) */}
           <View style={styles.childrenContainer}>{children}</View>
 
           {/* TABS (mobile) */}
@@ -171,19 +165,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   logo: {
-    fontSize: 40,
-    marginBottom: spacing.xs,
-  },
-  brandName: {
-    fontSize: fontSizes.xl,
-    fontWeight: 'bold',
-    color: colors.primary,
+    width: 100,
+    height: 100,
+    marginBottom: spacing.sm,
   },
   brandRole: {
     fontSize: fontSizes.xs,
     color: colors.textSecondary,
     fontStyle: 'italic',
-    marginTop: spacing.xs,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   sidebarNav: {
     flex: 1,
@@ -204,10 +195,6 @@ const styles = StyleSheet.create({
   sidebarItemActive: {
     backgroundColor: colors.secondary,
   },
-  sidebarIcon: {
-    fontSize: fontSizes.lg,
-    marginRight: spacing.md,
-  },
   sidebarLabel: {
     fontSize: fontSizes.md,
     color: colors.textPrimary,
@@ -219,7 +206,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   badge: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textLight,
     paddingVertical: 2,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.round,
@@ -238,20 +225,15 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
+    alignItems: 'center',
     ...Platform.select({
       web: {
         cursor: 'pointer',
       },
     }),
-  },
-  logoutIcon: {
-    fontSize: fontSizes.lg,
-    marginRight: spacing.md,
   },
   logoutText: {
     fontSize: fontSizes.md,
@@ -271,27 +253,25 @@ const styles = StyleSheet.create({
   mobileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  mobileHeaderLogo: {
-    fontSize: 24,
-    marginRight: spacing.sm,
-  },
-  mobileHeaderTitle: {
-    flex: 1,
-    fontSize: fontSizes.lg,
-    fontWeight: '600',
-    color: colors.primary,
+  mobileLogo: {
+    width: 40,
+    height: 40,
   },
   mobileLogout: {
-    padding: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
-  mobileLogoutIcon: {
-    fontSize: 20,
+  mobileLogoutText: {
+    fontSize: fontSizes.sm,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
 
   // --- TABS (mobile) ---
@@ -305,7 +285,7 @@ const styles = StyleSheet.create({
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     ...Platform.select({
       web: {
         cursor: 'pointer',
@@ -313,15 +293,12 @@ const styles = StyleSheet.create({
     }),
   },
   tabItemActive: {
-    // rien de spécial, on change juste la couleur du texte/icône
-  },
-  tabIcon: {
-    fontSize: fontSizes.xl,
-    marginBottom: spacing.xs,
+    // couleur gérée via le texte
   },
   tabLabel: {
     fontSize: fontSizes.xs,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
   tabLabelActive: {
     color: colors.primary,

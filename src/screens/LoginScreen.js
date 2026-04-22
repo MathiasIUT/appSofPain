@@ -15,8 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import BrandHeader from '../components/BrandHeader';
 
-// Alert cross-platform (Alert.alert ne fonctionne pas bien sur le web)
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
     window.alert(`${title}\n\n${message}`);
@@ -31,11 +31,9 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Dimensions de la fenêtre pour le responsive
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
-  // Validation des champs
   const validate = () => {
     const newErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,20 +54,23 @@ export default function LoginScreen({ navigation }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Gestion de la connexion
   const handleLogin = async () => {
     if (!validate()) return;
 
     setLoading(true);
     try {
-      // 1. Authentification auprès de Supabase
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
 
       if (authError) {
-        if (authError.message.includes('Invalid login credentials')) {
+        if (authError.message.includes('Email not confirmed')) {
+          showAlert(
+            'Compte non confirmé',
+            'Vous devez d\'abord confirmer votre email. Vérifiez votre boîte mail.'
+          );
+        } else if (authError.message.includes('Invalid login credentials')) {
           showAlert('Erreur', 'Email ou mot de passe incorrect.');
         } else {
           showAlert('Erreur', authError.message);
@@ -77,7 +78,6 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      // 2. Récupération du profil pour connaître le rôle
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role, nom, prenom, nom_societe')
@@ -89,7 +89,6 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      // 3. Redirection selon le rôle
       if (profile.role === 'admin') {
         navigation.reset({
           index: 0,
@@ -119,15 +118,9 @@ export default function LoginScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Conteneur centré avec largeur max sur desktop */}
           <View style={[styles.card, isDesktop && styles.cardDesktop]}>
-            {/* En-tête avec branding Sof Pain */}
-            <View style={styles.header}>
-              <Text style={styles.brandName}>Sof Pain</Text>
-              <Text style={styles.tagline}>L'artisan des professionnels</Text>
-            </View>
+            <BrandHeader />
 
-            {/* Titre de la page */}
             <View style={styles.titleBlock}>
               <Text style={styles.title}>Connexion</Text>
               <Text style={styles.subtitle}>
@@ -135,9 +128,7 @@ export default function LoginScreen({ navigation }) {
               </Text>
             </View>
 
-            {/* Formulaire */}
             <View style={styles.form}>
-              {/* Email */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
@@ -157,7 +148,6 @@ export default function LoginScreen({ navigation }) {
                 {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
 
-              {/* Mot de passe */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Mot de passe</Text>
                 <TextInput
@@ -178,7 +168,6 @@ export default function LoginScreen({ navigation }) {
                 )}
               </View>
 
-              {/* Bouton de connexion */}
               <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={handleLogin}
@@ -192,7 +181,6 @@ export default function LoginScreen({ navigation }) {
                 )}
               </TouchableOpacity>
 
-              {/* Lien inscription */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Pas encore de compte ? </Text>
                 <TouchableOpacity
@@ -237,27 +225,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  logo: {
-    fontSize: 64,
-    marginBottom: spacing.sm,
-  },
-  brandName: {
-    fontSize: fontSizes.title,
-    fontWeight: 'bold',
-    color: colors.primary,
-    letterSpacing: 0.5,
-  },
-  tagline: {
-    fontSize: fontSizes.sm,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
-    textAlign: 'center',
   },
   titleBlock: {
     alignItems: 'center',
