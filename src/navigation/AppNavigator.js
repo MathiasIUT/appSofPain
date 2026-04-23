@@ -7,6 +7,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ConfirmEmailScreen from '../screens/ConfirmEmailScreen';
 import AdminDashboard from '../screens/AdminDashboard';
 import ClientHome from '../screens/ClientHome';
+import CartScreen from '../screens/CartScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,9 +26,13 @@ export default function AppNavigator() {
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="ConfirmEmail" component={ConfirmEmailScreen} />
 
-        {/* Écrans applicatifs */}
+        {/* Admin */}
         <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+
+        {/* Client */}
         <Stack.Screen name="ClientHome" component={ClientHome} />
+        <Stack.Screen name="Cart" component={CartScreen} />
+        {/* Checkout et MyOrders seront ajoutés dans les livraisons B et C */}
       </Stack.Navigator>
     </NavigationContainer>
   );
