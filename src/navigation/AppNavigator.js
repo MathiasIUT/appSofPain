@@ -10,6 +10,8 @@ import ClientHome from '../screens/ClientHome';
 import CartScreen from '../screens/CartScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
+import MyOrdersScreen from '../screens/MyOrdersScreen';
+import OrderDetailScreen from '../screens/OrderDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,7 +38,8 @@ export default function AppNavigator() {
         <Stack.Screen name="Cart" component={CartScreen} />
         <Stack.Screen name="Checkout" component={CheckoutScreen} />
         <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-        {/* MyOrders sera ajouté à la Livraison C */}
+        <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
+        <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

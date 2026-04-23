@@ -36,7 +36,7 @@ export const colors = {
 
   // Bordures
   border: '#E0E0E0',
-  borderFocus: '#8B5E3C',
+  borderFocus: '#d1976a',
 };
 
 export const spacing = {
