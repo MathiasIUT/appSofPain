@@ -114,13 +114,24 @@ export default function CheckoutScreen({ navigation }) {
     } else if (!/^[0-9+\s().-]{8,20}$/.test(form.telephone.trim())) {
       newErrors.telephone = 'Numéro de téléphone invalide';
     }
-    if (!form.adresse.trim()) newErrors.adresse = 'L\'adresse est requise';
+    if (!form.adresse.trim()) {
+      newErrors.adresse = 'L\'adresse est requise';
+    } else if (form.adresse.trim().length > 200) {
+      newErrors.adresse = 'Adresse trop longue (max 200 caractères)';
+    }
     if (!form.code_postal.trim()) {
       newErrors.code_postal = 'Le code postal est requis';
     } else if (!/^[0-9]{4,6}$/.test(form.code_postal.trim())) {
       newErrors.code_postal = 'Code postal invalide';
     }
-    if (!form.ville.trim()) newErrors.ville = 'La ville est requise';
+    if (!form.ville.trim()) {
+      newErrors.ville = 'La ville est requise';
+    } else if (form.ville.trim().length > 100) {
+      newErrors.ville = 'Ville trop longue (max 100 caractères)';
+    }
+    if (form.notes.trim().length > 1000) {
+      newErrors.notes = 'Notes trop longues (max 1000 caractères)';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

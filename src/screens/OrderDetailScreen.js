@@ -59,7 +59,15 @@ export default function OrderDetailScreen({ navigation, route }) {
     (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        const [itemsRes, profileRes] = await Promise.all([
+        if (!user) { navigation.reset({ index: 0, routes: [{ name: 'Login' }] }); return; }
+
+        const [ownershipRes, itemsRes, profileRes] = await Promise.all([
+          supabase
+            .from('orders')
+            .select('id')
+            .eq('id', order.id)
+            .eq('client_id', user.id)
+            .single(),
           supabase
             .from('order_items')
             .select('*')
@@ -71,6 +79,11 @@ export default function OrderDetailScreen({ navigation, route }) {
             .eq('id', user.id)
             .single(),
         ]);
+
+        if (!ownershipRes.data) {
+          navigation.goBack();
+          return;
+        }
         if (itemsRes.data) setItems(itemsRes.data);
         if (profileRes.data) setClient(profileRes.data);
       } catch (err) {

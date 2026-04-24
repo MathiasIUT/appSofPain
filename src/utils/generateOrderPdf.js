@@ -50,8 +50,8 @@ function buildHtml(order, items, client) {
     return `
       <tr>
         <td class="product-name">${esc(it.product_nom)}</td>
-        <td class="c">${it.quantite_palettes}</td>
-        <td class="c">${it.cartons_par_palette}</td>
+        <td class="c">${esc(String(it.quantite_palettes))}</td>
+        <td class="c">${esc(String(it.cartons_par_palette))}</td>
         <td class="r">${n2(pu)} €</td>
         <td class="c">${n1(tva)} %</td>
         <td class="r">${n2(stHt)} €</td>
