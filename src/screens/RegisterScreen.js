@@ -33,6 +33,7 @@ export default function RegisterScreen({ navigation }) {
     prenom: '',
     nomSociete: '',
     email: '',
+    telephone: '',
     password: '',
     confirmPassword: '',
   });
@@ -58,10 +59,17 @@ export default function RegisterScreen({ navigation }) {
     if (!form.prenom.trim()) newErrors.prenom = 'Le prénom est requis';
     if (!form.nomSociete.trim()) newErrors.nomSociete = 'Le nom de société est requis';
 
+
     if (!form.email.trim()) {
       newErrors.email = 'L\'email est requis';
     } else if (!emailRegex.test(form.email.trim())) {
       newErrors.email = 'Format d\'email invalide';
+    }
+
+     if (!form.telephone.trim()) {
+      newErrors.telephone = 'Le numéro de téléphone est requis';
+    } else if (form.telephone.trim().length < 10) {
+      newErrors.telephone = 'Format de téléphone invalide';
     }
 
     if (!form.password) {
@@ -100,6 +108,7 @@ export default function RegisterScreen({ navigation }) {
             nom: form.nom.trim(),
             prenom: form.prenom.trim(),
             nom_societe: form.nomSociete.trim(),
+            telephone: form.telephone.trim(),
           },
         },
       });
@@ -179,6 +188,10 @@ export default function RegisterScreen({ navigation }) {
                 keyboardType: 'email-address',
                 autoCapitalize: 'none',
                 autoCorrect: false,
+              })}
+
+              {renderField('telephone', 'Téléphone', '06 12 34 56 78', {
+                keyboardType: 'phone-pad',
               })}
 
               {renderField('password', 'Mot de passe', 'Au moins 8 caractères', {

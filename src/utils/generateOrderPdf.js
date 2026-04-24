@@ -50,6 +50,10 @@ export async function generateOrderPdf(order, items, client) {
 // Construction du HTML
 // ─────────────────────────────────────────────────────────────────────────────
 
+export function buildOrderHtml(order, items, client) {
+  return buildHtml(order, items, client);
+}
+
 function buildHtml(order, items, client) {
   const dateCommande  = fmt(order.date_commande  ?? new Date());
   const dateLivraison = order.date_livraison_souhaitee

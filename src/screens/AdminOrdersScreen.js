@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createElement } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
-import { generateOrderPdf } from '../utils/generateOrderPdf';
+import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ const STATUT_COLORS = {
 
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
-const n2  = (v) => Number(v ?? 0).toFixed(2);
+const n2 = (v) => Number(v ?? 0).toFixed(2);
 
 const showAlert = (title, msg) => {
   if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
@@ -57,15 +57,14 @@ const showAlert = (title, msg) => {
 // ─── Écran principal ─────────────────────────────────────────────────────────
 
 export default function AdminOrdersScreen() {
-  const [orders, setOrders]           = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [filter, setFilter]           = useState('toutes');
-  const [selectedOrder, setSelected]  = useState(null);
+  const [orders, setOrders]             = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [filter, setFilter]             = useState('toutes');
+  const [selectedOrder, setSelected]    = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  // Chargement des commandes avec les infos client
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
@@ -73,7 +72,7 @@ export default function AdminOrdersScreen() {
         .from('orders')
         .select(`
           *,
-          client:profiles!orders_client_id_fkey(
+          client:profiles!client_id(
             id, nom, prenom, nom_societe, email, telephone
           )
         `)
@@ -123,7 +122,7 @@ export default function AdminOrdersScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Filtres par statut ──────────────────────────────── */}
+      {/* ── Filtres ─────────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -164,7 +163,9 @@ export default function AdminOrdersScreen() {
       ) : displayed.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyText}>Aucune commande{filter !== 'toutes' ? ' pour ce statut' : ''}.</Text>
+          <Text style={styles.emptyText}>
+            Aucune commande{filter !== 'toutes' ? ' pour ce statut' : ''}.
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -172,11 +173,13 @@ export default function AdminOrdersScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, isDesktop && styles.listDesktop]}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          renderItem={({ item }) => <OrderRow item={item} onPress={openOrder} isDesktop={isDesktop} />}
+          renderItem={({ item }) => (
+            <OrderRow item={item} onPress={openOrder} isDesktop={isDesktop} />
+          )}
         />
       )}
 
-      {/* ── Modal détail commande ───────────────────────────── */}
+      {/* ── Modal détail ────────────────────────────────────── */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -184,7 +187,10 @@ export default function AdminOrdersScreen() {
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, isDesktop && styles.modalBoxDesktop]}>
+          <View style={[
+            styles.modalBox,
+            isDesktop && styles.modalBoxDesktop,
+          ]}>
             {selectedOrder && (
               <OrderDetailModal
                 order={selectedOrder}
@@ -209,17 +215,15 @@ function OrderRow({ item, onPress, isDesktop }) {
 
   return (
     <TouchableOpacity
-      style={[styles.row, isDesktop && styles.rowDesktop]}
+      style={styles.row}
       onPress={() => onPress(item)}
       activeOpacity={0.75}
     >
-      {/* Numéro + date */}
       <View style={styles.rowCol}>
         <Text style={styles.rowNum}>N° {item.numero}</Text>
         <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
       </View>
 
-      {/* Client */}
       <View style={[styles.rowCol, styles.rowColFlex]}>
         <Text style={styles.rowClient} numberOfLines={1}>{clientName}</Text>
         {item.client?.email ? (
@@ -227,7 +231,6 @@ function OrderRow({ item, onPress, isDesktop }) {
         ) : null}
       </View>
 
-      {/* Livraison */}
       {isDesktop && (
         <View style={styles.rowCol}>
           <Text style={styles.rowLabel}>Livraison</Text>
@@ -235,13 +238,11 @@ function OrderRow({ item, onPress, isDesktop }) {
         </View>
       )}
 
-      {/* Total */}
       <View style={[styles.rowCol, styles.rowColRight]}>
         <Text style={styles.rowTotal}>{n2(item.total_ttc)} €</Text>
         <Text style={styles.rowTotalLabel}>TTC</Text>
       </View>
 
-      {/* Statut */}
       <View style={[styles.badge, { backgroundColor: sColor + '22' }]}>
         <Text style={[styles.badgeText, { color: sColor }]}>
           {STATUT_LABELS[item.statut] || item.statut}
@@ -253,15 +254,19 @@ function OrderRow({ item, onPress, isDesktop }) {
   );
 }
 
-// ─── Modal détail ────────────────────────────────────────────────────────────
+// ─── Modal détail commande ───────────────────────────────────────────────────
 
 function OrderDetailModal({ order, onClose, onUpdated }) {
-  const [items, setItems]           = useState([]);
+  const [items, setItems]               = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
-  const [statut, setStatut]         = useState(order.statut);
-  const [notesAdmin, setNotesAdmin] = useState(order.notes_admin || '');
-  const [saving, setSaving]         = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [statut, setStatut]             = useState(order.statut);
+  const [notesAdmin, setNotesAdmin]     = useState(order.notes_admin || '');
+  const [saving, setSaving]             = useState(false);
+  const [pdfLoading, setPdfLoading]     = useState(false);
+  const [previewHtml, setPreviewHtml]   = useState('');
+
+  const { width, height } = useWindowDimensions();
+  const isDesktop = width >= 900;
 
   useEffect(() => {
     (async () => {
@@ -273,7 +278,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           .eq('order_id', order.id)
           .order('created_at', { ascending: true });
         if (error) throw error;
-        setItems(data || []);
+        const fetched = data || [];
+        setItems(fetched);
+        // Aperçu PDF dès que les items sont chargés
+        if (order.client) {
+          setPreviewHtml(buildOrderHtml(order, fetched, order.client));
+        }
       } catch (err) {
         console.error('Erreur chargement items :', err);
       } finally {
@@ -303,7 +313,10 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   };
 
   const handlePdf = async () => {
-    if (!order.client) return;
+    if (!order.client) {
+      showAlert('Erreur', 'Infos client non disponibles.');
+      return;
+    }
     setPdfLoading(true);
     try {
       await generateOrderPdf(order, items, order.client);
@@ -319,12 +332,20 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
     || '—';
 
+  // Fallback : extraire le téléphone depuis l'adresse si absent du profil
+  const telephone = order.client?.telephone
+    || (order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim())
+    || '—';
+
   const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '');
+
+  // Hauteur utile pour les colonnes (modal - header)
+  const bodyHeight = Math.min(height * 0.88, 820) - 64;
 
   return (
     <View style={modal.container}>
 
-      {/* ── Header modal ───────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────── */}
       <View style={modal.header}>
         <View>
           <Text style={modal.headerNum}>N° {order.numero}</Text>
@@ -332,7 +353,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         </View>
         <View style={modal.headerRight}>
           <Button
-            title="📄 PDF"
+            title="📄 Imprimer PDF"
             variant="secondary"
             size="sm"
             onPress={handlePdf}
@@ -345,132 +366,166 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         </View>
       </View>
 
-      <ScrollView style={modal.scroll} contentContainerStyle={modal.body}>
+      {/* ── Body : 2 colonnes sur desktop ──────────────────── */}
+      <View style={[modal.body, isDesktop && { flexDirection: 'row', height: bodyHeight }]}>
 
-        {/* ── Statut ─────────────────────────────────────── */}
-        <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Statut</Text>
-          <View style={modal.statutRow}>
-            {STATUTS.filter((s) => s.key !== 'toutes').map((s) => {
-              const active = statut === s.key;
-              const c = STATUT_COLORS[s.key];
-              return (
-                <TouchableOpacity
-                  key={s.key}
-                  style={[modal.statutChip, active && { backgroundColor: c, borderColor: c }]}
-                  onPress={() => setStatut(s.key)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[modal.statutChipText, active && modal.statutChipTextActive]}>
-                    {s.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+        {/* ── Colonne gauche : infos ──────────────────────── */}
+        <ScrollView
+          style={[modal.leftCol, isDesktop && modal.leftColDesktop]}
+          contentContainerStyle={modal.leftColContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Statut */}
+          <View style={modal.section}>
+            <Text style={modal.sectionTitle}>Statut</Text>
+            <View style={modal.statutRow}>
+              {STATUTS.filter((s) => s.key !== 'toutes').map((s) => {
+                const active = statut === s.key;
+                const c = STATUT_COLORS[s.key];
+                return (
+                  <TouchableOpacity
+                    key={s.key}
+                    style={[modal.statutChip, active && { backgroundColor: c, borderColor: c }]}
+                    onPress={() => setStatut(s.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[modal.statutChipText, active && modal.statutChipTextActive]}>
+                      {s.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        </View>
 
-        {/* ── Client ─────────────────────────────────────── */}
-        <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Client</Text>
-          <View style={modal.infoGrid}>
-            <InfoItem label="Société"   value={order.client?.nom_societe || '—'} />
-            <InfoItem label="Contact"   value={clientName} />
-            <InfoItem label="Email"     value={order.client?.email || '—'} />
-            <InfoItem label="Téléphone" value={order.client?.telephone || '—'} />
+          {/* Client */}
+          <View style={modal.section}>
+            <Text style={modal.sectionTitle}>Client</Text>
+            <View style={modal.infoGrid}>
+              <InfoItem label="Société"    value={order.client?.nom_societe || '—'} />
+              <InfoItem label="Contact"    value={clientName} />
+              <InfoItem label="Email"      value={order.client?.email || '—'} />
+              <InfoItem label="Téléphone"  value={telephone} />
+            </View>
           </View>
-        </View>
 
-        {/* ── Livraison ───────────────────────────────────── */}
-        <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Livraison</Text>
-          <View style={modal.infoGrid}>
-            <InfoItem label="Date souhaitée" value={fmt(order.date_livraison_souhaitee)} />
-            {order.date_livraison_reelle ? (
-              <InfoItem label="Date réelle" value={fmt(order.date_livraison_reelle)} />
+          {/* Livraison */}
+          <View style={modal.section}>
+            <Text style={modal.sectionTitle}>Livraison</Text>
+            <View style={modal.infoGrid}>
+              <InfoItem label="Date souhaitée" value={fmt(order.date_livraison_souhaitee)} />
+              {order.date_livraison_reelle ? (
+                <InfoItem label="Date réelle" value={fmt(order.date_livraison_reelle)} />
+              ) : null}
+            </View>
+            {order.adresse_livraison ? (
+              <View style={modal.addressBox}>
+                <Text style={modal.addressLabel}>Adresse</Text>
+                <Text style={modal.addressText}>{order.adresse_livraison}</Text>
+              </View>
             ) : null}
           </View>
-          {order.adresse_livraison ? (
-            <View style={modal.addressBox}>
-              <Text style={modal.addressLabel}>Adresse</Text>
-              <Text style={modal.addressText}>{order.adresse_livraison}</Text>
+
+          {/* Produits */}
+          <View style={modal.section}>
+            <Text style={modal.sectionTitle}>Produits commandés</Text>
+            {loadingItems ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
+            ) : (
+              <>
+                <View style={modal.tableHead}>
+                  <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
+                  <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Pal.</Text>
+                  <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>
+                  <Text style={[modal.th, modal.right, { flex: 1 }]}>TVA</Text>
+                  <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
+                </View>
+                {items.map((it, idx) => (
+                  <View key={it.id} style={[modal.tableRow, idx % 2 === 1 && modal.rowAlt]}>
+                    <Text style={[modal.td, { flex: 3 }]} numberOfLines={2}>{it.product_nom}</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite_palettes}</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{n2(it.prix_palette_ht)} €</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1 }]}>{n2(it.tva_pourcent)} %</Text>
+                    <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }]}>{n2(it.sous_total_ht)} €</Text>
+                  </View>
+                ))}
+                <View style={modal.totals}>
+                  <TotalLine label="Total HT"  value={`${n2(order.total_ht)} €`} />
+                  <TotalLine label="TVA"        value={`${n2(order.total_tva)} €`} />
+                  <TotalLine label="Total TTC"  value={`${n2(order.total_ttc)} €`} final />
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* Notes client */}
+          {order.notes_client ? (
+            <View style={modal.section}>
+              <Text style={modal.sectionTitle}>Notes du client</Text>
+              <View style={modal.notesClientBox}>
+                <Text style={modal.notesClientText}>{order.notes_client}</Text>
+              </View>
             </View>
           ) : null}
-        </View>
 
-        {/* ── Produits ────────────────────────────────────── */}
-        <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Produits commandés</Text>
-          {loadingItems ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
-          ) : (
-            <>
-              {/* En-tête */}
-              <View style={modal.tableHead}>
-                <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
-                <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Pal.</Text>
-                <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>
-                <Text style={[modal.th, modal.right, { flex: 1 }]}>TVA</Text>
-                <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
-              </View>
-              {items.map((it, idx) => (
-                <View key={it.id} style={[modal.tableRow, idx % 2 === 1 && modal.rowAlt]}>
-                  <Text style={[modal.td, { flex: 3 }]} numberOfLines={2}>{it.product_nom}</Text>
-                  <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite_palettes}</Text>
-                  <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{n2(it.prix_palette_ht)} €</Text>
-                  <Text style={[modal.td, modal.right, { flex: 1 }]}>{n2(it.tva_pourcent)} %</Text>
-                  <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }]}>{n2(it.sous_total_ht)} €</Text>
-                </View>
-              ))}
-
-              {/* Totaux */}
-              <View style={modal.totals}>
-                <TotalLine label="Total HT"  value={`${n2(order.total_ht)} €`} />
-                <TotalLine label="TVA"       value={`${n2(order.total_tva)} €`} />
-                <TotalLine label="Total TTC" value={`${n2(order.total_ttc)} €`} final />
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* ── Notes client ────────────────────────────────── */}
-        {order.notes_client ? (
+          {/* Notes admin */}
           <View style={modal.section}>
-            <Text style={modal.sectionTitle}>Notes du client</Text>
-            <View style={modal.notesClientBox}>
-              <Text style={modal.notesClientText}>{order.notes_client}</Text>
+            <Text style={modal.sectionTitle}>Notes internes (admin)</Text>
+            <TextInput
+              style={modal.notesInput}
+              value={notesAdmin}
+              onChangeText={setNotesAdmin}
+              placeholder="Ajouter une note interne..."
+              placeholderTextColor={colors.textLight}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          {changed ? (
+            <Button
+              title="Enregistrer les modifications"
+              onPress={handleSave}
+              loading={saving}
+              disabled={saving}
+              fullWidth
+              size="lg"
+            />
+          ) : null}
+
+          <View style={{ height: spacing.xl }} />
+        </ScrollView>
+
+        {/* ── Colonne droite : aperçu PDF (desktop web only) ── */}
+        {isDesktop && Platform.OS === 'web' && (
+          <View style={modal.rightCol}>
+            <View style={modal.previewHeader}>
+              <Text style={modal.sectionTitle}>Aperçu bon de commande</Text>
+            </View>
+            <View style={modal.iframeWrap}>
+              {previewHtml
+                ? createElement('iframe', {
+                    srcDoc: previewHtml,
+                    style: {
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      backgroundColor: '#fff',
+                    },
+                    title: 'Aperçu bon de commande',
+                  })
+                : (
+                  <View style={modal.previewLoading}>
+                    <ActivityIndicator color={colors.primary} />
+                    <Text style={modal.previewLoadingText}>Génération de l'aperçu...</Text>
+                  </View>
+                )
+              }
             </View>
           </View>
-        ) : null}
-
-        {/* ── Notes admin ─────────────────────────────────── */}
-        <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Notes internes (admin)</Text>
-          <TextInput
-            style={modal.notesInput}
-            value={notesAdmin}
-            onChangeText={setNotesAdmin}
-            placeholder="Ajouter une note interne..."
-            placeholderTextColor={colors.textLight}
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-
-        {/* ── Actions ─────────────────────────────────────── */}
-        {changed ? (
-          <Button
-            title="Enregistrer les modifications"
-            onPress={handleSave}
-            loading={saving}
-            disabled={saving}
-            fullWidth
-            size="lg"
-          />
-        ) : null}
-
-        <View style={{ height: spacing.xl }} />
-      </ScrollView>
+        )}
+      </View>
     </View>
   );
 }
@@ -500,7 +555,6 @@ function TotalLine({ label, value, final }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
-  // Top bar
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -517,9 +571,18 @@ const styles = StyleSheet.create({
   refreshBtn:   { ...Platform.select({ web: { cursor: 'pointer' } }) },
   refreshText:  { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '500' },
 
-  // Filtres
-  filtersScroll: { maxHeight: 56, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
-  filtersRow:    { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm, flexDirection: 'row' },
+  filtersScroll: {
+    maxHeight: 56,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  filtersRow: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+    flexDirection: 'row',
+  },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -532,25 +595,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  filterChipActive:  { borderColor: colors.primary, backgroundColor: colors.secondary },
-  filterLabel:       { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
-  filterLabelActive: { color: colors.primary, fontWeight: '700' },
-  filterCount:       { backgroundColor: colors.border, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
-  filterCountActive: { backgroundColor: colors.primary },
-  filterCountText:   { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  filterChipActive:      { borderColor: colors.primary, backgroundColor: colors.secondary },
+  filterLabel:           { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
+  filterLabelActive:     { color: colors.primary, fontWeight: '700' },
+  filterCount:           { backgroundColor: colors.border, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
+  filterCountActive:     { backgroundColor: colors.primary },
+  filterCountText:       { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
   filterCountTextActive: { color: colors.white },
 
-  // États
   centered:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: spacing.md, color: colors.textSecondary },
   emptyIcon:   { fontSize: 36, marginBottom: spacing.sm },
   emptyText:   { fontSize: fontSizes.md, color: colors.textSecondary },
 
-  // Liste
   list:        { padding: spacing.lg, paddingBottom: spacing.xxl },
   listDesktop: { maxWidth: 1100, alignSelf: 'center', width: '100%' },
 
-  // Ligne
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -563,16 +623,15 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  rowDesktop: { paddingVertical: spacing.md },
-  rowCol:     { flexDirection: 'column', justifyContent: 'center' },
-  rowColFlex: { flex: 1 },
-  rowColRight:{ alignItems: 'flex-end' },
-  rowNum:     { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
-  rowDate:    { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
-  rowLabel:   { fontSize: fontSizes.xs, color: colors.textLight },
-  rowClient:  { fontSize: fontSizes.sm, fontWeight: '600', color: colors.textPrimary },
-  rowEmail:   { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
-  rowTotal:   { fontSize: fontSizes.md, fontWeight: '700', color: colors.primary },
+  rowCol:      { flexDirection: 'column', justifyContent: 'center' },
+  rowColFlex:  { flex: 1 },
+  rowColRight: { alignItems: 'flex-end' },
+  rowNum:      { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
+  rowDate:     { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
+  rowLabel:    { fontSize: fontSizes.xs, color: colors.textLight },
+  rowClient:   { fontSize: fontSizes.sm, fontWeight: '600', color: colors.textPrimary },
+  rowEmail:    { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
+  rowTotal:    { fontSize: fontSizes.md, fontWeight: '700', color: colors.primary },
   rowTotalLabel: { fontSize: fontSizes.xs, color: colors.textLight, textAlign: 'right' },
   badge: {
     paddingHorizontal: spacing.sm,
@@ -581,13 +640,12 @@ const styles = StyleSheet.create({
     minWidth: 90,
     alignItems: 'center',
   },
-  badgeText:  { fontSize: fontSizes.xs, fontWeight: '600' },
-  arrow:      { fontSize: 20, color: colors.border, marginLeft: spacing.xs },
+  badgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
+  arrow:     { fontSize: 20, color: colors.border, marginLeft: spacing.xs },
 
-  // Modal overlay
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
     ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
   },
@@ -596,23 +654,20 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '92%',
-    ...Platform.select({ web: { borderRadius: 16, width: '100%', maxWidth: 780, maxHeight: '90%' } }),
   },
   modalBoxDesktop: {
     borderRadius: 16,
-    maxWidth: 780,
-    alignSelf: 'center',
-    width: '100%',
+    width: '96%',
+    maxWidth: 1160,
     maxHeight: '90%',
+    alignSelf: 'center',
   },
 });
 
 // ─── Styles modal ────────────────────────────────────────────────────────────
 
 const modal = StyleSheet.create({
-  container: { flex: 1 },
-  scroll:    { flex: 1 },
-  body:      { padding: spacing.lg, paddingBottom: spacing.xxl },
+  container: { flex: 1, overflow: 'hidden' },
 
   // Header
   header: {
@@ -633,6 +688,41 @@ const modal = StyleSheet.create({
   closeBtn:    { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
   closeText:   { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
 
+  // Layout 2 colonnes
+  body: { flex: 1 },
+
+  // Colonne gauche (infos)
+  leftCol:        { flex: 1 },
+  leftColDesktop: { flex: 1, borderRightWidth: 1, borderRightColor: colors.border },
+  leftColContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
+
+  // Colonne droite (aperçu)
+  rightCol: {
+    flex: 1,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  previewHeader: {
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  iframeWrap: {
+    flex: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
+    ...Platform.select({ web: { border: '1px solid ' + colors.border } }),
+  },
+  previewLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  previewLoadingText: { fontSize: fontSizes.sm, color: colors.textSecondary },
+
   // Sections
   section:      { marginBottom: spacing.lg },
   sectionTitle: {
@@ -647,7 +737,7 @@ const modal = StyleSheet.create({
     borderBottomColor: colors.border,
   },
 
-  // Statut chips
+  // Statut
   statutRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   statutChip: {
     paddingHorizontal: spacing.md,
@@ -661,18 +751,18 @@ const modal = StyleSheet.create({
   statutChipText:       { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
   statutChipTextActive: { color: colors.white, fontWeight: '700' },
 
-  // Infos client/livraison
+  // Infos
   infoGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  infoItem:  { minWidth: 160, flex: 1, backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.sm },
+  infoItem:  { minWidth: 140, flex: 1, backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.sm },
   infoLabel: { fontSize: fontSizes.xs, color: colors.textLight, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   infoValue: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
 
   // Adresse
-  addressBox:  { backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.sm },
-  addressLabel:{ fontSize: fontSizes.xs, color: colors.textLight, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  addressText: { fontSize: fontSizes.sm, color: colors.textPrimary, lineHeight: 20 },
+  addressBox:   { backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.sm },
+  addressLabel: { fontSize: fontSizes.xs, color: colors.textLight, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  addressText:  { fontSize: fontSizes.sm, color: colors.textPrimary, lineHeight: 20 },
 
-  // Tableau produits
+  // Tableau
   tableHead: {
     flexDirection: 'row',
     paddingVertical: spacing.xs,
@@ -681,27 +771,25 @@ const modal = StyleSheet.create({
     borderBottomColor: colors.border,
     marginBottom: 2,
   },
-  th:      { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  tableRow:{ flexDirection: 'row', paddingVertical: 7, paddingHorizontal: 4, borderRadius: borderRadius.sm },
-  rowAlt:  { backgroundColor: colors.secondary },
-  td:      { fontSize: fontSizes.sm, color: colors.textPrimary },
-  right:   { textAlign: 'right' },
-  bold:    { fontWeight: '600' },
+  th:       { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  tableRow: { flexDirection: 'row', paddingVertical: 7, paddingHorizontal: 4, borderRadius: borderRadius.sm },
+  rowAlt:   { backgroundColor: colors.secondary },
+  td:       { fontSize: fontSizes.sm, color: colors.textPrimary },
+  right:    { textAlign: 'right' },
+  bold:     { fontWeight: '600' },
 
   // Totaux
-  totals:        { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: 4 },
-  totalLine:     { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
-  totalLineFinal:{ borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.xs, paddingTop: spacing.xs },
-  totalLabel:    { fontSize: fontSizes.sm, color: colors.textSecondary },
-  totalValue:    { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
+  totals:         { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: 4 },
+  totalLine:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
+  totalLineFinal: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.xs, paddingTop: spacing.xs },
+  totalLabel:     { fontSize: fontSizes.sm, color: colors.textSecondary },
+  totalValue:     { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
   totalLabelFinal:{ fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
   totalValueFinal:{ fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
 
-  // Notes client
+  // Notes
   notesClientBox:  { backgroundColor: colors.secondary, borderRadius: borderRadius.md, padding: spacing.md, borderLeftWidth: 3, borderLeftColor: colors.primary },
   notesClientText: { fontSize: fontSizes.sm, color: colors.textPrimary, fontStyle: 'italic', lineHeight: 20 },
-
-  // Notes admin
   notesInput: {
     backgroundColor: colors.background,
     borderWidth: 1.5,
