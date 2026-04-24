@@ -23,7 +23,7 @@ const SECTIONS = [
   { key: 'products', label: 'Produits' },
   { key: 'orders', label: 'Commandes' },
   { key: 'clients', label: 'Clients' },
-  { key: 'stats', label: 'Statistiques', disabled: true, badge: 'Bientôt' },
+  { key: 'stats', label: 'Statistiques' },
 ];
 
 export default function AdminLayout({

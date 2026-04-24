@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import AdminProductsScreen from './AdminProductsScreen';
 import AdminOrdersScreen from './AdminOrdersScreen';
 import AdminClientsScreen from './AdminClientsScreen';
+import AdminStatsScreen from './AdminStatsScreen';
 import { colors, spacing, fontSizes } from '../config/theme';
 
 /**
@@ -22,7 +23,7 @@ export default function AdminDashboard({ navigation }) {
       case 'clients':
         return <AdminClientsScreen />;
       case 'stats':
-        return <ComingSoon section={currentSection} />;
+        return <AdminStatsScreen />;
       default:
         return <AdminProductsScreen />;
     }
