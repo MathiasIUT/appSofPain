@@ -1,20 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Platform } from 'react-native';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
-/**
- * Champ de saisie standardisé.
- *
- * Props :
- *   - label (string) : libellé au-dessus du champ
- *   - value (string) : valeur actuelle
- *   - onChangeText (function) : callback de changement
- *   - error (string) : message d'erreur (affiché en rouge sous le champ)
- *   - placeholder (string) : placeholder
- *   - helperText (string) : texte d'aide (affiché en gris sous le champ)
- *   - required (boolean) : affiche un astérisque rouge après le label
- *   - ...props : toutes les autres props de TextInput (keyboardType, etc.)
- */
 export default function Input({
   label,
   value,
@@ -26,6 +13,8 @@ export default function Input({
   multiline = false,
   ...textInputProps
 }) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.container}>
       {label && (
@@ -39,6 +28,7 @@ export default function Input({
         style={[
           styles.input,
           multiline && styles.inputMultiline,
+          focused && styles.inputFocused,
           error && styles.inputError,
         ]}
         value={value}
@@ -47,6 +37,8 @@ export default function Input({
         placeholderTextColor={colors.textLight}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         {...textInputProps}
       />
 
@@ -67,37 +59,42 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: 6,
+    letterSpacing: 0.2,
   },
   required: {
     color: colors.error,
   },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: 13,
     fontSize: fontSizes.md,
     color: colors.textPrimary,
-    ...Platform.select({
-      web: {
-        outlineStyle: 'none',
-      },
-    }),
+    minHeight: 50,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
+  },
+  inputFocused: {
+    borderColor: colors.borderFocus,
+    borderWidth: 2,
   },
   inputMultiline: {
-    minHeight: 100,
+    minHeight: 110,
     paddingTop: spacing.md,
+    textAlignVertical: 'top',
   },
   inputError: {
     borderColor: colors.error,
+    borderWidth: 2,
   },
   errorText: {
     color: colors.error,
     fontSize: fontSizes.xs,
     marginTop: spacing.xs,
+    fontWeight: '500',
   },
   helperText: {
     color: colors.textLight,
