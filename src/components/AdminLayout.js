@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 
 /**
  * Layout commun pour tous les écrans admin.
@@ -150,18 +150,18 @@ const styles = StyleSheet.create({
   // Largeur augmentée pour laisser de la place au logo
   sidebar: {
     width: 300,
-    backgroundColor: colors.surface,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
+    backgroundColor: colors.sidebarBg,
+    borderRightWidth: 0,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.md,
     justifyContent: 'space-between',
+    ...shadows.md,
   },
   sidebarHeader: {
     alignItems: 'center',
     paddingBottom: spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(240,217,196,0.15)',
     marginBottom: spacing.lg,
   },
   // Logo sidebar : nettement plus grand pour que le slogan soit lisible
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   brandRole: {
     fontSize: fontSizes.xs,
-    color: colors.textSecondary,
+    color: colors.sidebarMuted,
     fontStyle: 'italic',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -194,36 +194,36 @@ const styles = StyleSheet.create({
     }),
   },
   sidebarItemActive: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.sidebarActive,
   },
   sidebarLabel: {
     fontSize: fontSizes.md,
-    color: colors.textPrimary,
+    color: colors.sidebarText,
     fontWeight: '500',
     flex: 1,
   },
   sidebarLabelActive: {
-    color: colors.primary,
+    color: colors.white,
     fontWeight: '600',
   },
   badge: {
-    backgroundColor: colors.textLight,
+    backgroundColor: 'rgba(240,217,196,0.15)',
     paddingVertical: 2,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.round,
   },
   badgeText: {
     fontSize: 10,
-    color: colors.white,
+    color: colors.sidebarText,
     fontWeight: '600',
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.35,
   },
   sidebarFooter: {
     paddingTop: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: 'rgba(240,217,196,0.2)',
   },
   logoutButton: {
     paddingVertical: spacing.md,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: fontSizes.md,
-    color: colors.textSecondary,
+    color: colors.sidebarMuted,
     fontWeight: '500',
   },
 
@@ -257,9 +257,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    backgroundColor: colors.sidebarBg,
+    borderBottomWidth: 0,
   },
   // Logo mobile : plus grand pour être lisible
   mobileLogo: {
@@ -272,16 +271,15 @@ const styles = StyleSheet.create({
   },
   mobileLogoutText: {
     fontSize: fontSizes.sm,
-    color: colors.textSecondary,
+    color: colors.sidebarText,
     fontWeight: '500',
   },
 
   // --- TABS (mobile) ---
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    backgroundColor: colors.sidebarBg,
+    borderTopWidth: 0,
     paddingVertical: spacing.xs,
   },
   tabItem: {
@@ -299,11 +297,11 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: fontSizes.xs,
-    color: colors.textSecondary,
+    color: colors.sidebarText,
     fontWeight: '500',
   },
   tabLabelActive: {
-    color: colors.primary,
+    color: colors.primaryLight,
     fontWeight: '600',
   },
 });
