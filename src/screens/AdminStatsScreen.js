@@ -381,7 +381,7 @@ function RankTable({ columns, rows, aligns }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content:   { padding: spacing.lg, paddingBottom: spacing.xxl },
+  content:   { padding: spacing.lg, paddingBottom: spacing.xxl, width: '100%' },
   contentDesktop: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
 
   centered:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -431,7 +431,9 @@ const styles = StyleSheet.create({
   kpiGridDesktop: { flexWrap: 'nowrap' },
   kpiCard: {
     flex: 1,
-    minWidth: '45%',
+    flexBasis: '47%',
+    flexShrink: 1,
+    minWidth: 140,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
