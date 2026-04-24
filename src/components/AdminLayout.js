@@ -21,7 +21,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 // Liste des sections du panneau admin
 const SECTIONS = [
   { key: 'products', label: 'Produits' },
-  { key: 'orders', label: 'Commandes', disabled: true, badge: 'Bientôt' },
+  { key: 'orders', label: 'Commandes' },
   { key: 'clients', label: 'Clients', disabled: true, badge: 'Bientôt' },
   { key: 'stats', label: 'Statistiques', disabled: true, badge: 'Bientôt' },
 ];

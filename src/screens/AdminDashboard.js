@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import AdminLayout from '../components/AdminLayout';
 import AdminProductsScreen from './AdminProductsScreen';
+import AdminOrdersScreen from './AdminOrdersScreen';
 import { colors, spacing, fontSizes } from '../config/theme';
 
 /**
@@ -16,6 +17,7 @@ export default function AdminDashboard({ navigation }) {
       case 'products':
         return <AdminProductsScreen />;
       case 'orders':
+        return <AdminOrdersScreen />;
       case 'clients':
       case 'stats':
         return <ComingSoon section={currentSection} />;
