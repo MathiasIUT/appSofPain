@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, shadows, spacing, fontSizes, borderRadius } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
 
 const showAlert = (title, message) => {
@@ -229,24 +229,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.xxl,
     borderRadius: borderRadius.xl,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    ...shadows.lg,
   },
   titleBlock: {
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
   title: {
-    fontSize: fontSizes.xl,
-    fontWeight: '600',
+    fontSize: fontSizes.xxl,
+    fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.md,
     color: colors.textSecondary,
     textAlign: 'center',
   },
@@ -264,11 +260,11 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: 13,
     fontSize: fontSizes.md,
     color: colors.textPrimary,
     ...Platform.select({
@@ -288,14 +284,10 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
+    paddingVertical: 15,
     alignItems: 'center',
     marginTop: spacing.md,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...shadows.sm,
     ...Platform.select({
       web: {
         cursor: 'pointer',
@@ -307,8 +299,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: colors.textOnPrimary,
-    fontSize: fontSizes.md,
-    fontWeight: '600',
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
@@ -328,5 +320,8 @@ const styles = StyleSheet.create({
         cursor: 'pointer',
       },
     }),
+  },
+  inputFocused: {
+    borderColor: colors.borderFocus,
   },
 });

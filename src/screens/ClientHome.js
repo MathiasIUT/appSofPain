@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, shadows, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
 import { useCart } from '../contexts/CartContext';
 
@@ -378,11 +378,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     flexWrap: 'wrap',
     gap: spacing.md,
+    ...shadows.sm,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -494,11 +495,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.xl,
+    minHeight: 46,
   },
   searchInput: {
     flex: 1,
@@ -555,10 +557,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 280,
     maxWidth: 360,
+    ...shadows.sm,
   },
   productImage: {
     width: '100%',
-    height: 200,
+    height: 120,
     backgroundColor: colors.secondary,
   },
   productImg: {
@@ -582,8 +585,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   productName: {
-    fontSize: fontSizes.lg,
-    fontWeight: '600',
+    fontSize: fontSizes.md,
+    fontWeight: '700',
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
@@ -607,8 +610,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   priceTtc: {
-    fontSize: fontSizes.xl,
-    fontWeight: 'bold',
+    fontSize: fontSizes.lg,
+    fontWeight: '800',
     color: colors.primary,
   },
   priceHt: {
@@ -633,6 +636,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   qtyButton: {
+    minWidth: 36,
+    minHeight: 36,
     width: 44,
     height: 44,
     borderRadius: borderRadius.md,
@@ -688,8 +693,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: 16,
     gap: spacing.md,
+    ...shadows.lg,
   },
   cartBarInfo: {
     flex: 1,

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, shadows, spacing, fontSizes, borderRadius } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
 
 // Alert cross-platform
@@ -148,19 +148,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.xxl,
     borderRadius: borderRadius.xl,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    ...shadows.lg,
   },
   icon: {
-    fontSize: 72,
-    marginBottom: spacing.md,
+    fontSize: 88,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: fontSizes.xxl,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.md,
@@ -206,16 +202,12 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
+    paddingVertical: 15,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     width: '100%',
     marginTop: spacing.sm,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...shadows.sm,
     ...Platform.select({
       web: {
         cursor: 'pointer',
@@ -242,12 +234,12 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: colors.textOnPrimary,
-    fontSize: fontSizes.md,
-    fontWeight: '600',
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
   },
   buttonSecondaryText: {
     color: colors.primary,
-    fontSize: fontSizes.md,
-    fontWeight: '600',
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
   },
 });

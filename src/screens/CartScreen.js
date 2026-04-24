@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, shadows, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
 import { useCart } from '../contexts/CartContext';
 
@@ -360,6 +360,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
+    ...shadows.sm,
   },
   cartItemImage: {
     width: 120,
@@ -507,13 +508,13 @@ const styles = StyleSheet.create({
   },
   summaryLabelHighlight: {
     color: colors.textPrimary,
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: fontSizes.md,
   },
   summaryValueHighlight: {
     color: colors.primary,
-    fontWeight: '700',
-    fontSize: fontSizes.lg,
+    fontWeight: '800',
+    fontSize: fontSizes.xl,
   },
   summaryDivider: {
     height: 1,
