@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 
@@ -566,10 +566,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   topBarLeft:   { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  screenTitle:  { fontSize: fontSizes.xl, fontWeight: '700', color: colors.textPrimary },
+  screenTitle:  { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
   screenCount:  { fontSize: fontSizes.sm, color: colors.textSecondary },
   refreshBtn:   { ...Platform.select({ web: { cursor: 'pointer' } }) },
-  refreshText:  { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '500' },
+  refreshText:  { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   filtersScroll: {
     maxHeight: 56,
@@ -621,6 +621,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   rowCol:      { flexDirection: 'column', justifyContent: 'center' },
@@ -634,8 +635,8 @@ const styles = StyleSheet.create({
   rowTotal:    { fontSize: fontSizes.md, fontWeight: '700', color: colors.primary },
   rowTotalLabel: { fontSize: fontSizes.xs, color: colors.textLight, textAlign: 'right' },
   badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: borderRadius.round,
     minWidth: 90,
     alignItems: 'center',
@@ -651,12 +652,12 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
     maxHeight: '92%',
   },
   modalBoxDesktop: {
-    borderRadius: 16,
+    borderRadius: borderRadius.xl,
     width: '96%',
     maxWidth: 1160,
     maxHeight: '90%',
@@ -679,8 +680,8 @@ const modal = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
   },
   headerNum:   { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary },
   headerDate:  { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
@@ -783,7 +784,7 @@ const modal = StyleSheet.create({
   totalLine:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   totalLineFinal: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.xs, paddingTop: spacing.xs },
   totalLabel:     { fontSize: fontSizes.sm, color: colors.textSecondary },
-  totalValue:     { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
+  totalValue:     { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
   totalLabelFinal:{ fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
   totalValueFinal:{ fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
 
@@ -795,8 +796,9 @@ const modal = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
-    padding: spacing.md,
-    fontSize: fontSizes.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    fontSize: fontSizes.md,
     color: colors.textPrimary,
     minHeight: 80,
     textAlignVertical: 'top',

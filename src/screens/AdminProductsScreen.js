@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
 import ProductFormModal from '../components/ProductFormModal';
 
@@ -311,8 +311,8 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   title: {
-    fontSize: fontSizes.xxl,
-    fontWeight: 'bold',
+    fontSize: fontSizes.xl,
+    fontWeight: '800',
     color: colors.textPrimary,
   },
   subtitle: {
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   chipActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.secondary,
     borderColor: colors.primary,
   },
   chipLabel: {
@@ -344,8 +344,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   chipLabelActive: {
-    color: colors.white,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
   },
   toggleInactive: {
     flexDirection: 'row',
@@ -415,6 +415,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 280,
     maxWidth: 360,
+    ...shadows.sm,
   },
   productCardInactive: {
     opacity: 0.6,
@@ -447,8 +448,8 @@ productImg: {
     top: spacing.sm,
     right: spacing.sm,
     backgroundColor: colors.error,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: borderRadius.sm,
   },
   inactiveBadgeText: {
@@ -499,7 +500,7 @@ productImg: {
   },
   productPrice: {
     fontSize: fontSizes.xl,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.primary,
   },
   productPriceUnit: {

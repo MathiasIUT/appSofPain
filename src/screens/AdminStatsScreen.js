@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -393,10 +393,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
-  headerTitle: { fontSize: fontSizes.xl, fontWeight: '700', color: colors.textPrimary },
+  headerTitle: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
   headerSub:   { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
   refreshBtn:  { ...Platform.select({ web: { cursor: 'pointer' } }) },
-  refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '500' },
+  refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   periodsRow: {
     flexDirection: 'row',
@@ -440,11 +440,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     gap: 4,
+    ...shadows.sm,
   },
   kpiCardAccent:  { backgroundColor: colors.primary, borderColor: colors.primary },
   kpiValue:       { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
-  kpiValueAccent: { color: colors.white, fontSize: fontSizes.xxl },
-  kpiLabel:       { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5 },
+  kpiValueAccent: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '800' },
+  kpiLabel:       { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
   kpiLabelAccent: { color: 'rgba(255,255,255,0.8)' },
 
   // Sections
@@ -464,6 +465,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
   },
 
   // Tables row
@@ -486,9 +488,9 @@ const chart = StyleSheet.create({
     gap: 4,
   },
   barValue: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
   bar: {
@@ -498,7 +500,7 @@ const chart = StyleSheet.create({
     minHeight: 4,
   },
   barLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',

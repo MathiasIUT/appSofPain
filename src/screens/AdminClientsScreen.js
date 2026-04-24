@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -506,10 +506,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   topBarLeft:   { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  screenTitle:  { fontSize: fontSizes.xl, fontWeight: '700', color: colors.textPrimary },
+  screenTitle:  { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
   screenCount:  { fontSize: fontSizes.sm, color: colors.textSecondary },
   refreshBtn:   { ...Platform.select({ web: { cursor: 'pointer' } }) },
-  refreshText:  { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '500' },
+  refreshText:  { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   searchWrap: {
     paddingHorizontal: spacing.lg,
@@ -577,6 +577,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   rowInactive: { opacity: 0.6 },
@@ -586,8 +587,8 @@ const styles = StyleSheet.create({
   rowEmail:    { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
   rowMeta:     { fontSize: fontSizes.xs, color: colors.textSecondary },
   badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: borderRadius.round,
     minWidth: 60,
     alignItems: 'center',
@@ -603,12 +604,12 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
     maxHeight: '92%',
   },
   modalBoxDesktop: {
-    borderRadius: 16,
+    borderRadius: borderRadius.xl,
     width: '96%',
     maxWidth: 720,
     maxHeight: '90%',
@@ -630,8 +631,8 @@ const modal = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
   },
   headerName:      { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
   headerBadge:     { alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.round },
@@ -671,8 +672,8 @@ const modal = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: Platform.OS === 'web' ? spacing.sm : 10,
-    fontSize: fontSizes.sm,
+    paddingVertical: 12,
+    fontSize: fontSizes.md,
     color: colors.textPrimary,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
@@ -694,7 +695,7 @@ const modal = StyleSheet.create({
   orderRowAlt:    { backgroundColor: colors.secondary },
   orderNum:       { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
   orderDate:      { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
-  orderTotal:     { fontSize: fontSizes.sm, fontWeight: '600', color: colors.primary },
-  orderBadge:     { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.round, minWidth: 90, alignItems: 'center' },
+  orderTotal:     { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary },
+  orderBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.round, minWidth: 90, alignItems: 'center' },
   orderBadgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
 });
