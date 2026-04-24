@@ -14,53 +14,55 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const PERIODS = [
-  { key: '7j',    label: '7 j',     days: 7 },
-  { key: '30j',   label: '30 j',    days: 30 },
-  { key: '90j',   label: '90 j',    days: 90 },
-  { key: '12m',   label: '12 mois', days: 365 },
-  { key: 'tout',  label: 'Tout',    days: null },
-];
+const MONTH_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jui','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const MONTH_FULL  = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MEDALS = ['①','②','③','④','⑤'];
 
 const STATUS_LABELS = {
-  nouvelle:       'Nouvelle',
-  en_preparation: 'En préparation',
-  en_livraison:   'En livraison',
-  livree:         'Livrée',
-  annulee:        'Annulée',
+  nouvelle: 'Nouvelle', en_preparation: 'En préparation',
+  en_livraison: 'En livraison', livree: 'Livrée', annulee: 'Annulée',
 };
-
 const STATUS_COLORS = {
-  nouvelle:       '#2196F3',
-  en_preparation: '#FF9800',
-  en_livraison:   '#00BCD4',
-  livree:         '#4CAF50',
-  annulee:        '#E53935',
+  nouvelle: '#2196F3', en_preparation: '#FF9800',
+  en_livraison: '#00BCD4', livree: '#4CAF50', annulee: '#E53935',
 };
-
-const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jui', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-const MEDALS = ['①', '②', '③', '④', '⑤'];
 
 const fmtEur = (v) =>
   Number(v ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
 const fmtEurCompact = (v) => {
   const n = Number(v ?? 0);
-  if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.', ',') + ' M€';
-  if (n >= 1000)    return (n / 1000).toFixed(1).replace('.', ',') + ' k€';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' M€';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1).replace('.', ',') + ' k€';
   return fmtEur(n);
 };
+
+const lastDayOfMonth = (year, month) => new Date(year, month, 0).getDate();
 
 // ─── Écran principal ─────────────────────────────────────────────────────────
 
 export default function AdminStatsScreen() {
-  const [allOrders, setAllOrders]   = useState([]);
-  const [allItems, setAllItems]     = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [period, setPeriod]         = useState('30j');
+  const [allOrders, setAllOrders] = useState([]);
+  const [allItems,  setAllItems]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
 
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
+
+  const now          = new Date();
+  const currentYear  = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  // ── État période ────────────────────────────────────────────
+  // mode: 'today' | 'year' | 'all' | 'custom'
+  // custom = plage de mois dans selectedYear
+  const [periodMode,   setPeriodMode]   = useState('custom');
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [rangeStart,   setRangeStart]   = useState(currentMonth);
+  const [rangeEnd,     setRangeEnd]     = useState(currentMonth);
+  // 'idle'      = plage complète
+  // 'start-set' = début choisi, attend la fin
+  const [rangeState,   setRangeState]   = useState('idle');
 
   // ── Chargement ─────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -76,9 +78,9 @@ export default function AdminStatsScreen() {
           .select('order_id, product_nom, quantite_palettes, sous_total_ht'),
       ]);
       if (ordersRes.error) throw ordersRes.error;
-      if (itemsRes.error) throw itemsRes.error;
+      if (itemsRes.error)  throw itemsRes.error;
       setAllOrders(ordersRes.data || []);
-      setAllItems(itemsRes.data || []);
+      setAllItems(itemsRes.data  || []);
     } catch (err) {
       console.error('Erreur chargement stats :', err);
     } finally {
@@ -88,27 +90,88 @@ export default function AdminStatsScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── Filtrage par période ────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────
+  const selectQuick = (mode) => {
+    setPeriodMode(mode);
+    setRangeState('idle');
+  };
+
+  const handleMonthTap = (month) => {
+    setPeriodMode('custom');
+    if (rangeState === 'idle') {
+      setRangeStart(month);
+      setRangeEnd(month);
+      setRangeState('start-set');
+    } else {
+      setRangeStart(Math.min(month, rangeStart));
+      setRangeEnd(Math.max(month, rangeStart));
+      setRangeState('idle');
+    }
+  };
+
+  const handleYearChange = (delta) => {
+    const y = selectedYear + delta;
+    if (y < 2020 || y > currentYear + 1) return;
+    setSelectedYear(y);
+    if (periodMode !== 'today' && periodMode !== 'all') {
+      setPeriodMode('custom');
+      setRangeState('idle');
+    }
+  };
+
+  // ── Description lisible ─────────────────────────────────────
+  const periodDescription = useMemo(() => {
+    if (periodMode === 'today') {
+      return `Aujourd'hui — ${now.toLocaleDateString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      })}`;
+    }
+    if (periodMode === 'year') return `Toute l'année ${selectedYear}`;
+    if (periodMode === 'all')  return 'Toutes les commandes, toutes périodes';
+    // custom
+    if (rangeState === 'start-set') {
+      return `Début : ${MONTH_FULL[rangeStart - 1]} — sélectionnez la fin…`;
+    }
+    if (rangeStart === rangeEnd) return `${MONTH_FULL[rangeStart - 1]} ${selectedYear}`;
+    return (
+      `1 ${MONTH_FULL[rangeStart - 1]} — ` +
+      `${lastDayOfMonth(selectedYear, rangeEnd)} ${MONTH_FULL[rangeEnd - 1]} ${selectedYear}`
+    );
+  }, [periodMode, selectedYear, rangeStart, rangeEnd, rangeState]);
+
+  // ── Filtrage ────────────────────────────────────────────────
   const orders = useMemo(() => {
-    const p = PERIODS.find((x) => x.key === period);
-    if (!p?.days) return allOrders;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - p.days);
-    return allOrders.filter((o) => new Date(o.date_commande) >= cutoff);
-  }, [allOrders, period]);
+    if (periodMode === 'all') return allOrders;
+
+    const n = new Date();
+    let from, to;
+
+    if (periodMode === 'today') {
+      from = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+      to   = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+    } else if (periodMode === 'year') {
+      from = new Date(selectedYear,     0, 1);
+      to   = new Date(selectedYear + 1, 0, 1);
+    } else {
+      const effectiveEnd = rangeState === 'start-set' ? rangeStart : rangeEnd;
+      from = new Date(selectedYear, rangeStart - 1, 1);
+      to   = new Date(selectedYear, effectiveEnd,   1); // premier jour du mois suivant (borne exclue)
+    }
+
+    return allOrders.filter((o) => {
+      const d = new Date(o.date_commande);
+      return d >= from && d < to;
+    });
+  }, [allOrders, periodMode, selectedYear, rangeStart, rangeEnd, rangeState]);
 
   const orderIds = useMemo(() => new Set(orders.map((o) => o.id)), [orders]);
-
-  const items = useMemo(
-    () => allItems.filter((it) => orderIds.has(it.order_id)),
-    [allItems, orderIds]
-  );
+  const items    = useMemo(() => allItems.filter((it) => orderIds.has(it.order_id)), [allItems, orderIds]);
 
   // ── KPIs ───────────────────────────────────────────────────
   const kpis = useMemo(() => {
-    const caTtc    = orders.reduce((s, o) => s + Number(o.total_ttc ?? 0), 0);
-    const nbCmds   = orders.length;
-    const panierMoy= nbCmds > 0 ? caTtc / nbCmds : 0;
+    const caTtc         = orders.reduce((s, o) => s + Number(o.total_ttc ?? 0), 0);
+    const nbCmds        = orders.length;
+    const panierMoy     = nbCmds > 0 ? caTtc / nbCmds : 0;
     const clientsActifs = new Set(orders.map((o) => o.client_id)).size;
     return { caTtc, nbCmds, panierMoy, clientsActifs };
   }, [orders]);
@@ -119,14 +182,14 @@ export default function AdminStatsScreen() {
     orders.forEach((o) => {
       const d   = new Date(o.date_commande);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      map[key] = (map[key] || 0) + Number(o.total_ttc ?? 0);
+      map[key]  = (map[key] || 0) + Number(o.total_ttc ?? 0);
     });
-    const keys = Object.keys(map).sort();
+    const keys   = Object.keys(map).sort();
     const last12 = keys.slice(-12);
     return last12.map((k) => {
       const [year, month] = k.split('-');
       return {
-        label: MONTH_LABELS[parseInt(month, 10) - 1] + (last12.length > 6 ? ` ${year.slice(2)}` : ''),
+        label: MONTH_SHORT[parseInt(month, 10) - 1] + (last12.length > 6 ? ` ${year.slice(2)}` : ''),
         value: map[k],
       };
     });
@@ -161,9 +224,9 @@ export default function AdminStatsScreen() {
       if (!map[id]) {
         const c = o.client || {};
         map[id] = {
-          nom: c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—',
+          nom:    c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—',
           nbCmds: 0,
-          caTtc: 0,
+          caTtc:  0,
         };
       }
       map[id].nbCmds += 1;
@@ -179,7 +242,7 @@ export default function AdminStatsScreen() {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Chargement des statistiques...</Text>
+        <Text style={styles.loadingText}>Chargement des statistiques…</Text>
       </View>
     );
   }
@@ -203,25 +266,99 @@ export default function AdminStatsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Filtre période ──────────────────────────────────── */}
-      <View style={styles.periodsRow}>
-        {PERIODS.map((p) => {
-          const active = period === p.key;
-          return (
-            <TouchableOpacity
-              key={p.key}
-              style={[styles.periodChip, active && styles.periodChipActive]}
-              onPress={() => setPeriod(p.key)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.periodLabel, active && styles.periodLabelActive]}>
-                {p.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* ── Sélecteur de période ────────────────────────────── */}
+      <View style={styles.periodPicker}>
+
+        {/* Raccourcis rapides */}
+        <View style={styles.quickRow}>
+          {[
+            { key: 'today', label: "Aujourd'hui" },
+            { key: 'year',  label: 'Toute l\'année' },
+            { key: 'all',   label: 'Tout' },
+          ].map((q) => {
+            const active = periodMode === q.key;
+            return (
+              <TouchableOpacity
+                key={q.key}
+                style={[styles.quickChip, active && styles.quickChipActive]}
+                onPress={() => selectQuick(q.key)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.quickLabel, active && styles.quickLabelActive]}>
+                  {q.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Navigation d'année */}
+        <View style={styles.yearNav}>
+          <TouchableOpacity
+            onPress={() => handleYearChange(-1)}
+            disabled={selectedYear <= 2020}
+            style={[styles.yearArrow, selectedYear <= 2020 && styles.yearArrowDisabled]}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.yearArrowText}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.yearLabel}>{selectedYear}</Text>
+          <TouchableOpacity
+            onPress={() => handleYearChange(1)}
+            disabled={selectedYear >= currentYear + 1}
+            style={[styles.yearArrow, selectedYear >= currentYear + 1 && styles.yearArrowDisabled]}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.yearArrowText}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Grille des mois — 4 par ligne */}
+        <View style={styles.monthGrid}>
+          {MONTH_SHORT.map((m, i) => {
+            const monthNum  = i + 1;
+            const isCustom  = periodMode === 'custom';
+            const isStart   = isCustom && monthNum === rangeStart;
+            const isEnd     = isCustom && rangeState === 'idle' && monthNum === rangeEnd;
+            const inRange   = isCustom && rangeState === 'idle'
+                               && monthNum >= rangeStart && monthNum <= rangeEnd;
+            const isPicking = isCustom && rangeState === 'start-set' && monthNum === rangeStart;
+
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[
+                  styles.monthChip,
+                  inRange              && styles.monthInRange,
+                  (isStart || isEnd || isPicking) && styles.monthEndpoint,
+                ]}
+                onPress={() => handleMonthTap(monthNum)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.monthLabel,
+                  inRange              && styles.monthLabelInRange,
+                  (isStart || isEnd || isPicking) && styles.monthLabelEndpoint,
+                ]}>
+                  {m}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Description de la période sélectionnée */}
+        <View style={styles.periodDescRow}>
+          <Text style={[styles.periodDesc, rangeState === 'start-set' && styles.periodDescPicking]}>
+            {periodDescription}
+          </Text>
+          {rangeState === 'start-set' && (
+            <Text style={styles.periodHint}>Touchez un mois pour définir la fin de la période</Text>
+          )}
+        </View>
       </View>
 
+      {/* ── Contenu stats ───────────────────────────────────── */}
       {orders.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>📊</Text>
@@ -229,27 +366,27 @@ export default function AdminStatsScreen() {
         </View>
       ) : (
         <>
-          {/* ── KPIs ──────────────────────────────────────────── */}
+          {/* KPIs */}
           <View style={[styles.kpiGrid, isDesktop && styles.kpiGridDesktop]}>
-            <KpiCard label="Chiffre d'affaires TTC" value={fmtEur(kpis.caTtc)}      accent />
+            <KpiCard label="Chiffre d'affaires TTC" value={fmtEur(kpis.caTtc)}            accent />
             <KpiCard label="Commandes"               value={String(kpis.nbCmds)} />
             <KpiCard label="Panier moyen"            value={fmtEur(kpis.panierMoy)} />
             <KpiCard label="Clients actifs"          value={String(kpis.clientsActifs)} />
           </View>
 
-          {/* ── CA mensuel ────────────────────────────────────── */}
+          {/* CA mensuel */}
           {caParMois.length > 0 && (
             <Section title="Chiffre d'affaires mensuel (TTC)">
               <BarChart data={caParMois} />
             </Section>
           )}
 
-          {/* ── Statuts ───────────────────────────────────────── */}
+          {/* Statuts */}
           <Section title="Répartition par statut">
             <StatusBars data={statutStats} total={orders.length} />
           </Section>
 
-          {/* ── 2 tableaux côte à côte sur desktop ───────────── */}
+          {/* Top 5 */}
           <View style={[styles.tablesRow, isDesktop && styles.tablesRowDesktop]}>
             {topProduits.length > 0 && (
               <Section title="Top 5 produits — palettes commandées" flex>
@@ -307,9 +444,8 @@ function KpiCard({ label, value, accent }) {
 }
 
 function BarChart({ data }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
+  const max        = Math.max(...data.map((d) => d.value), 1);
   const BAR_HEIGHT = 160;
-
   return (
     <View style={chart.container}>
       {data.map((d, i) => {
@@ -330,9 +466,9 @@ function StatusBars({ data, total }) {
   return (
     <View style={status.container}>
       {data.map((d) => {
+        if (d.count === 0) return null;
         const pct = total > 0 ? (d.count / total) * 100 : 0;
         const c   = STATUS_COLORS[d.statut];
-        if (d.count === 0) return null;
         return (
           <View key={d.statut} style={status.row}>
             <Text style={status.label}>{STATUS_LABELS[d.statut]}</Text>
@@ -352,10 +488,7 @@ function RankTable({ columns, rows, aligns }) {
     <View style={table.container}>
       <View style={table.head}>
         {columns.map((col, i) => (
-          <Text
-            key={i}
-            style={[table.th, { flex: i === 0 ? 3 : 1.5, textAlign: aligns[i] }]}
-          >
+          <Text key={i} style={[table.th, { flex: i === 0 ? 3 : 1.5, textAlign: aligns[i] }]}>
             {col}
           </Text>
         ))}
@@ -380,13 +513,14 @@ function RankTable({ columns, rows, aligns }) {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content:   { padding: spacing.lg, paddingBottom: spacing.xxl, width: '100%' },
+  container:      { flex: 1, backgroundColor: colors.background },
+  content:        { padding: spacing.lg, paddingBottom: spacing.xxl, width: '100%' },
   contentDesktop: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
 
   centered:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: spacing.md, color: colors.textSecondary, fontSize: fontSizes.sm },
 
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -398,25 +532,114 @@ const styles = StyleSheet.create({
   refreshBtn:  { ...Platform.select({ web: { cursor: 'pointer' } }) },
   refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
-  periodsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+  // ── Period picker card ─────────────────────────────────────
+  periodPicker: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: spacing.lg,
+    gap: spacing.md,
+    ...shadows.sm,
   },
-  periodChip: {
+
+  // Quick chips
+  quickRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  quickChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderRadius: borderRadius.round,
     borderWidth: 1.5,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  periodChipActive:  { borderColor: colors.primary, backgroundColor: colors.secondary },
-  periodLabel:       { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
-  periodLabelActive: { color: colors.primary, fontWeight: '700' },
+  quickChipActive:  { borderColor: colors.primary, backgroundColor: colors.secondary },
+  quickLabel:       { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
+  quickLabelActive: { color: colors.primary, fontWeight: '700' },
 
+  // Year nav
+  yearNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    paddingVertical: spacing.xs,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  yearArrow: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.round,
+    backgroundColor: colors.secondary,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  yearArrowDisabled: { opacity: 0.25 },
+  yearArrowText:     { fontSize: fontSizes.xl, color: colors.primary, fontWeight: '700' },
+  yearLabel: {
+    fontSize: fontSizes.lg,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    minWidth: 56,
+    textAlign: 'center',
+  },
+
+  // Month grid — 4 colonnes
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  monthChip: {
+    flexBasis: '22%',
+    flexGrow: 1,
+    maxWidth: '25%',
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  monthInRange:       { backgroundColor: colors.secondary, borderColor: colors.primaryLight },
+  monthEndpoint:      { backgroundColor: colors.primary,   borderColor: colors.primary },
+  monthLabel:         { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
+  monthLabelInRange:  { color: colors.primary,  fontWeight: '600' },
+  monthLabelEndpoint: { color: '#fff',           fontWeight: '700' },
+
+  // Period description
+  periodDescRow: {
+    alignItems: 'center',
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 4,
+  },
+  periodDesc: {
+    fontSize: fontSizes.sm,
+    fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'center',
+  },
+  periodDescPicking: { color: colors.textSecondary, fontStyle: 'italic', fontWeight: '400' },
+  periodHint: {
+    fontSize: fontSizes.xs,
+    color: colors.textLight,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+
+  // Empty state
   empty:     { alignItems: 'center', paddingVertical: spacing.xxl },
   emptyIcon: { fontSize: 40, marginBottom: spacing.md },
   emptyText: { fontSize: fontSizes.md, color: colors.textSecondary },
@@ -430,119 +653,68 @@ const styles = StyleSheet.create({
   },
   kpiGridDesktop: { flexWrap: 'nowrap' },
   kpiCard: {
-    flex: 1,
-    flexBasis: '47%',
-    flexShrink: 1,
-    minWidth: 140,
+    flex: 1, flexBasis: '47%', flexShrink: 1, minWidth: 140,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1, borderColor: colors.border,
     gap: 4,
     ...shadows.sm,
   },
   kpiCardAccent:  { backgroundColor: colors.primary, borderColor: colors.primary },
-  kpiValue:       { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
-  kpiValueAccent: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '800' },
-  kpiLabel:       { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  kpiValue:       { fontSize: fontSizes.xl,  fontWeight: '800', color: colors.textPrimary },
+  kpiValueAccent: { fontSize: fontSizes.xxl, fontWeight: '800', color: '#fff' },
+  kpiLabel: {
+    fontSize: fontSizes.xs, fontWeight: '700', color: colors.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 1,
+  },
   kpiLabelAccent: { color: 'rgba(255,255,255,0.8)' },
 
   // Sections
-  section:     { marginBottom: spacing.lg },
-  sectionFlex: { flex: 1 },
+  section:      { marginBottom: spacing.lg },
+  sectionFlex:  { flex: 1 },
   sectionTitle: {
-    fontSize: fontSizes.xs,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: colors.primary,
-    marginBottom: spacing.sm,
+    fontSize: fontSizes.xs, fontWeight: '700', textTransform: 'uppercase',
+    letterSpacing: 1, color: colors.primary, marginBottom: spacing.sm,
   },
   sectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surface, borderRadius: borderRadius.lg,
+    padding: spacing.lg, borderWidth: 1, borderColor: colors.border,
     ...shadows.sm,
   },
 
-  // Tables row
-  tablesRow:       { gap: spacing.lg },
-  tablesRowDesktop:{ flexDirection: 'row', alignItems: 'flex-start' },
+  tablesRow:        { gap: spacing.lg },
+  tablesRowDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
 });
 
 const chart = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-around',
-    height: 220,
-    gap: 4,
+    flexDirection: 'row', alignItems: 'flex-end',
+    justifyContent: 'space-around', height: 220, gap: 4,
   },
-  col: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 4,
-  },
-  barValue: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  bar: {
-    width: '80%',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.sm,
-    minHeight: 4,
-  },
-  barLabel: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
+  col:      { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  barValue: { fontSize: 10, color: colors.textSecondary, fontWeight: '700', textAlign: 'center' },
+  bar:      { width: '80%', backgroundColor: colors.primary, borderRadius: borderRadius.sm, minHeight: 4 },
+  barLabel: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', fontWeight: '500' },
 });
 
 const status = StyleSheet.create({
   container: { gap: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  label:   { width: 120, fontSize: fontSizes.sm, color: colors.textPrimary, fontWeight: '500' },
-  barWrap: { flex: 1, height: 10, backgroundColor: colors.border, borderRadius: borderRadius.round, overflow: 'hidden' },
-  bar:     { height: '100%', borderRadius: borderRadius.round },
-  count:   { width: 32, fontSize: fontSizes.sm, fontWeight: '700', textAlign: 'right' },
+  row:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  label:  { width: 120, fontSize: fontSizes.sm, color: colors.textPrimary, fontWeight: '500' },
+  barWrap:{ flex: 1, height: 10, backgroundColor: colors.border, borderRadius: borderRadius.round, overflow: 'hidden' },
+  bar:    { height: '100%', borderRadius: borderRadius.round },
+  count:  { width: 32, fontSize: fontSizes.sm, fontWeight: '700', textAlign: 'right' },
 });
 
 const table = StyleSheet.create({
   container: { gap: 2 },
   head: {
-    flexDirection: 'row',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginBottom: 2,
+    flexDirection: 'row', paddingVertical: spacing.xs, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 2,
   },
-  th: {
-    fontSize: fontSizes.xs,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  row: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: borderRadius.sm,
-  },
+  th:     { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  row:    { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 4, borderRadius: borderRadius.sm },
   rowAlt: { backgroundColor: colors.secondary },
   td:     { fontSize: fontSizes.sm, color: colors.textPrimary },
 });
