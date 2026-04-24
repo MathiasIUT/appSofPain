@@ -80,12 +80,21 @@ export default function LoginScreen({ navigation }) {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role, nom, prenom, nom_societe')
+        .select('role, actif, nom, prenom, nom_societe')
         .eq('id', authData.user.id)
         .single();
 
       if (profileError) {
         showAlert('Erreur', 'Impossible de récupérer votre profil.');
+        return;
+      }
+
+      if (profile.actif === false) {
+        await supabase.auth.signOut();
+        showAlert(
+          'Compte désactivé',
+          "Votre compte a été désactivé. Contactez l'administrateur."
+        );
         return;
       }
 
