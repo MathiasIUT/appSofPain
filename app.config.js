@@ -12,7 +12,7 @@ module.exports = {
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#1A0A04',
     },
     assetBundlePatterns: ['**/*'],
     ios: {
@@ -22,7 +22,7 @@ module.exports = {
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#1A0A04',
       },
       package: 'com.sofpain.app',
     },

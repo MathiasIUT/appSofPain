@@ -57,13 +57,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: fontSizes.sm,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 6,
+    marginBottom: 8,
     letterSpacing: 0.2,
   },
   required: {
     color: colors.error,
+    fontWeight: '700',
   },
   input: {
     backgroundColor: colors.surface,
@@ -71,30 +72,32 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: 13,
+    paddingVertical: 15,
     fontSize: fontSizes.md,
     color: colors.textPrimary,
-    minHeight: 50,
+    minHeight: 54,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
   inputFocused: {
     borderColor: colors.borderFocus,
     borderWidth: 2,
+    backgroundColor: '#FFFDF9',
   },
   inputMultiline: {
-    minHeight: 110,
+    minHeight: 120,
     paddingTop: spacing.md,
     textAlignVertical: 'top',
   },
   inputError: {
     borderColor: colors.error,
     borderWidth: 2,
+    backgroundColor: colors.errorLight,
   },
   errorText: {
     color: colors.error,
     fontSize: fontSizes.xs,
     marginTop: spacing.xs,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   helperText: {
     color: colors.textLight,

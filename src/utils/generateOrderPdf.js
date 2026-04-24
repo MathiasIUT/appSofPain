@@ -70,14 +70,14 @@ function buildHtml(order, items, client) {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --primary:  #7B4F2E;
-    --primary-dark: #5C3820;
-    --light:    #FDF1E6;
-    --mid:      #C17B4A;
-    --gray:     #5C4A3A;
-    --gray-light: #9C7E6A;
-    --border:   #E5D9CE;
-    --text:     #1C1009;
+    --primary:      #C4924A;
+    --primary-dark: #1A0A04;
+    --light:        #F6EFE4;
+    --mid:          #D9AE72;
+    --gray:         #5C3A1E;
+    --gray-light:   #9A7350;
+    --border:       #E8D8C4;
+    --text:         #1A0A04;
   }
 
   html { font-size: 14px; }
@@ -180,7 +180,7 @@ function buildHtml(order, items, client) {
   }
   .table-wrap { margin-bottom: 32px; }
   table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; }
-  thead tr { background: var(--primary); color: #fff; }
+  thead tr { background: var(--primary-dark); color: #fff; }
   thead th {
     padding: 12px 14px;
     font-size: 0.75rem;
@@ -194,7 +194,7 @@ function buildHtml(order, items, client) {
   .product-name { font-weight: 600; }
   .c    { text-align: center; }
   .r    { text-align: right; }
-  .bold { font-weight: 700; color: var(--primary-dark); }
+  .bold { font-weight: 700; color: var(--primary); }
 
   /* ── Totaux ── */
   .totals-wrap {
@@ -216,9 +216,9 @@ function buildHtml(order, items, client) {
   }
   .totals-box .lbl { color: var(--gray); }
   .totals-box .val { text-align: right; font-weight: 600; }
-  .totals-box tr.final { background: var(--primary); }
+  .totals-box tr.final { background: var(--primary-dark); }
   .totals-box tr.final td {
-    color: #fff;
+    color: var(--mid);
     font-size: 1.15rem;
     font-weight: 800;
     padding: 14px 16px;

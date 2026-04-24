@@ -33,7 +33,7 @@ export default function Button({
       ]}
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.75}
+      activeOpacity={0.78}
     >
       {loading ? (
         <ActivityIndicator
@@ -42,8 +42,14 @@ export default function Button({
         />
       ) : (
         <>
-          {icon && <Text style={[styles.text, styles[`textSize_${size}`], styles[`textVariant_${variant}`], styles.icon]}>{icon}</Text>}
-          <Text style={[styles.text, styles[`textSize_${size}`], styles[`textVariant_${variant}`]]}>{title}</Text>
+          {icon && (
+            <Text style={[styles.text, styles[`textSize_${size}`], styles[`textVariant_${variant}`], styles.icon]}>
+              {icon}
+            </Text>
+          )}
+          <Text style={[styles.text, styles[`textSize_${size}`], styles[`textVariant_${variant}`]]}>
+            {title}
+          </Text>
         </>
       )}
     </TouchableOpacity>
@@ -56,26 +62,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.md,
-    minHeight: 48,
+    minHeight: 52,
     ...Platform.select({ web: { cursor: 'pointer', userSelect: 'none' } }),
   },
   fullWidth: { width: '100%' },
-  disabled:  { opacity: 0.45 },
+  disabled:  { opacity: 0.42 },
   icon:      { marginRight: spacing.sm },
 
   // Tailles
-  size_sm: { paddingVertical: spacing.sm,      paddingHorizontal: spacing.md,  minHeight: 38 },
-  size_md: { paddingVertical: 13,              paddingHorizontal: spacing.lg              },
-  size_lg: { paddingVertical: 15,              paddingHorizontal: spacing.xl              },
+  size_sm: { paddingVertical: 10,  paddingHorizontal: spacing.md, minHeight: 42 },
+  size_md: { paddingVertical: 15,  paddingHorizontal: spacing.lg              },
+  size_lg: { paddingVertical: 18,  paddingHorizontal: spacing.xl, minHeight: 58 },
 
   // Variantes
   variant_primary: {
     backgroundColor: colors.primary,
-    ...shadows.sm,
+    ...shadows.md,
   },
   variant_secondary: {
     backgroundColor: 'transparent',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.primary,
   },
   variant_danger: {
@@ -87,12 +93,16 @@ const styles = StyleSheet.create({
   },
 
   // Texte
-  text: { fontWeight: '600', textAlign: 'center' },
+  text: {
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
   textSize_sm: { fontSize: fontSizes.sm },
   textSize_md: { fontSize: fontSizes.md },
   textSize_lg: { fontSize: fontSizes.lg },
 
-  textVariant_primary:   { color: colors.textOnPrimary },
+  textVariant_primary:   { color: colors.white },
   textVariant_secondary: { color: colors.primary },
   textVariant_danger:    { color: colors.white },
   textVariant_ghost:     { color: colors.primary },
