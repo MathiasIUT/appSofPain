@@ -34,3 +34,11 @@ yarn-error.*
 # IDE
 .vscode/
 .idea/
+
+
+.# Claude & Plugins
+.claude/
+.claude-plugin/
+superpowers/
+.remember/
+CLAUDE.md
