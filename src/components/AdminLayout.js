@@ -22,7 +22,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 const SECTIONS = [
   { key: 'products', label: 'Produits' },
   { key: 'orders', label: 'Commandes' },
-  { key: 'clients', label: 'Clients', disabled: true, badge: 'Bientôt' },
+  { key: 'clients', label: 'Clients' },
   { key: 'stats', label: 'Statistiques', disabled: true, badge: 'Bientôt' },
 ];
 
