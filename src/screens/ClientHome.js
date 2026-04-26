@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Image, TouchableOpacity, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Image, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ActivityIndicator, Button, Card, Chip, Searchbar, Text } from 'react-native-paper';
+import { ActivityIndicator, Button, Card, Searchbar, Text } from 'react-native-paper';
 import { supabase } from '../config/supabase';
 import { colors, spacing, shadows, borderRadius } from '../config/theme';
 import ScreenLayout from '../components/ScreenLayout';
