@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { TextInput, HelperText } from 'react-native-paper';
-import { colors, spacing } from '../config/theme';
+import React, { useState } from 'react';
+import { View, Text, TextInput, StyleSheet, Platform } from 'react-native';
+import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
 export default function Input({
   label,
@@ -13,30 +12,85 @@ export default function Input({
   multiline = false,
   ...textInputProps
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <View style={styles.container}>
+      {label ? (
+        <Text style={styles.label}>
+          {label} {required ? '*' : ''}
+        </Text>
+      ) : null}
+      
       <TextInput
-        mode="flat"
-        label={required ? `${label} *` : label}
         value={value}
         onChangeText={onChangeText}
-        error={!!error}
         multiline={multiline}
-        style={styles.input}
-        contentStyle={multiline ? styles.multilineContent : undefined}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        placeholderTextColor={colors.textLight}
+        style={[
+          styles.input,
+          multiline && styles.multilineInput,
+          isFocused && styles.inputFocused,
+          error && styles.inputError,
+        ]}
         {...textInputProps}
       />
+
       {error ? (
-        <HelperText type="error" visible>{error}</HelperText>
+        <Text style={styles.errorText}>{error}</Text>
       ) : helperText ? (
-        <HelperText type="info" visible>{helperText}</HelperText>
+        <Text style={styles.helperText}>{helperText}</Text>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: spacing.sm },
-  input: { backgroundColor: colors.surface },
-  multilineContent: { minHeight: 100, paddingTop: 8 },
+  container: {
+    marginBottom: spacing.lg,
+    width: '100%',
+  },
+  label: {
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  input: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
+    fontSize: fontSizes.md,
+    color: colors.textPrimary,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      },
+    }),
+  },
+  multilineInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  inputFocused: {
+    borderColor: colors.borderFocus,
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: fontSizes.xs,
+    marginTop: spacing.xs,
+  },
+  helperText: {
+    color: colors.textSecondary,
+    fontSize: fontSizes.xs,
+    marginTop: spacing.xs,
+  },
 });

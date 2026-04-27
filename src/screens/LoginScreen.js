@@ -1,14 +1,28 @@
 import React, { useState } from 'react';
-import { View, KeyboardAvoidingView, Platform, Alert, useWindowDimensions, StyleSheet } from 'react-native';
-import { Button, TextInput, Text, HelperText, Surface } from 'react-native-paper';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  useWindowDimensions,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
-import { colors, spacing, borderRadius, shadows } from '../config/theme';
+import { colors, shadows, spacing, fontSizes, borderRadius } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
-import ScreenLayout from '../components/ScreenLayout';
 
 const showAlert = (title, message) => {
-  if (Platform.OS === 'web') window.alert(`${title}\n\n${message}`);
-  else Alert.alert(title, message);
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
 };
 
 export default function LoginScreen({ navigation }) {
@@ -16,31 +30,46 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
   const validate = () => {
     const newErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) newErrors.email = "L'email est requis";
-    else if (!emailRegex.test(email.trim())) newErrors.email = "Format d'email invalide";
-    if (!password) newErrors.password = 'Le mot de passe est requis';
-    else if (password.length < 6) newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+
+    if (!email.trim()) {
+      newErrors.email = 'L\'email est requis';
+    } else if (!emailRegex.test(email.trim())) {
+      newErrors.email = 'Format d\'email invalide';
+    }
+
+    if (!password) {
+      newErrors.password = 'Le mot de passe est requis';
+    } else if (password.length < 6) {
+      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
     if (!validate()) return;
+
     setLoading(true);
     try {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
+
       if (authError) {
         if (authError.message.includes('Email not confirmed')) {
-          showAlert('Compte non confirmé', "Vous devez d'abord confirmer votre email.");
+          showAlert(
+            'Compte non confirmé',
+            'Vous devez d\'abord confirmer votre email. Vérifiez votre boîte mail.'
+          );
         } else if (authError.message.includes('Invalid login credentials')) {
           showAlert('Erreur', 'Email ou mot de passe incorrect.');
         } else {
@@ -48,100 +77,251 @@ export default function LoginScreen({ navigation }) {
         }
         return;
       }
+
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role, actif')
+        .select('role, actif, nom, prenom, nom_societe')
         .eq('id', authData.user.id)
         .single();
-      if (profileError) { showAlert('Erreur', 'Impossible de récupérer votre profil.'); return; }
-      if (profile.actif === false) {
-        await supabase.auth.signOut();
-        showAlert('Compte désactivé', "Votre compte a été désactivé.");
+
+      if (profileError) {
+        showAlert('Erreur', 'Impossible de récupérer votre profil.');
         return;
       }
-      if (profile.role === 'admin') navigation.reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
-      else navigation.reset({ index: 0, routes: [{ name: 'ClientHome' }] });
+
+      if (profile.actif === false) {
+        await supabase.auth.signOut();
+        showAlert(
+          'Compte désactivé',
+          "Votre compte a été désactivé. Contactez l'administrateur."
+        );
+        return;
+      }
+
+      if (profile.role === 'admin') {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'AdminDashboard' }],
+        });
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'ClientHome' }],
+        });
+      }
     } catch (err) {
       showAlert('Erreur', 'Une erreur inattendue est survenue.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScreenLayout scroll contentStyle={styles.scrollContent}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-        <Surface style={[styles.card, isDesktop && styles.cardDesktop]} elevation={isDesktop ? 2 : 0}>
-          <BrandHeader />
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.card, isDesktop && styles.cardDesktop]}>
+            <BrandHeader />
 
-          <Text variant="headlineMedium" style={styles.title}>Connexion</Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>Accédez à votre espace de commande</Text>
+            <View style={styles.titleBlock}>
+              <Text style={styles.title}>Connexion</Text>
+              <Text style={styles.subtitle}>
+                Accédez à votre espace de commande
+              </Text>
+            </View>
 
-          <TextInput
-            mode="flat"
-            label="Email"
-            value={email}
-            onChangeText={(t) => { setEmail(t); if (errors.email) setErrors({ ...errors, email: null }); }}
-            placeholder="exemple@societe.fr"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            error={!!errors.email}
-            disabled={loading}
-            style={styles.input}
-          />
-          <HelperText type="error" visible={!!errors.email}>{errors.email}</HelperText>
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={[styles.input, errors.email && styles.inputError]}
+                  placeholder="exemple@societe.fr"
+                  placeholderTextColor={colors.textLight}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (errors.email) setErrors({ ...errors, email: null });
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              </View>
 
-          <TextInput
-            mode="flat"
-            label="Mot de passe"
-            value={password}
-            onChangeText={(t) => { setPassword(t); if (errors.password) setErrors({ ...errors, password: null }); }}
-            secureTextEntry
-            autoCapitalize="none"
-            error={!!errors.password}
-            disabled={loading}
-            style={styles.input}
-          />
-          <HelperText type="error" visible={!!errors.password}>{errors.password}</HelperText>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Mot de passe</Text>
+                <TextInput
+                  style={[styles.input, errors.password && styles.inputError]}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textLight}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errors.password) setErrors({ ...errors, password: null });
+                  }}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  editable={!loading}
+                />
+                {errors.password && (
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                )}
+              </View>
 
-          <Button
-            mode="contained"
-            onPress={handleLogin}
-            loading={loading}
-            disabled={loading}
-            style={styles.submitBtn}
-            contentStyle={styles.submitContent}
-          >
-            Se connecter
-          </Button>
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.textOnPrimary} />
+                ) : (
+                  <Text style={styles.buttonText}>Se connecter</Text>
+                )}
+              </TouchableOpacity>
 
-          <View style={styles.footer}>
-            <Text variant="bodyMedium" style={{ color: colors.textSecondary }}>Pas encore de compte ? </Text>
-            <Text
-              variant="bodyMedium"
-              style={[styles.link, Platform.select({ web: { cursor: 'pointer' } })]}
-              onPress={() => !loading && navigation.navigate('Register')}
-            >
-              Créer un compte
-            </Text>
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Pas encore de compte ? </Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Register')}
+                  disabled={loading}
+                >
+                  <Text style={styles.footerLink}>Créer un compte</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </Surface>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenLayout>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
-  flex: { width: '100%', maxWidth: 440 },
-  card: { width: '100%', padding: spacing.md, backgroundColor: colors.surface },
-  cardDesktop: { padding: spacing.xxl, borderRadius: borderRadius.xl },
-  title: { textAlign: 'center', color: colors.textPrimary, fontWeight: '700', marginBottom: spacing.xs },
-  subtitle: { textAlign: 'center', color: colors.textSecondary, marginBottom: spacing.xl },
-  input: { backgroundColor: colors.surface },
-  submitBtn: { marginTop: spacing.md, borderRadius: borderRadius.md },
-  submitContent: { paddingVertical: 8 },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl, flexWrap: 'wrap' },
-  link: { color: colors.primary, fontWeight: '600' },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 440,
+  },
+  cardDesktop: {
+    backgroundColor: colors.surface,
+    padding: spacing.xxl,
+    borderRadius: borderRadius.xl,
+    ...shadows.lg,
+  },
+  titleBlock: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  title: {
+    fontSize: fontSizes.xxl,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    fontSize: fontSizes.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  form: {
+    width: '100%',
+  },
+  inputGroup: {
+    marginBottom: spacing.lg,
+  },
+  label: {
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  input: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
+    fontSize: fontSizes.md,
+    color: colors.textPrimary,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      },
+    }),
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: fontSizes.xs,
+    marginTop: spacing.xs,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    ...shadows.sm,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: colors.textOnPrimary,
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: spacing.xl,
+  },
+  footerText: {
+    color: colors.textSecondary,
+    fontSize: fontSizes.sm,
+  },
+  footerLink: {
+    color: colors.primary,
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  inputFocused: {
+    borderColor: colors.borderFocus,
+  },
 });

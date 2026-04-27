@@ -5,46 +5,46 @@
 
 export const colors = {
   // ── Couleurs de marque ─────────────────────────────
-  primary:       '#C4924A',          // or chaud — boutons, accents
-  primaryDark:   '#A67A38',          // or foncé — états actifs
-  primaryLight:  '#D9AE72',          // or clair — highlights
-  primaryGhost:  'rgba(196,146,74,0.10)',
+  primary: '#C4924A',          // or chaud — boutons, accents
+  primaryDark: '#A67A38',          // or foncé — états actifs
+  primaryLight: '#D9AE72',          // or clair — highlights
+  primaryGhost: 'rgba(196,146,74,0.10)',
 
   // ── Surfaces ───────────────────────────────────────
-  background:    '#FAF8F4',          // blanc crème très doux
-  surface:       '#FFFFFF',
-  secondary:     '#F6EFE4',          // crème chaude — zones de mise en valeur
+  background: '#FAF8F4',          // blanc crème très doux
+  surface: '#FFFFFF',
+  secondary: '#F6EFE4',          // crème chaude — zones de mise en valeur
 
   // ── Sidebar admin (espresso du logo) ───────────────
-  sidebarBg:     '#1A0A04',          // espresso — "SOF"
-  sidebarText:   '#EDD9B4',          // or pâle
+  sidebarBg: '#201d19b7',          // Brun plus clair
+  sidebarText: '#EDD9B4',          // or pâle
   sidebarActive: '#C4924A',          // or primary actif
-  sidebarMuted:  'rgba(237,217,180,0.40)',
+  sidebarMuted: 'rgba(237,217,180,0.40)',
 
   // ── Texte ──────────────────────────────────────────
-  textPrimary:   '#1A0A04',          // espresso — lecture principale
+  textPrimary: '#1A0A04',          // espresso — lecture principale
   textSecondary: '#5C3A1E',          // brun moyen
-  textLight:     '#9A7350',          // brun clair / placeholder
+  textLight: '#9A7350',          // brun clair / placeholder
   textOnPrimary: '#FFFFFF',
 
   // ── Bordures ───────────────────────────────────────
-  border:        '#E8D8C4',
-  borderFocus:   '#C4924A',
-  borderStrong:  '#BFA080',
+  border: '#E8D8C4',
+  borderFocus: '#C4924A',
+  borderStrong: '#BFA080',
 
   // ── États sémantiques ──────────────────────────────
-  success:      '#276228',
+  success: '#276228',
   successLight: '#E8F5E9',
-  error:        '#B71C1C',
-  errorLight:   '#FFEBEE',
-  warning:      '#D84315',
+  error: '#B71C1C',
+  errorLight: '#FFEBEE',
+  warning: '#D84315',
   warningLight: '#FFF3E0',
-  info:         '#1055A0',
-  infoLight:    '#E3F2FD',
+  info: '#1055A0',
+  infoLight: '#E3F2FD',
 
   // ── Misc ───────────────────────────────────────────
-  white:  '#FFFFFF',
-  black:  '#000000',
+  white: '#FFFFFF',
+  black: '#000000',
   accent: '#D9AE72',
 };
 
@@ -74,29 +74,29 @@ export const shadows = {
 
 // Espacement généreux pour que l'interface respire
 export const spacing = {
-  xs:  4,
-  sm:  8,
-  md:  16,
-  lg:  24,
-  xl:  40,
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 40,
   xxl: 64,
 };
 
 // Typographie lisible — pas de taille en dessous de 14
 export const fontSizes = {
-  xs:    14,
-  sm:    16,
-  md:    18,
-  lg:    22,
-  xl:    28,
-  xxl:   36,
+  xs: 14,
+  sm: 16,
+  md: 18,
+  lg: 22,
+  xl: 28,
+  xxl: 36,
   title: 44,
 };
 
 export const borderRadius = {
-  sm:    8,
-  md:    12,
-  lg:    16,
-  xl:    24,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
   round: 999,
 };

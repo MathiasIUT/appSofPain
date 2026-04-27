@@ -14,9 +14,9 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const MONTH_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jui','Jul','Aoû','Sep','Oct','Nov','Déc'];
-const MONTH_FULL  = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const MEDALS = ['①','②','③','④','⑤'];
+const MONTH_SHORT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jui', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+const MONTH_FULL = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+const MEDALS = ['①', '②', '③', '④', '⑤'];
 
 const STATUS_LABELS = {
   nouvelle: 'Nouvelle', en_preparation: 'En préparation',
@@ -33,7 +33,7 @@ const fmtEur = (v) =>
 const fmtEurCompact = (v) => {
   const n = Number(v ?? 0);
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' M€';
-  if (n >= 1_000)     return (n / 1_000).toFixed(1).replace('.', ',') + ' k€';
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace('.', ',') + ' k€';
   return fmtEur(n);
 };
 
@@ -43,26 +43,26 @@ const lastDayOfMonth = (year, month) => new Date(year, month, 0).getDate();
 
 export default function AdminStatsScreen() {
   const [allOrders, setAllOrders] = useState([]);
-  const [allItems,  setAllItems]  = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const [allItems, setAllItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  const now          = new Date();
-  const currentYear  = now.getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
   // ── État période ────────────────────────────────────────────
   // mode: 'today' | 'year' | 'all' | 'custom'
   // custom = plage de mois dans selectedYear
-  const [periodMode,   setPeriodMode]   = useState('custom');
+  const [periodMode, setPeriodMode] = useState('custom');
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [rangeStart,   setRangeStart]   = useState(currentMonth);
-  const [rangeEnd,     setRangeEnd]     = useState(currentMonth);
+  const [rangeStart, setRangeStart] = useState(currentMonth);
+  const [rangeEnd, setRangeEnd] = useState(currentMonth);
   // 'idle'      = plage complète
   // 'start-set' = début choisi, attend la fin
-  const [rangeState,   setRangeState]   = useState('idle');
+  const [rangeState, setRangeState] = useState('idle');
 
   // ── Chargement ─────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -78,9 +78,9 @@ export default function AdminStatsScreen() {
           .select('order_id, product_nom, quantite_palettes, sous_total_ht'),
       ]);
       if (ordersRes.error) throw ordersRes.error;
-      if (itemsRes.error)  throw itemsRes.error;
+      if (itemsRes.error) throw itemsRes.error;
       setAllOrders(ordersRes.data || []);
-      setAllItems(itemsRes.data  || []);
+      setAllItems(itemsRes.data || []);
     } catch (err) {
       console.error('Erreur chargement stats :', err);
     } finally {
@@ -127,7 +127,7 @@ export default function AdminStatsScreen() {
       })}`;
     }
     if (periodMode === 'year') return `Toute l'année ${selectedYear}`;
-    if (periodMode === 'all')  return 'Toutes les commandes, toutes périodes';
+    if (periodMode === 'all') return 'Toutes les commandes, toutes périodes';
     // custom
     if (rangeState === 'start-set') {
       return `Début : ${MONTH_FULL[rangeStart - 1]} — sélectionnez la fin…`;
@@ -148,14 +148,14 @@ export default function AdminStatsScreen() {
 
     if (periodMode === 'today') {
       from = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-      to   = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+      to = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
     } else if (periodMode === 'year') {
-      from = new Date(selectedYear,     0, 1);
-      to   = new Date(selectedYear + 1, 0, 1);
+      from = new Date(selectedYear, 0, 1);
+      to = new Date(selectedYear + 1, 0, 1);
     } else {
       const effectiveEnd = rangeState === 'start-set' ? rangeStart : rangeEnd;
       from = new Date(selectedYear, rangeStart - 1, 1);
-      to   = new Date(selectedYear, effectiveEnd,   1); // premier jour du mois suivant (borne exclue)
+      to = new Date(selectedYear, effectiveEnd, 1); // premier jour du mois suivant (borne exclue)
     }
 
     return allOrders.filter((o) => {
@@ -165,13 +165,13 @@ export default function AdminStatsScreen() {
   }, [allOrders, periodMode, selectedYear, rangeStart, rangeEnd, rangeState]);
 
   const orderIds = useMemo(() => new Set(orders.map((o) => o.id)), [orders]);
-  const items    = useMemo(() => allItems.filter((it) => orderIds.has(it.order_id)), [allItems, orderIds]);
+  const items = useMemo(() => allItems.filter((it) => orderIds.has(it.order_id)), [allItems, orderIds]);
 
   // ── KPIs ───────────────────────────────────────────────────
   const kpis = useMemo(() => {
-    const caTtc         = orders.reduce((s, o) => s + Number(o.total_ttc ?? 0), 0);
-    const nbCmds        = orders.length;
-    const panierMoy     = nbCmds > 0 ? caTtc / nbCmds : 0;
+    const caTtc = orders.reduce((s, o) => s + Number(o.total_ttc ?? 0), 0);
+    const nbCmds = orders.length;
+    const panierMoy = nbCmds > 0 ? caTtc / nbCmds : 0;
     const clientsActifs = new Set(orders.map((o) => o.client_id)).size;
     return { caTtc, nbCmds, panierMoy, clientsActifs };
   }, [orders]);
@@ -180,11 +180,11 @@ export default function AdminStatsScreen() {
   const caParMois = useMemo(() => {
     const map = {};
     orders.forEach((o) => {
-      const d   = new Date(o.date_commande);
+      const d = new Date(o.date_commande);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      map[key]  = (map[key] || 0) + Number(o.total_ttc ?? 0);
+      map[key] = (map[key] || 0) + Number(o.total_ttc ?? 0);
     });
-    const keys   = Object.keys(map).sort();
+    const keys = Object.keys(map).sort();
     const last12 = keys.slice(-12);
     return last12.map((k) => {
       const [year, month] = k.split('-');
@@ -208,7 +208,7 @@ export default function AdminStatsScreen() {
     items.forEach((it) => {
       if (!map[it.product_nom]) map[it.product_nom] = { palettes: 0, caHt: 0 };
       map[it.product_nom].palettes += Number(it.quantite_palettes ?? 0);
-      map[it.product_nom].caHt    += Number(it.sous_total_ht ?? 0);
+      map[it.product_nom].caHt += Number(it.sous_total_ht ?? 0);
     });
     return Object.entries(map)
       .map(([nom, v]) => ({ nom, ...v }))
@@ -224,13 +224,13 @@ export default function AdminStatsScreen() {
       if (!map[id]) {
         const c = o.client || {};
         map[id] = {
-          nom:    c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—',
+          nom: c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—',
           nbCmds: 0,
-          caTtc:  0,
+          caTtc: 0,
         };
       }
       map[id].nbCmds += 1;
-      map[id].caTtc  += Number(o.total_ttc ?? 0);
+      map[id].caTtc += Number(o.total_ttc ?? 0);
     });
     return Object.values(map)
       .sort((a, b) => b.caTtc - a.caTtc)
@@ -273,8 +273,8 @@ export default function AdminStatsScreen() {
         <View style={styles.quickRow}>
           {[
             { key: 'today', label: "Aujourd'hui" },
-            { key: 'year',  label: 'Toute l\'année' },
-            { key: 'all',   label: 'Tout' },
+            { key: 'year', label: 'Toute l\'année' },
+            { key: 'all', label: 'Tout' },
           ].map((q) => {
             const active = periodMode === q.key;
             return (
@@ -316,12 +316,12 @@ export default function AdminStatsScreen() {
         {/* Grille des mois — 4 par ligne */}
         <View style={styles.monthGrid}>
           {MONTH_SHORT.map((m, i) => {
-            const monthNum  = i + 1;
-            const isCustom  = periodMode === 'custom';
-            const isStart   = isCustom && monthNum === rangeStart;
-            const isEnd     = isCustom && rangeState === 'idle' && monthNum === rangeEnd;
-            const inRange   = isCustom && rangeState === 'idle'
-                               && monthNum >= rangeStart && monthNum <= rangeEnd;
+            const monthNum = i + 1;
+            const isCustom = periodMode === 'custom';
+            const isStart = isCustom && monthNum === rangeStart;
+            const isEnd = isCustom && rangeState === 'idle' && monthNum === rangeEnd;
+            const inRange = isCustom && rangeState === 'idle'
+              && monthNum >= rangeStart && monthNum <= rangeEnd;
             const isPicking = isCustom && rangeState === 'start-set' && monthNum === rangeStart;
 
             return (
@@ -329,7 +329,7 @@ export default function AdminStatsScreen() {
                 key={m}
                 style={[
                   styles.monthChip,
-                  inRange              && styles.monthInRange,
+                  inRange && styles.monthInRange,
                   (isStart || isEnd || isPicking) && styles.monthEndpoint,
                 ]}
                 onPress={() => handleMonthTap(monthNum)}
@@ -337,7 +337,7 @@ export default function AdminStatsScreen() {
               >
                 <Text style={[
                   styles.monthLabel,
-                  inRange              && styles.monthLabelInRange,
+                  inRange && styles.monthLabelInRange,
                   (isStart || isEnd || isPicking) && styles.monthLabelEndpoint,
                 ]}>
                   {m}
@@ -368,10 +368,10 @@ export default function AdminStatsScreen() {
         <>
           {/* KPIs */}
           <View style={[styles.kpiGrid, isDesktop && styles.kpiGridDesktop]}>
-            <KpiCard label="Chiffre d'affaires TTC" value={fmtEur(kpis.caTtc)}            accent />
-            <KpiCard label="Commandes"               value={String(kpis.nbCmds)} />
-            <KpiCard label="Panier moyen"            value={fmtEur(kpis.panierMoy)} />
-            <KpiCard label="Clients actifs"          value={String(kpis.clientsActifs)} />
+            <KpiCard label="Chiffre d'affaires TTC" value={fmtEur(kpis.caTtc)} accent />
+            <KpiCard label="Commandes" value={String(kpis.nbCmds)} />
+            <KpiCard label="Panier moyen" value={fmtEur(kpis.panierMoy)} />
+            <KpiCard label="Clients actifs" value={String(kpis.clientsActifs)} />
           </View>
 
           {/* CA mensuel */}
@@ -444,7 +444,7 @@ function KpiCard({ label, value, accent }) {
 }
 
 function BarChart({ data }) {
-  const max        = Math.max(...data.map((d) => d.value), 1);
+  const max = Math.max(...data.map((d) => d.value), 1);
   const BAR_HEIGHT = 160;
   return (
     <View style={chart.container}>
@@ -468,7 +468,7 @@ function StatusBars({ data, total }) {
       {data.map((d) => {
         if (d.count === 0) return null;
         const pct = total > 0 ? (d.count / total) * 100 : 0;
-        const c   = STATUS_COLORS[d.statut];
+        const c = STATUS_COLORS[d.statut];
         return (
           <View key={d.statut} style={status.row}>
             <Text style={status.label}>{STATUS_LABELS[d.statut]}</Text>
@@ -513,11 +513,11 @@ function RankTable({ columns, rows, aligns }) {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: colors.background },
-  content:        { padding: spacing.lg, paddingBottom: spacing.xxl, width: '100%' },
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.lg, paddingBottom: spacing.xxl, width: '100%' },
   contentDesktop: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
 
-  centered:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: spacing.md, color: colors.textSecondary, fontSize: fontSizes.sm },
 
   // Header
@@ -528,8 +528,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   headerTitle: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
-  headerSub:   { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
-  refreshBtn:  { ...Platform.select({ web: { cursor: 'pointer' } }) },
+  headerSub: { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
+  refreshBtn: { ...Platform.select({ web: { cursor: 'pointer' } }) },
   refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   // ── Period picker card ─────────────────────────────────────
@@ -559,8 +559,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  quickChipActive:  { borderColor: colors.primary, backgroundColor: colors.secondary },
-  quickLabel:       { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
+  quickChipActive: { borderColor: colors.primary, backgroundColor: colors.secondary },
+  quickLabel: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
   quickLabelActive: { color: colors.primary, fontWeight: '700' },
 
   // Year nav
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   yearArrowDisabled: { opacity: 0.25 },
-  yearArrowText:     { fontSize: fontSizes.xl, color: colors.primary, fontWeight: '700' },
+  yearArrowText: { fontSize: fontSizes.xl, color: colors.primary, fontWeight: '700' },
   yearLabel: {
     fontSize: fontSizes.lg,
     fontWeight: '800',
@@ -611,11 +611,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  monthInRange:       { backgroundColor: colors.secondary, borderColor: colors.primaryLight },
-  monthEndpoint:      { backgroundColor: colors.primary,   borderColor: colors.primary },
-  monthLabel:         { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
-  monthLabelInRange:  { color: colors.primary,  fontWeight: '600' },
-  monthLabelEndpoint: { color: '#fff',           fontWeight: '700' },
+  monthInRange: { backgroundColor: colors.secondary, borderColor: colors.primaryLight },
+  monthEndpoint: { backgroundColor: colors.primary, borderColor: colors.primary },
+  monthLabel: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
+  monthLabelInRange: { color: colors.primary, fontWeight: '600' },
+  monthLabelEndpoint: { color: '#fff', fontWeight: '700' },
 
   // Period description
   periodDescRow: {
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
   },
 
   // Empty state
-  empty:     { alignItems: 'center', paddingVertical: spacing.xxl },
+  empty: { alignItems: 'center', paddingVertical: spacing.xxl },
   emptyIcon: { fontSize: 40, marginBottom: spacing.md },
   emptyText: { fontSize: fontSizes.md, color: colors.textSecondary },
 
@@ -661,8 +661,8 @@ const styles = StyleSheet.create({
     gap: 4,
     ...shadows.sm,
   },
-  kpiCardAccent:  { backgroundColor: colors.primary, borderColor: colors.primary },
-  kpiValue:       { fontSize: fontSizes.xl,  fontWeight: '800', color: colors.textPrimary },
+  kpiCardAccent: { backgroundColor: colors.primary, borderColor: colors.primary },
+  kpiValue: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
   kpiValueAccent: { fontSize: fontSizes.xxl, fontWeight: '800', color: '#fff' },
   kpiLabel: {
     fontSize: fontSizes.xs, fontWeight: '700', color: colors.textSecondary,
@@ -671,8 +671,8 @@ const styles = StyleSheet.create({
   kpiLabelAccent: { color: 'rgba(255,255,255,0.8)' },
 
   // Sections
-  section:      { marginBottom: spacing.lg },
-  sectionFlex:  { flex: 1 },
+  section: { marginBottom: spacing.lg },
+  sectionFlex: { flex: 1 },
   sectionTitle: {
     fontSize: fontSizes.xs, fontWeight: '700', textTransform: 'uppercase',
     letterSpacing: 1, color: colors.primary, marginBottom: spacing.sm,
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
 
-  tablesRow:        { gap: spacing.lg },
+  tablesRow: { gap: spacing.lg },
   tablesRowDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
 });
 
@@ -692,19 +692,19 @@ const chart = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-end',
     justifyContent: 'space-around', height: 220, gap: 4,
   },
-  col:      { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  col: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   barValue: { fontSize: 10, color: colors.textSecondary, fontWeight: '700', textAlign: 'center' },
-  bar:      { width: '80%', backgroundColor: colors.primary, borderRadius: borderRadius.sm, minHeight: 4 },
+  bar: { width: '80%', backgroundColor: colors.primary, borderRadius: borderRadius.sm, minHeight: 4 },
   barLabel: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', fontWeight: '500' },
 });
 
 const status = StyleSheet.create({
   container: { gap: spacing.sm },
-  row:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label:  { width: 120, fontSize: fontSizes.sm, color: colors.textPrimary, fontWeight: '500' },
-  barWrap:{ flex: 1, height: 10, backgroundColor: colors.border, borderRadius: borderRadius.round, overflow: 'hidden' },
-  bar:    { height: '100%', borderRadius: borderRadius.round },
-  count:  { width: 32, fontSize: fontSizes.sm, fontWeight: '700', textAlign: 'right' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  label: { width: 120, fontSize: fontSizes.sm, color: colors.textPrimary, fontWeight: '500' },
+  barWrap: { flex: 1, height: 10, backgroundColor: colors.border, borderRadius: borderRadius.round, overflow: 'hidden' },
+  bar: { height: '100%', borderRadius: borderRadius.round },
+  count: { width: 32, fontSize: fontSizes.sm, fontWeight: '700', textAlign: 'right' },
 });
 
 const table = StyleSheet.create({
@@ -713,8 +713,8 @@ const table = StyleSheet.create({
     flexDirection: 'row', paddingVertical: spacing.xs, paddingHorizontal: 4,
     borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 2,
   },
-  th:     { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  row:    { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 4, borderRadius: borderRadius.sm },
+  th: { fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  row: { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 4, borderRadius: borderRadius.sm },
   rowAlt: { backgroundColor: colors.secondary },
-  td:     { fontSize: fontSizes.sm, color: colors.textPrimary },
+  td: { fontSize: fontSizes.sm, color: colors.textPrimary },
 });

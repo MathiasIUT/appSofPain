@@ -420,17 +420,17 @@ const styles = StyleSheet.create({
   productCardInactive: {
     opacity: 0.6,
   },
- productImage: {
-  width: '100%',
-  aspectRatio: 1.5, 
-  backgroundColor: '#F3E5D8', 
-  overflow: 'hidden',
-},
-productImg: {
-  width: '100%',
-  height: '100%',
-  resizeMode: 'cover', 
-},
+  productImage: {
+    width: '100%',
+    aspectRatio: 1.5,
+    backgroundColor: '#F3E5D8',
+    overflow: 'hidden',
+  },
+  productImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   productImgEmpty: {
     width: '100%',
     height: '100%',

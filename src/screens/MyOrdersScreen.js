@@ -13,23 +13,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
-const EN_COURS   = ['nouvelle', 'en_preparation', 'en_livraison'];
+const EN_COURS = ['nouvelle', 'en_preparation', 'en_livraison'];
 const EFFECTUEES = ['livree', 'annulee'];
 
 const STATUS_LABELS = {
-  nouvelle:       'Nouvelle',
+  nouvelle: 'Nouvelle',
   en_preparation: 'En préparation',
-  en_livraison:   'En livraison',
-  livree:         'Livrée',
-  annulee:        'Annulée',
+  en_livraison: 'En livraison',
+  livree: 'Livrée',
+  annulee: 'Annulée',
 };
 
 const STATUS_COLORS = {
-  nouvelle:       colors.info,
+  nouvelle: colors.info,
   en_preparation: colors.warning,
-  en_livraison:   colors.info,
-  livree:         colors.success,
-  annulee:        colors.error,
+  en_livraison: colors.info,
+  livree: colors.success,
+  annulee: colors.error,
 };
 
 const fmt = (d) =>
@@ -38,8 +38,8 @@ const fmt = (d) =>
   });
 
 export default function MyOrdersScreen({ navigation }) {
-  const [orders, setOrders]       = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('en_cours');
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
@@ -64,9 +64,9 @@ export default function MyOrdersScreen({ navigation }) {
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 
-  const countEnCours   = orders.filter((o) => EN_COURS.includes(o.statut)).length;
+  const countEnCours = orders.filter((o) => EN_COURS.includes(o.statut)).length;
   const countEffectuee = orders.filter((o) => EFFECTUEES.includes(o.statut)).length;
-  const displayed      = orders.filter((o) =>
+  const displayed = orders.filter((o) =>
     activeTab === 'en_cours' ? EN_COURS.includes(o.statut) : EFFECTUEES.includes(o.statut)
   );
 
@@ -88,8 +88,8 @@ export default function MyOrdersScreen({ navigation }) {
       {/* ── Onglets ────────────────────────────────────────── */}
       <View style={styles.tabs}>
         {[
-          { key: 'en_cours',   label: 'En cours',   count: countEnCours   },
-          { key: 'effectuees', label: 'Effectuées',  count: countEffectuee },
+          { key: 'en_cours', label: 'En cours', count: countEnCours },
+          { key: 'effectuees', label: 'Effectuées', count: countEffectuee },
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}

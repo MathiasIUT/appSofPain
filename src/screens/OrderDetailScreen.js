@@ -17,19 +17,19 @@ import Button from '../components/Button';
 import { generateOrderPdf } from '../utils/generateOrderPdf';
 
 const STATUS_LABELS = {
-  nouvelle:       'Nouvelle',
+  nouvelle: 'Nouvelle',
   en_preparation: 'En préparation',
-  en_livraison:   'En livraison',
-  livree:         'Livrée',
-  annulee:        'Annulée',
+  en_livraison: 'En livraison',
+  livree: 'Livrée',
+  annulee: 'Annulée',
 };
 
 const STATUS_COLORS = {
-  nouvelle:       colors.info,
+  nouvelle: colors.info,
   en_preparation: colors.warning,
-  en_livraison:   colors.info,
-  livree:         colors.success,
-  annulee:        colors.error,
+  en_livraison: colors.info,
+  livree: colors.success,
+  annulee: colors.error,
 };
 
 const fmt = (d) =>
@@ -49,9 +49,9 @@ export default function OrderDetailScreen({ navigation, route }) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
-  const [items, setItems]         = useState([]);
-  const [client, setClient]       = useState(null);
-  const [loading, setLoading]     = useState(true);
+  const [items, setItems] = useState([]);
+  const [client, setClient] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
