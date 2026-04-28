@@ -285,11 +285,9 @@ function ProductCard({ product }) {
           {product.nom}
         </Text>
 
-        {product.description ? (
-          <Text style={styles.productDesc} numberOfLines={2}>
-            {product.description}
-          </Text>
-        ) : null}
+        <Text style={styles.productDesc} numberOfLines={2}>
+          {product.description || ' '}
+        </Text>
 
         <View style={styles.productMeta}>
           <Text style={styles.productMetaItem}>
@@ -308,6 +306,9 @@ function ProductCard({ product }) {
             <Text style={styles.pricePer}>par palette</Text>
           </View>
         </View>
+
+        {/* Spacer to push button to bottom */}
+        <View style={{ flex: 1 }} />
 
         {/* Boutons +/- avec saisie manuelle ou "Ajouter" */}
         {currentQty === 0 ? (
@@ -575,7 +576,7 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: 120,
+    aspectRatio: 4 / 3,
     backgroundColor: colors.secondary,
   },
   productImg: {
@@ -597,6 +598,7 @@ const styles = StyleSheet.create({
   },
   productInfo: {
     padding: spacing.md,
+    flex: 1,
   },
   productName: {
     fontSize: fontSizes.md,
@@ -609,6 +611,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.sm,
     lineHeight: 18,
+    minHeight: 36,
   },
   productMeta: {
     marginBottom: spacing.md,

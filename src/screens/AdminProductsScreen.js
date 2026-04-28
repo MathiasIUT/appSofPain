@@ -245,11 +245,9 @@ function ProductCard({ product, onEdit }) {
           {product.nom}
         </Text>
 
-        {product.description ? (
-          <Text style={styles.productDesc} numberOfLines={2}>
-            {product.description}
-          </Text>
-        ) : null}
+        <Text style={styles.productDesc} numberOfLines={2}>
+          {product.description || ' '}
+        </Text>
 
         <View style={styles.productDetails}>
           <Text style={styles.productDetailItem}>
@@ -267,6 +265,9 @@ function ProductCard({ product, onEdit }) {
           </Text>
           <Text style={styles.productPriceUnit}>/ palette</Text>
         </View>
+
+        {/* Spacer to push button to bottom */}
+        <View style={{ flex: 1 }} />
 
         <Button title="Modifier" variant="secondary" size="sm" onPress={onEdit} />
       </View>
@@ -459,6 +460,7 @@ const styles = StyleSheet.create({
   },
   productInfo: {
     padding: spacing.md,
+    flex: 1,
   },
   productCategoryTag: {
     alignSelf: 'flex-start',
@@ -484,6 +486,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.md,
     lineHeight: 18,
+    minHeight: 36,
   },
   productDetails: {
     marginBottom: spacing.md,
