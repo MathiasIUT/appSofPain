@@ -26,6 +26,7 @@ export default function ClientHome({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [profile, setProfile] = useState(null);
+  const [clientPrices, setClientPrices] = useState({});
 
   const { items: cartItems, totals } = useCart();
 
@@ -37,7 +38,7 @@ export default function ClientHome({ navigation }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const [profileRes, prodRes] = await Promise.all([
+      const [profileRes, prodRes, pricesRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('nom, prenom, nom_societe')
@@ -48,15 +49,28 @@ export default function ClientHome({ navigation }) {
           .select('*, category:categories(id, nom, slug)')
           .eq('actif', true)
           .order('nom', { ascending: true }),
+        supabase
+          .from('client_prices')
+          .select('product_id, prix_palette_ht')
+          .eq('client_id', user.id),
       ]);
 
       if (profileRes.data) setProfile(profileRes.data);
       if (prodRes.error) throw prodRes.error;
 
+      // Build client prices map
+      const priceMap = {};
+      (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = Number(p.prix_palette_ht); });
+      setClientPrices(priceMap);
+
       // Ne garder que les produits des catégories visibles
       const visibleProducts = (prodRes.data || []).filter((p) =>
         VISIBLE_CATEGORY_SLUGS.includes(p.category?.slug)
-      );
+      ).map(p => ({
+        ...p,
+        // Apply client-specific price if available
+        prix_palette_ht: priceMap[p.id] !== undefined ? priceMap[p.id] : p.prix_palette_ht,
+      }));
       setProducts(visibleProducts);
     } catch (err) {
       console.error('Erreur chargement catalogue :', err);

@@ -36,12 +36,9 @@ export default function LoginScreen({ navigation }) {
 
   const validate = () => {
     const newErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!email.trim()) {
-      newErrors.email = 'L\'email est requis';
-    } else if (!emailRegex.test(email.trim())) {
-      newErrors.email = 'Format d\'email invalide';
+      newErrors.email = 'L\'identifiant est requis';
     }
 
     if (!password) {
@@ -133,16 +130,16 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.titleBlock}>
               <Text style={styles.title}>Connexion</Text>
               <Text style={styles.subtitle}>
-                Accédez à votre espace de commande
+                Connectez-vous avec vos identifiants fournis
               </Text>
             </View>
 
             <View style={styles.form}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={styles.label}>Identifiant</Text>
                 <TextInput
                   style={[styles.input, errors.email && styles.inputError]}
-                  placeholder="exemple@societe.fr"
+                  placeholder="Votre identifiant de connexion"
                   placeholderTextColor={colors.textLight}
                   value={email}
                   onChangeText={(text) => {
@@ -190,15 +187,9 @@ export default function LoginScreen({ navigation }) {
                 )}
               </TouchableOpacity>
 
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>Pas encore de compte ? </Text>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Register')}
-                  disabled={loading}
-                >
-                  <Text style={styles.footerLink}>Créer un compte</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.footerHint}>
+                Vos identifiants vous ont été transmis par Sof Pain.
+              </Text>
             </View>
           </View>
         </ScrollView>
@@ -302,24 +293,12 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: '700',
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: spacing.xl,
-  },
-  footerText: {
+  footerHint: {
     color: colors.textSecondary,
-    fontSize: fontSizes.sm,
-  },
-  footerLink: {
-    color: colors.primary,
-    fontSize: fontSizes.sm,
-    fontWeight: '600',
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-      },
-    }),
+    fontSize: fontSizes.xs,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: spacing.xl,
   },
   inputFocused: {
     borderColor: colors.borderFocus,

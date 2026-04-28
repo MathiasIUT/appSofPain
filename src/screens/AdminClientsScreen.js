@@ -16,6 +16,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
+import CreateClientModal from '../components/CreateClientModal';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ export default function AdminClientsScreen() {
   const [search, setSearch]             = useState('');
   const [selectedClient, setSelected]   = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [createVisible, setCreateVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -135,9 +137,12 @@ export default function AdminClientsScreen() {
           <Text style={styles.screenTitle}>Clients</Text>
           <Text style={styles.screenCount}>{filtered.length} / {clients.length}</Text>
         </View>
-        <TouchableOpacity onPress={loadClients} style={styles.refreshBtn} activeOpacity={0.7}>
-          <Text style={styles.refreshText}>↻ Actualiser</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+          <TouchableOpacity onPress={loadClients} style={styles.refreshBtn} activeOpacity={0.7}>
+            <Text style={styles.refreshText}>↻ Actualiser</Text>
+          </TouchableOpacity>
+          <Button title="+ Créer un client" onPress={() => setCreateVisible(true)} size="sm" />
+        </View>
       </View>
 
       {/* ── Recherche ───────────────────────────────────────── */}
@@ -221,6 +226,13 @@ export default function AdminClientsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Modal création ────────────────────────────────── */}
+      <CreateClientModal
+        visible={createVisible}
+        onClose={() => setCreateVisible(false)}
+        onCreated={loadClients}
+      />
     </View>
   );
 }
@@ -260,8 +272,6 @@ function ClientRow({ item, onPress }) {
   );
 }
 
-// ─── Modal détail client ─────────────────────────────────────────────────────
-
 function ClientDetailModal({ client, onClose, onUpdated }) {
   const initial = {
     nom:         client.nom         || '',
@@ -280,23 +290,42 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
   const [toggling, setToggling]           = useState(false);
   const [orders, setOrders]               = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [livreurs, setLivreurs]           = useState([]);
+  const [selectedLivreur, setSelectedLivreur] = useState(client.livreur_id || null);
+  const [savingLivreur, setSavingLivreur] = useState(false);
+  const [clientPrices, setClientPrices]   = useState({});
+  const [products, setProducts]           = useState([]);
+  const [savingPrices, setSavingPrices]   = useState(false);
+  const [showPrices, setShowPrices]       = useState(false);
 
   const isActif = client.actif !== false;
   const changed = Object.keys(form).some((k) => form[k] !== initial[k]);
+
+  // Monthly HT total
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const monthOrders = orders.filter(o => o.date_commande >= monthStart && o.statut !== 'annulee');
+  const monthTotalHt = monthOrders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
 
   useEffect(() => {
     (async () => {
       setLoadingOrders(true);
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('client_id', client.id)
-          .order('date_commande', { ascending: false });
-        if (error) throw error;
-        setOrders(data || []);
+        const [ordRes, livRes, prodRes, pricesRes] = await Promise.all([
+          supabase.from('orders').select('*').eq('client_id', client.id)
+            .order('date_commande', { ascending: false }),
+          supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
+          supabase.from('products').select('id, nom, prix_palette_ht').eq('actif', true).order('nom'),
+          supabase.from('client_prices').select('*').eq('client_id', client.id),
+        ]);
+        setOrders(ordRes.data || []);
+        setLivreurs(livRes.data || []);
+        setProducts(prodRes.data || []);
+        const priceMap = {};
+        (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = String(p.prix_palette_ht); });
+        setClientPrices(priceMap);
       } catch (err) {
-        console.error('Erreur chargement commandes client :', err);
+        console.error('Erreur chargement données client :', err);
       } finally {
         setLoadingOrders(false);
       }
@@ -309,53 +338,72 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
       const { data, error } = await supabase
         .from('profiles')
         .update({
-          nom:         form.nom         || null,
-          prenom:      form.prenom      || null,
-          nom_societe: form.nom_societe || null,
-          email:       form.email       || null,
-          telephone:   form.telephone   || null,
-          adresse:     form.adresse     || null,
-          code_postal: form.code_postal || null,
-          ville:       form.ville       || null,
-          siret:       form.siret       || null,
+          nom: form.nom || null, prenom: form.prenom || null,
+          nom_societe: form.nom_societe || null, email: form.email || null,
+          telephone: form.telephone || null, adresse: form.adresse || null,
+          code_postal: form.code_postal || null, ville: form.ville || null,
+          siret: form.siret || null,
         })
-        .eq('id', client.id)
-        .select('*')
-        .single();
+        .eq('id', client.id).select('*').single();
       if (error) throw error;
       onUpdated(data);
       showAlert('Succès', 'Profil client mis à jour.');
     } catch (err) {
-      console.error('Erreur mise à jour client :', err);
       showAlert('Erreur', 'Impossible de mettre à jour le client.');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
+  };
+
+  const handleSaveLivreur = async () => {
+    setSavingLivreur(true);
+    try {
+      const { data, error } = await supabase.from('profiles')
+        .update({ livreur_id: selectedLivreur || null })
+        .eq('id', client.id).select('*').single();
+      if (error) throw error;
+      onUpdated(data);
+      showAlert('Succès', 'Livreur assigné mis à jour.');
+    } catch (err) {
+      showAlert('Erreur', 'Impossible de changer le livreur.');
+    } finally { setSavingLivreur(false); }
+  };
+
+  const handleSavePrices = async () => {
+    setSavingPrices(true);
+    try {
+      // Delete existing custom prices
+      await supabase.from('client_prices').delete().eq('client_id', client.id);
+      // Insert new custom prices that differ from defaults
+      const rows = [];
+      for (const [productId, price] of Object.entries(clientPrices)) {
+        const p = parseFloat(price);
+        const prod = products.find(pr => pr.id === productId);
+        if (!isNaN(p) && p >= 0 && prod && Math.abs(p - Number(prod.prix_palette_ht)) > 0.001) {
+          rows.push({ client_id: client.id, product_id: productId, prix_palette_ht: p });
+        }
+      }
+      if (rows.length > 0) await supabase.from('client_prices').insert(rows);
+      showAlert('Succès', `${rows.length} prix personnalisé(s) enregistré(s).`);
+    } catch (err) {
+      showAlert('Erreur', 'Impossible de sauvegarder les prix.');
+    } finally { setSavingPrices(false); }
   };
 
   const handleToggleActif = () => {
     const displayName = client.nom_societe || client.email || 'ce client';
     const msg = isActif
-      ? `Désactiver le compte de ${displayName} ? Il ne pourra plus se connecter.`
+      ? `Désactiver le compte de ${displayName} ?`
       : `Réactiver le compte de ${displayName} ?`;
     confirmAction(msg, async () => {
       setToggling(true);
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .update({ actif: !isActif })
-          .eq('id', client.id)
-          .select('*')
-          .single();
+        const { data, error } = await supabase.from('profiles')
+          .update({ actif: !isActif }).eq('id', client.id).select('*').single();
         if (error) throw error;
         onUpdated(data);
         showAlert('Succès', isActif ? 'Compte désactivé.' : 'Compte réactivé.');
       } catch (err) {
-        console.error('Erreur toggle actif :', err);
-        showAlert('Erreur', 'Impossible de modifier le statut du compte.');
-      } finally {
-        setToggling(false);
-      }
+        showAlert('Erreur', 'Impossible de modifier le statut.');
+      } finally { setToggling(false); }
     });
   };
 
@@ -365,10 +413,11 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
     || [client.prenom, client.nom].filter(Boolean).join(' ')
     || client.email || '—';
 
+  const livreurChanged = selectedLivreur !== (client.livreur_id || null);
+
   return (
     <View style={modal.container}>
-
-      {/* ── Header ─────────────────────────────────────────── */}
+      {/* Header */}
       <View style={modal.header}>
         <View style={{ flex: 1 }}>
           <Text style={modal.headerName} numberOfLines={1}>{displayName}</Text>
@@ -383,51 +432,125 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
         </TouchableOpacity>
       </View>
 
-      {/* ── Body ───────────────────────────────────────────── */}
       <ScrollView style={modal.body} contentContainerStyle={modal.bodyContent} showsVerticalScrollIndicator={false}>
 
-        {/* Informations ─────────────────────────────────── */}
+        {/* Total du mois */}
+        <View style={modal.section}>
+          <Text style={modal.sectionTitle}>Total du mois en cours</Text>
+          <View style={modal.monthBox}>
+            <Text style={modal.monthLabel}>
+              {now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            </Text>
+            <Text style={modal.monthTotal}>{monthTotalHt.toFixed(2)} € HT</Text>
+            <Text style={modal.monthSub}>
+              {monthOrders.length} commande{monthOrders.length > 1 ? 's' : ''} (hors annulées)
+            </Text>
+          </View>
+        </View>
+
+        {/* Informations */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Informations</Text>
           <View style={modal.row2}>
-            <FormField label="Prénom"  value={form.prenom}      onChangeText={setField('prenom')}      placeholder="Prénom" />
-            <FormField label="Nom"     value={form.nom}          onChangeText={setField('nom')}          placeholder="Nom" />
+            <FormField label="Prénom" value={form.prenom} onChangeText={setField('prenom')} placeholder="Prénom" />
+            <FormField label="Nom" value={form.nom} onChangeText={setField('nom')} placeholder="Nom" />
           </View>
-          <FormField label="Société"   value={form.nom_societe}  onChangeText={setField('nom_societe')}  placeholder="Nom de la société" />
-          <FormField label="Email"     value={form.email}        onChangeText={setField('email')}        placeholder="email@exemple.fr" keyboardType="email-address" autoCapitalize="none" />
-          <FormField label="Téléphone" value={form.telephone}    onChangeText={setField('telephone')}    placeholder="06 00 00 00 00" keyboardType="phone-pad" />
-          <FormField label="SIRET"     value={form.siret}        onChangeText={setField('siret')}        placeholder="000 000 000 00000" />
+          <FormField label="Société" value={form.nom_societe} onChangeText={setField('nom_societe')} placeholder="Nom de la société" />
+          <FormField label="Email" value={form.email} onChangeText={setField('email')} placeholder="email@exemple.fr" keyboardType="email-address" autoCapitalize="none" />
+          <FormField label="Téléphone" value={form.telephone} onChangeText={setField('telephone')} placeholder="06 00 00 00 00" keyboardType="phone-pad" />
+          <FormField label="SIRET" value={form.siret} onChangeText={setField('siret')} placeholder="000 000 000 00000" />
         </View>
 
-        {/* Adresse ──────────────────────────────────────── */}
+        {/* Adresse */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Adresse</Text>
           <FormField label="Adresse" value={form.adresse} onChangeText={setField('adresse')} placeholder="1 rue de la Boulangerie" />
           <View style={modal.row2}>
             <FormField label="Code postal" value={form.code_postal} onChangeText={setField('code_postal')} placeholder="75000" keyboardType="numeric" />
-            <FormField label="Ville"       value={form.ville}       onChangeText={setField('ville')}       placeholder="Paris" />
+            <FormField label="Ville" value={form.ville} onChangeText={setField('ville')} placeholder="Paris" />
           </View>
         </View>
 
         {changed && (
-          <Button
-            title="Enregistrer les modifications"
-            onPress={handleSave}
-            loading={saving}
-            disabled={saving}
-            fullWidth
-            size="lg"
-          />
+          <Button title="Enregistrer les modifications" onPress={handleSave}
+            loading={saving} disabled={saving} fullWidth size="lg" />
         )}
 
-        {/* Statut du compte ─────────────────────────────── */}
+        {/* Livreur assigné */}
+        <View style={modal.section}>
+          <Text style={modal.sectionTitle}>Livreur assigné</Text>
+          {livreurs.length === 0 ? (
+            <Text style={modal.emptyOrders}>Aucun livreur disponible.</Text>
+          ) : (
+            <>
+              <View style={modal.chipsRow}>
+                <TouchableOpacity
+                  style={[modal.chip, !selectedLivreur && modal.chipActive]}
+                  onPress={() => setSelectedLivreur(null)}
+                >
+                  <Text style={[modal.chipText, !selectedLivreur && modal.chipTextActive]}>Aucun</Text>
+                </TouchableOpacity>
+                {livreurs.map(l => (
+                  <TouchableOpacity
+                    key={l.id}
+                    style={[modal.chip, selectedLivreur === l.id && modal.chipActive]}
+                    onPress={() => setSelectedLivreur(l.id)}
+                  >
+                    <Text style={[modal.chipText, selectedLivreur === l.id && modal.chipTextActive]}>
+                      {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {livreurChanged && (
+                <Button title="Sauvegarder le livreur" onPress={handleSaveLivreur}
+                  loading={savingLivreur} disabled={savingLivreur} fullWidth size="sm" variant="secondary" />
+              )}
+            </>
+          )}
+        </View>
+
+        {/* Prix personnalisés */}
+        <View style={modal.section}>
+          <TouchableOpacity onPress={() => setShowPrices(!showPrices)} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={modal.sectionTitle}>Prix personnalisés {showPrices ? '▾' : '▸'}</Text>
+          </TouchableOpacity>
+          {showPrices && (
+            <>
+              {products.map(p => {
+                const hasCustom = clientPrices[p.id] !== undefined;
+                const displayPrice = hasCustom ? clientPrices[p.id] : String(p.prix_palette_ht);
+                return (
+                  <View key={p.id} style={modal.priceRow}>
+                    <Text style={modal.priceName} numberOfLines={1}>{p.nom}</Text>
+                    <View style={modal.priceInputWrap}>
+                      <TextInput
+                        style={modal.priceInput}
+                        value={displayPrice}
+                        onChangeText={v => setClientPrices(prev => ({ ...prev, [p.id]: v }))}
+                        keyboardType="decimal-pad"
+                        placeholder={String(p.prix_palette_ht)}
+                        placeholderTextColor={colors.textLight}
+                      />
+                      <Text style={modal.priceUnit}>€ HT</Text>
+                    </View>
+                  </View>
+                );
+              })}
+              <View style={{ marginTop: spacing.sm }}>
+                <Button title="Sauvegarder les prix" onPress={handleSavePrices}
+                  loading={savingPrices} disabled={savingPrices} fullWidth size="sm" />
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Statut du compte */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Statut du compte</Text>
           <TouchableOpacity
             style={[modal.toggleBtn, isActif ? modal.toggleBtnDanger : modal.toggleBtnSuccess]}
-            onPress={handleToggleActif}
-            disabled={toggling}
-            activeOpacity={0.8}
+            onPress={handleToggleActif} disabled={toggling} activeOpacity={0.8}
           >
             {toggling
               ? <ActivityIndicator color={colors.white} size="small" />
@@ -438,7 +561,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
           </TouchableOpacity>
         </View>
 
-        {/* Historique commandes ─────────────────────────── */}
+        {/* Historique commandes */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Historique des commandes ({orders.length})</Text>
           {loadingOrders ? (
@@ -454,7 +577,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
                     <Text style={modal.orderNum}>N° {o.numero}</Text>
                     <Text style={modal.orderDate}>{fmt(o.date_commande)}</Text>
                   </View>
-                  <Text style={modal.orderTotal}>{n2(o.total_ttc)} €</Text>
+                  <Text style={modal.orderTotal}>{n2(o.total_ht)} € HT</Text>
                   <View style={[modal.orderBadge, { backgroundColor: sColor + '22' }]}>
                     <Text style={[modal.orderBadgeText, { color: sColor }]}>
                       {ORDER_STATUS_LABELS[o.statut] || o.statut}
@@ -698,4 +821,37 @@ const modal = StyleSheet.create({
   orderTotal:     { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary },
   orderBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.round, minWidth: 90, alignItems: 'center' },
   orderBadgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
+
+  monthBox: {
+    backgroundColor: colors.secondary, padding: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  monthLabel: { fontSize: fontSizes.xs, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  monthTotal: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.primary, marginTop: 4 },
+  monthSub: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
+
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
+  chip: {
+    paddingVertical: 6, paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.round, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  chipActive: { borderColor: colors.primary, backgroundColor: colors.secondary },
+  chipText: { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
+  chipTextActive: { color: colors.primary, fontWeight: '700' },
+
+  priceRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  priceName: { flex: 1, fontSize: fontSizes.sm, color: colors.textPrimary, marginRight: spacing.sm },
+  priceInputWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  priceInput: {
+    backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border,
+    borderRadius: borderRadius.md, paddingHorizontal: spacing.sm, paddingVertical: 8,
+    fontSize: fontSizes.sm, color: colors.textPrimary, width: 90, textAlign: 'right',
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
+  },
+  priceUnit: { fontSize: fontSizes.xs, color: colors.textSecondary },
 });

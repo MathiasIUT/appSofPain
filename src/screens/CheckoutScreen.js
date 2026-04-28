@@ -152,11 +152,15 @@ export default function CheckoutScreen({ navigation }) {
       // Construction de l'adresse complète (texte libre dans orders.adresse_livraison)
       const adresseComplete = `${form.adresse.trim()}\n${form.code_postal.trim()} ${form.ville.trim()}\nTél : ${form.telephone.trim()}`;
 
+      // Récupérer le livreur assigné au client
+      const livreurId = profile?.livreur_id || null;
+
       // 1. Création de la commande
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           client_id: user.id,
+          livreur_id: livreurId,
           statut: 'nouvelle',
           date_livraison_souhaitee: getDefaultDeliveryDate(),
           adresse_livraison: adresseComplete,

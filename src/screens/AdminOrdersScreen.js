@@ -264,6 +264,8 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const [saving, setSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
+  const [livreurs, setLivreurs] = useState([]);
+  const [selectedLivreur, setSelectedLivreur] = useState(order.livreur_id || null);
 
   const { width, height } = useWindowDimensions();
   const isDesktop = width >= 900;
@@ -272,15 +274,15 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     (async () => {
       setLoadingItems(true);
       try {
-        const { data, error } = await supabase
-          .from('order_items')
-          .select('*')
-          .eq('order_id', order.id)
-          .order('created_at', { ascending: true });
-        if (error) throw error;
-        const fetched = data || [];
+        const [itemsRes, livRes] = await Promise.all([
+          supabase.from('order_items').select('*').eq('order_id', order.id)
+            .order('created_at', { ascending: true }),
+          supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
+        ]);
+        if (itemsRes.error) throw itemsRes.error;
+        const fetched = itemsRes.data || [];
         setItems(fetched);
-        // Aperçu PDF dès que les items sont chargés
+        setLivreurs(livRes.data || []);
         if (order.client) {
           setPreviewHtml(buildOrderHtml(order, fetched, order.client));
         }
@@ -297,7 +299,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .update({ statut, notes_admin: notesAdmin || null })
+        .update({ statut, notes_admin: notesAdmin || null, livreur_id: selectedLivreur || null })
         .eq('id', order.id)
         .select('*')
         .single();
@@ -337,7 +339,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     || (order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim())
     || '—';
 
-  const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '');
+  const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '') || selectedLivreur !== (order.livreur_id || null);
 
   // Hauteur utile pour les colonnes (modal - header)
   const bodyHeight = Math.min(height * 0.88, 820) - 64;
@@ -424,6 +426,26 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                 <Text style={modal.addressText}>{order.adresse_livraison}</Text>
               </View>
             ) : null}
+            <Text style={[modal.sectionTitle, { marginTop: spacing.md }]}>Livreur assigné</Text>
+            <View style={modal.statutRow}>
+              <TouchableOpacity
+                style={[modal.statutChip, !selectedLivreur && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={() => setSelectedLivreur(null)}
+              >
+                <Text style={[modal.statutChipText, !selectedLivreur && modal.statutChipTextActive]}>Aucun</Text>
+              </TouchableOpacity>
+              {livreurs.map(l => (
+                <TouchableOpacity
+                  key={l.id}
+                  style={[modal.statutChip, selectedLivreur === l.id && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={() => setSelectedLivreur(l.id)}
+                >
+                  <Text style={[modal.statutChipText, selectedLivreur === l.id && modal.statutChipTextActive]}>
+                    {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Produits */}

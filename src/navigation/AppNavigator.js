@@ -3,7 +3,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
 import AdminDashboard from '../screens/AdminDashboard';
 import ClientHome from '../screens/ClientHome';
 import CartScreen from '../screens/CartScreen';
@@ -26,7 +25,6 @@ export default function AppNavigator() {
       >
         {/* Authentification */}
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
 
         {/* Admin */}
         <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
