@@ -54,41 +54,90 @@ export default function AdminStatsScreen() {
   const currentMonth = now.getMonth() + 1;
 
   // ── État période ────────────────────────────────────────────
-  // mode: 'today' | 'year' | 'all' | 'custom'
-  // custom = plage de mois dans selectedYear
+  // mode : 'today' (aujourd'hui) | 'year' (année) | 'all' (tout) | 'custom' (personnalisé)
+  // custom = plage de mois dans l'année sélectionnée
   const [periodMode, setPeriodMode] = useState('custom');
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [rangeStart, setRangeStart] = useState(currentMonth);
   const [rangeEnd, setRangeEnd] = useState(currentMonth);
-  // 'idle'      = plage complète
-  // 'start-set' = début choisi, attend la fin
+  // 'idle'      = plage complète sélectionnée
+  // 'start-set' = début choisi, en attente de la fin de la plage plage
   const [rangeState, setRangeState] = useState('idle');
 
   // ── Chargement ─────────────────────────────────────────────
+  // Calcule les bornes de date selon la période sélectionnée
+  const getDateBounds = useCallback(() => {
+    const n = new Date();
+    if (periodMode === 'today') {
+      const from = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+      const to = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+      return { from: from.toISOString(), to: to.toISOString() };
+    }
+    if (periodMode === 'year') {
+      const from = new Date(selectedYear, 0, 1);
+      const to = new Date(selectedYear + 1, 0, 1);
+      return { from: from.toISOString(), to: to.toISOString() };
+    }
+    if (periodMode === 'all') return null; // pas de filtre
+    // custom
+    const effectiveEnd = rangeState === 'start-set' ? rangeStart : rangeEnd;
+    const from = new Date(selectedYear, rangeStart - 1, 1);
+    const to = new Date(selectedYear, effectiveEnd, 1);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }, [periodMode, selectedYear, rangeStart, rangeEnd, rangeState]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [ordersRes, itemsRes] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('*, client:profiles!client_id(nom, prenom, nom_societe)')
-          .order('date_commande', { ascending: false }),
-        supabase
-          .from('order_items')
-          .select('order_id, product_nom, quantite_palettes, sous_total_ht'),
-      ]);
+      const bounds = getDateBounds();
+
+      // 1. Charger les commandes filtrées par période (côté serveur)
+      let ordersQuery = supabase
+        .from('orders')
+        .select('id, client_id, statut, date_commande, total_ht, total_ttc, total_tva, client:profiles!client_id(nom, prenom, nom_societe)')
+        .order('date_commande', { ascending: false });
+
+      if (bounds) {
+        ordersQuery = ordersQuery.gte('date_commande', bounds.from).lt('date_commande', bounds.to);
+      }
+
+      const ordersRes = await ordersQuery;
       if (ordersRes.error) throw ordersRes.error;
-      if (itemsRes.error) throw itemsRes.error;
-      setAllOrders(ordersRes.data || []);
-      setAllItems(itemsRes.data || []);
+      const orders = ordersRes.data || [];
+      setAllOrders(orders);
+
+      // 2. Charger les order_items seulement pour les commandes filtrées
+      if (orders.length > 0) {
+        const orderIds = orders.map((o) => o.id);
+        // Supabase .in() a une limite, on batch si nécessaire
+        const BATCH_SIZE = 200;
+        let allItemsData = [];
+        for (let i = 0; i < orderIds.length; i += BATCH_SIZE) {
+          const batch = orderIds.slice(i, i + BATCH_SIZE);
+          const { data: itemsData, error: itemsErr } = await supabase
+            .from('order_items')
+            .select('order_id, product_nom, quantite_palettes, sous_total_ht')
+            .in('order_id', batch);
+          if (itemsErr) throw itemsErr;
+          allItemsData = allItemsData.concat(itemsData || []);
+        }
+        setAllItems(allItemsData);
+      } else {
+        setAllItems([]);
+      }
     } catch (err) {
       console.error('Erreur chargement stats :', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getDateBounds]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Recharger quand la période change
+  useEffect(() => { loadData(); }, [periodMode, selectedYear, rangeStart, rangeEnd, rangeState]);
+
+  // Les données sont déjà filtrées côté serveur, plus besoin de filtrage JavaScript local
+  const orders = allOrders;
+  const items = allItems;
 
   // ── Handlers ────────────────────────────────────────────────
   const selectQuick = (mode) => {
@@ -138,34 +187,6 @@ export default function AdminStatsScreen() {
       `${lastDayOfMonth(selectedYear, rangeEnd)} ${MONTH_FULL[rangeEnd - 1]} ${selectedYear}`
     );
   }, [periodMode, selectedYear, rangeStart, rangeEnd, rangeState]);
-
-  // ── Filtrage ────────────────────────────────────────────────
-  const orders = useMemo(() => {
-    if (periodMode === 'all') return allOrders;
-
-    const n = new Date();
-    let from, to;
-
-    if (periodMode === 'today') {
-      from = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-      to = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
-    } else if (periodMode === 'year') {
-      from = new Date(selectedYear, 0, 1);
-      to = new Date(selectedYear + 1, 0, 1);
-    } else {
-      const effectiveEnd = rangeState === 'start-set' ? rangeStart : rangeEnd;
-      from = new Date(selectedYear, rangeStart - 1, 1);
-      to = new Date(selectedYear, effectiveEnd, 1); // premier jour du mois suivant (borne exclue)
-    }
-
-    return allOrders.filter((o) => {
-      const d = new Date(o.date_commande);
-      return d >= from && d < to;
-    });
-  }, [allOrders, periodMode, selectedYear, rangeStart, rangeEnd, rangeState]);
-
-  const orderIds = useMemo(() => new Set(orders.map((o) => o.id)), [orders]);
-  const items = useMemo(() => allItems.filter((it) => orderIds.has(it.order_id)), [allItems, orderIds]);
 
   // ── KPIs ───────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -237,7 +258,7 @@ export default function AdminStatsScreen() {
       .slice(0, 5);
   }, [orders]);
 
-  // ── Render ─────────────────────────────────────────────────
+  // ── Rendu ─────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -593,7 +614,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Month grid — 4 colonnes
+  // Grille des mois — 4 colonnes
   monthGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -617,7 +638,7 @@ const styles = StyleSheet.create({
   monthLabelInRange: { color: colors.primary, fontWeight: '600' },
   monthLabelEndpoint: { color: '#fff', fontWeight: '700' },
 
-  // Period description
+  // Description de la période sélectionnée
   periodDescRow: {
     alignItems: 'center',
     paddingTop: spacing.xs,
@@ -639,12 +660,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Empty state
+  // État vide (aucun résultat)
   empty: { alignItems: 'center', paddingVertical: spacing.xxl },
   emptyIcon: { fontSize: 40, marginBottom: spacing.md },
   emptyText: { fontSize: fontSizes.md, color: colors.textSecondary },
 
-  // KPI grid
+  // Grille de KPI (indicateurs clés)
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

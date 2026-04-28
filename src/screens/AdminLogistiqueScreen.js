@@ -6,6 +6,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
+import useDebounce from '../hooks/useDebounce';
 
 const showAlert = (t, m) => {
   if (Platform.OS === 'web') window.alert(`${t}\n\n${m}`);
@@ -37,16 +38,18 @@ export default function AdminLogistiqueScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  const debouncedSearch = useDebounce(search, 300);
+
   const filtered = livreurs.filter(l => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
+    if (!debouncedSearch.trim()) return true;
+    const q = debouncedSearch.toLowerCase();
     return l.nom?.toLowerCase().includes(q) || l.prenom?.toLowerCase().includes(q)
       || l.telephone?.toLowerCase().includes(q);
   });
 
   return (
     <View style={s.container}>
-      {/* Top bar */}
+      {/* Barre du haut */}
       <View style={s.topBar}>
         <View style={s.topBarLeft}>
           <Text style={s.title}>Logistique — Livreurs</Text>
@@ -58,13 +61,13 @@ export default function AdminLogistiqueScreen() {
         </View>
       </View>
 
-      {/* Search */}
+      {/* Recherche */}
       <View style={s.searchWrap}>
         <TextInput style={s.searchInput} placeholder="Rechercher un livreur..."
           placeholderTextColor={colors.textLight} value={search} onChangeText={setSearch} />
       </View>
 
-      {/* List */}
+      {/* Liste */}
       {loading ? (
         <View style={s.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : filtered.length === 0 ? (

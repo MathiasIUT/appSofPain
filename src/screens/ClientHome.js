@@ -58,7 +58,7 @@ export default function ClientHome({ navigation }) {
       if (profileRes.data) setProfile(profileRes.data);
       if (prodRes.error) throw prodRes.error;
 
-      // Build client prices map
+      // Construction de la map des prix spécifiques au client
       const priceMap = {};
       (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = Number(p.prix_palette_ht); });
       setClientPrices(priceMap);
@@ -68,7 +68,7 @@ export default function ClientHome({ navigation }) {
         VISIBLE_CATEGORY_SLUGS.includes(p.category?.slug)
       ).map(p => ({
         ...p,
-        // Apply client-specific price if available
+        // Appliquer le prix spécifique au client si disponible
         prix_palette_ht: priceMap[p.id] !== undefined ? priceMap[p.id] : p.prix_palette_ht,
       }));
       setProducts(visibleProducts);
@@ -307,7 +307,7 @@ function ProductCard({ product }) {
           </View>
         </View>
 
-        {/* Spacer to push button to bottom */}
+        {/* Espace flexible pour pousser le bouton vers le bas */}
         <View style={{ flex: 1 }} />
 
         {/* Boutons +/- avec saisie manuelle ou "Ajouter" */}

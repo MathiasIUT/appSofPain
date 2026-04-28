@@ -54,44 +54,82 @@ const showAlert = (title, msg) => {
   else Alert.alert(title, msg);
 };
 
+const PAGE_SIZE = 30;
+
 // ─── Écran principal ─────────────────────────────────────────────────────────
 
 export default function AdminOrdersScreen() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState('toutes');
+  const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({});
   const [selectedOrder, setSelected] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
+  // Charger les compteurs par statut (léger, une seule requête)
+  const loadCounts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('orders')
+        .select('statut');
+      if (error) throw error;
+      const counts = {};
+      (data || []).forEach((o) => { counts[o.statut] = (counts[o.statut] || 0) + 1; });
+      setStatusCounts(counts);
+    } catch (err) { console.error('Erreur compteurs :', err); }
+  }, []);
+
+  // Charger les commandes paginées avec filtre serveur
+  const loadOrders = useCallback(async (reset = true) => {
+    if (reset) setLoading(true);
+    else setLoadingMore(true);
+    try {
+      const from = reset ? 0 : orders.length;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase
+        .from('orders')
         .select(`
-          *,
+          id, numero, client_id, statut, date_commande, date_livraison_souhaitee,
+          total_ht, total_tva, total_ttc, livreur_id, notes_client, notes_admin,
+          adresse_livraison, date_livraison_reelle,
           client:profiles!client_id(
             id, nom, prenom, nom_societe, email, telephone
           )
-        `)
-        .order('date_commande', { ascending: false });
+        `, { count: 'exact' })
+        .order('date_commande', { ascending: false })
+        .range(from, to);
+
+      if (filter !== 'toutes') {
+        query = query.eq('statut', filter);
+      }
+
+      const { data, error, count } = await query;
       if (error) throw error;
-      setOrders(data || []);
+
+      if (reset) {
+        setOrders(data || []);
+      } else {
+        setOrders((prev) => [...prev, ...(data || [])]);
+      }
+      setTotalCount(count ?? 0);
     } catch (err) {
       console.error('Erreur chargement commandes admin :', err);
       showAlert('Erreur', 'Impossible de charger les commandes.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [filter, orders.length]);
 
-  useEffect(() => { loadOrders(); }, [loadOrders]);
+  // Recharger quand le filtre change
+  useEffect(() => { loadOrders(true); loadCounts(); }, [filter]);
 
-  const displayed = filter === 'toutes'
-    ? orders
-    : orders.filter((o) => o.statut === filter);
+  const hasMore = orders.length < totalCount;
 
   const openOrder = (order) => {
     setSelected(order);
@@ -108,6 +146,10 @@ export default function AdminOrdersScreen() {
     setSelected((prev) => prev ? { ...prev, ...updated } : prev);
   };
 
+  const handleRefresh = () => { loadOrders(true); loadCounts(); };
+
+  const allTotal = Object.values(statusCounts).reduce((a, b) => a + b, 0);
+
   return (
     <View style={styles.container}>
 
@@ -115,9 +157,9 @@ export default function AdminOrdersScreen() {
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.screenTitle}>Commandes</Text>
-          <Text style={styles.screenCount}>{displayed.length} / {orders.length}</Text>
+          <Text style={styles.screenCount}>{orders.length} / {totalCount}</Text>
         </View>
-        <TouchableOpacity onPress={loadOrders} style={styles.refreshBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
           <Text style={styles.refreshText}>↻ Actualiser</Text>
         </TouchableOpacity>
       </View>
@@ -131,8 +173,8 @@ export default function AdminOrdersScreen() {
       >
         {STATUTS.map((s) => {
           const count = s.key === 'toutes'
-            ? orders.length
-            : orders.filter((o) => o.statut === s.key).length;
+            ? allTotal
+            : (statusCounts[s.key] || 0);
           const active = filter === s.key;
           return (
             <TouchableOpacity
@@ -160,7 +202,7 @@ export default function AdminOrdersScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Chargement...</Text>
         </View>
-      ) : displayed.length === 0 ? (
+      ) : orders.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyText}>
@@ -169,13 +211,29 @@ export default function AdminOrdersScreen() {
         </View>
       ) : (
         <FlatList
-          data={displayed}
+          data={orders}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, isDesktop && styles.listDesktop]}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           renderItem={({ item }) => (
             <OrderRow item={item} onPress={openOrder} isDesktop={isDesktop} />
           )}
+          ListFooterComponent={hasMore ? (
+            <TouchableOpacity
+              style={styles.loadMoreBtn}
+              onPress={() => loadOrders(false)}
+              disabled={loadingMore}
+              activeOpacity={0.7}
+            >
+              {loadingMore ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.loadMoreText}>
+                  Charger plus ({orders.length}/{totalCount})
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
         />
       )}
 
@@ -632,6 +690,14 @@ const styles = StyleSheet.create({
 
   list: { padding: spacing.lg, paddingBottom: spacing.xxl },
   listDesktop: { maxWidth: 1100, alignSelf: 'center', width: '100%' },
+  loadMoreBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing.md, marginTop: spacing.md,
+    backgroundColor: colors.surface, borderRadius: borderRadius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  loadMoreText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   row: {
     flexDirection: 'row',

@@ -37,38 +37,54 @@ const fmt = (d) =>
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
+const PAGE_SIZE = 20;
+
 export default function MyOrdersScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const [activeTab, setActiveTab] = useState('en_cours');
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
+  const loadOrders = useCallback(async (reset = true) => {
+    if (reset) setLoading(true);
+    else setLoadingMore(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
+      const from = reset ? 0 : orders.length;
+      const to = from + PAGE_SIZE - 1;
+
+      const statuts = activeTab === 'en_cours' ? EN_COURS : EFFECTUEES;
+
+      const { data, error, count } = await supabase
         .from('orders')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('client_id', user.id)
-        .order('date_commande', { ascending: false });
+        .in('statut', statuts)
+        .order('date_commande', { ascending: false })
+        .range(from, to);
       if (error) throw error;
-      setOrders(data || []);
+
+      if (reset) {
+        setOrders(data || []);
+      } else {
+        setOrders((prev) => [...prev, ...(data || [])]);
+      }
+      setTotalCount(count ?? 0);
     } catch (err) {
       console.error('Erreur chargement commandes :', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [activeTab, orders.length]);
 
-  useEffect(() => { loadOrders(); }, [loadOrders]);
+  useEffect(() => { loadOrders(true); }, [activeTab]);
 
-  const countEnCours = orders.filter((o) => EN_COURS.includes(o.statut)).length;
-  const countEffectuee = orders.filter((o) => EFFECTUEES.includes(o.statut)).length;
-  const displayed = orders.filter((o) =>
-    activeTab === 'en_cours' ? EN_COURS.includes(o.statut) : EFFECTUEES.includes(o.statut)
-  );
+  const hasMore = orders.length < totalCount;
+  const displayed = orders;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -88,8 +104,8 @@ export default function MyOrdersScreen({ navigation }) {
       {/* ── Onglets ────────────────────────────────────────── */}
       <View style={styles.tabs}>
         {[
-          { key: 'en_cours', label: 'En cours', count: countEnCours },
-          { key: 'effectuees', label: 'Effectuées', count: countEffectuee },
+          { key: 'en_cours', label: 'En cours' },
+          { key: 'effectuees', label: 'Effectuées' },
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
@@ -100,17 +116,19 @@ export default function MyOrdersScreen({ navigation }) {
             <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
               {tab.label}
             </Text>
-            <View style={[
-              styles.tabBadge,
-              activeTab === tab.key && styles.tabBadgeActive,
-            ]}>
-              <Text style={[
-                styles.tabBadgeText,
-                activeTab === tab.key && styles.tabBadgeTextActive,
+            {activeTab === tab.key && (
+              <View style={[
+                styles.tabBadge,
+                styles.tabBadgeActive,
               ]}>
-                {tab.count}
-              </Text>
-            </View>
+                <Text style={[
+                  styles.tabBadgeText,
+                  styles.tabBadgeTextActive,
+                ]}>
+                  {totalCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -181,6 +199,22 @@ export default function MyOrdersScreen({ navigation }) {
               </TouchableOpacity>
             );
           }}
+          ListFooterComponent={hasMore ? (
+            <TouchableOpacity
+              style={styles.loadMoreBtn}
+              onPress={() => loadOrders(false)}
+              disabled={loadingMore}
+              activeOpacity={0.7}
+            >
+              {loadingMore ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.loadMoreText}>
+                  Charger plus ({orders.length}/{totalCount})
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
         />
       )}
     </SafeAreaView>
@@ -249,6 +283,14 @@ const styles = StyleSheet.create({
   // Liste
   list: { padding: spacing.lg, paddingBottom: spacing.xxl },
   listDesktop: { maxWidth: 720, alignSelf: 'center', width: '100%' },
+  loadMoreBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing.md, marginTop: spacing.md,
+    backgroundColor: colors.surface, borderRadius: borderRadius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  loadMoreText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   // Card commande
   card: {

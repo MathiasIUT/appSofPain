@@ -17,6 +17,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
 import CreateClientModal from '../components/CreateClientModal';
+import useDebounce from '../hooks/useDebounce';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -63,55 +64,72 @@ const confirmAction = (msg, onConfirm) => {
   }
 };
 
+const PAGE_SIZE = 30;
+
 // ─── Écran principal ─────────────────────────────────────────────────────────
 
 export default function AdminClientsScreen() {
   const [clients, setClients]           = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [loadingMore, setLoadingMore]   = useState(false);
   const [filter, setFilter]             = useState('tous');
   const [search, setSearch]             = useState('');
+  const [totalCount, setTotalCount]     = useState(0);
   const [selectedClient, setSelected]   = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  const loadClients = useCallback(async () => {
-    setLoading(true);
+  const debouncedSearch = useDebounce(search, 300);
+
+  const loadClients = useCallback(async (reset = true) => {
+    if (reset) setLoading(true);
+    else setLoadingMore(true);
     try {
-      const { data, error } = await supabase
+      const from = reset ? 0 : clients.length;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase
         .from('profiles')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('role', 'client')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      // Filtre actif/inactif côté serveur
+      if (filter === 'actifs') query = query.neq('actif', false);
+      if (filter === 'inactifs') query = query.eq('actif', false);
+
+      // Recherche côté serveur
+      if (debouncedSearch.trim()) {
+        const q = `%${debouncedSearch.trim()}%`;
+        query = query.or(`nom_societe.ilike.${q},nom.ilike.${q},prenom.ilike.${q},email.ilike.${q}`);
+      }
+
+      const { data, error, count } = await query;
       if (error) throw error;
-      setClients(data || []);
+
+      if (reset) {
+        setClients(data || []);
+      } else {
+        setClients((prev) => [...prev, ...(data || [])]);
+      }
+      setTotalCount(count ?? 0);
     } catch (err) {
       console.error('Erreur chargement clients :', err);
       showAlert('Erreur', 'Impossible de charger les clients.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [filter, debouncedSearch, clients.length]);
 
-  useEffect(() => { loadClients(); }, [loadClients]);
+  // Recharger quand le filtre ou la recherche change
+  useEffect(() => { loadClients(true); }, [filter, debouncedSearch]);
 
-  const filtered = clients
-    .filter((c) => {
-      if (filter === 'actifs')   return c.actif !== false;
-      if (filter === 'inactifs') return c.actif === false;
-      return true;
-    })
-    .filter((c) => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        c.nom_societe?.toLowerCase().includes(q) ||
-        c.nom?.toLowerCase().includes(q) ||
-        c.prenom?.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q)
-      );
-    });
+  const hasMore = clients.length < totalCount;
+  const filtered = clients; // Le filtrage est maintenant côté serveur
 
   const openClient = (client) => {
     setSelected(client);
@@ -135,10 +153,10 @@ export default function AdminClientsScreen() {
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.screenTitle}>Clients</Text>
-          <Text style={styles.screenCount}>{filtered.length} / {clients.length}</Text>
+          <Text style={styles.screenCount}>{clients.length} / {totalCount}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-          <TouchableOpacity onPress={loadClients} style={styles.refreshBtn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => loadClients(true)} style={styles.refreshBtn} activeOpacity={0.7}>
             <Text style={styles.refreshText}>↻ Actualiser</Text>
           </TouchableOpacity>
           <Button title="+ Créer un client" onPress={() => setCreateVisible(true)} size="sm" />
@@ -160,11 +178,6 @@ export default function AdminClientsScreen() {
       {/* ── Filtres ─────────────────────────────────────────── */}
       <View style={styles.filtersRow}>
         {FILTERS.map((f) => {
-          const count = f.key === 'tous'
-            ? clients.length
-            : f.key === 'actifs'
-              ? clients.filter((c) => c.actif !== false).length
-              : clients.filter((c) => c.actif === false).length;
           const active = filter === f.key;
           return (
             <TouchableOpacity
@@ -174,9 +187,11 @@ export default function AdminClientsScreen() {
               activeOpacity={0.75}
             >
               <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{f.label}</Text>
-              <View style={[styles.filterCount, active && styles.filterCountActive]}>
-                <Text style={[styles.filterCountText, active && styles.filterCountTextActive]}>{count}</Text>
-              </View>
+              {active && (
+                <View style={[styles.filterCount, styles.filterCountActive]}>
+                  <Text style={[styles.filterCountText, styles.filterCountTextActive]}>{totalCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -204,6 +219,22 @@ export default function AdminClientsScreen() {
           renderItem={({ item }) => (
             <ClientRow item={item} onPress={openClient} />
           )}
+          ListFooterComponent={hasMore ? (
+            <TouchableOpacity
+              style={styles.loadMoreBtn}
+              onPress={() => loadClients(false)}
+              disabled={loadingMore}
+              activeOpacity={0.7}
+            >
+              {loadingMore ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.loadMoreText}>
+                  Charger plus ({clients.length}/{totalCount})
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
         />
       )}
 
@@ -231,7 +262,7 @@ export default function AdminClientsScreen() {
       <CreateClientModal
         visible={createVisible}
         onClose={() => setCreateVisible(false)}
-        onCreated={loadClients}
+        onCreated={() => loadClients(true)}
       />
     </View>
   );
@@ -689,6 +720,14 @@ const styles = StyleSheet.create({
 
   list:        { padding: spacing.lg, paddingBottom: spacing.xxl },
   listDesktop: { maxWidth: 1100, alignSelf: 'center', width: '100%' },
+  loadMoreBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing.md, marginTop: spacing.md,
+    backgroundColor: colors.surface, borderRadius: borderRadius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  loadMoreText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   row: {
     flexDirection: 'row',
