@@ -165,6 +165,9 @@ export default function CheckoutScreen({ navigation }) {
           date_livraison_souhaitee: getDefaultDeliveryDate(),
           adresse_livraison: adresseComplete,
           notes_client: form.notes.trim() || null,
+          total_ht: totals.totalHt,
+          total_tva: totals.totalTva,
+          total_ttc: totals.totalTtc,
         })
         .select('*')
         .single();
