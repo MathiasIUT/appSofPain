@@ -61,6 +61,7 @@ export default function CheckoutScreen({ navigation }) {
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Charger le profil client (pour pré-remplir téléphone si disponible)
   useEffect(() => {
@@ -88,6 +89,8 @@ export default function CheckoutScreen({ navigation }) {
         }
       } catch (err) {
         console.error('Erreur chargement profil :', err);
+      } finally {
+        setLoadingProfile(false);
       }
     })();
   }, []);
@@ -232,6 +235,12 @@ export default function CheckoutScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {loadingProfile ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: spacing.md, color: colors.textSecondary }}>Chargement de vos informations...</Text>
+        </View>
+      ) : (
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentInner}
@@ -394,6 +403,7 @@ export default function CheckoutScreen({ navigation }) {
           </View>
         ) : null}
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

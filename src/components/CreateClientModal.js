@@ -102,8 +102,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
       const userId = authData.user?.id;
       if (!userId) throw new Error('Erreur création utilisateur');
 
-      // Update profile with extra fields
-      await supabase.from('profiles').update({
+      const { error: updateError } = await supabase.from('profiles').update({
         adresse: form.adresse.trim() || null,
         code_postal: form.code_postal.trim() || null,
         ville: form.ville.trim() || null,
@@ -111,6 +110,8 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         livreur_id: livreurId || null,
         email: email,
       }).eq('id', userId);
+
+      if (updateError) throw updateError;
 
       // Insert custom prices if enabled
       if (useCustomPrices) {

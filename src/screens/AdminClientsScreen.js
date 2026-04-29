@@ -369,18 +369,23 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
       const { data, error } = await supabase
         .from('profiles')
         .update({
-          nom: form.nom || null, prenom: form.prenom || null,
-          nom_societe: form.nom_societe || null, email: form.email || null,
-          telephone: form.telephone || null, adresse: form.adresse || null,
-          code_postal: form.code_postal || null, ville: form.ville || null,
-          siret: form.siret || null,
+          nom: form.nom.trim(), 
+          prenom: form.prenom.trim(),
+          nom_societe: form.nom_societe.trim(), 
+          email: form.email.trim(),
+          telephone: form.telephone.trim(), 
+          adresse: form.adresse.trim(),
+          code_postal: form.code_postal.trim(), 
+          ville: form.ville.trim(),
+          siret: form.siret.trim(),
         })
         .eq('id', client.id).select('*').single();
       if (error) throw error;
       onUpdated(data);
       showAlert('Succès', 'Profil client mis à jour.');
     } catch (err) {
-      showAlert('Erreur', 'Impossible de mettre à jour le client.');
+      console.error('Erreur MAJ client:', err);
+      showAlert('Erreur', 'Détail : ' + (err.message || JSON.stringify(err)));
     } finally { setSaving(false); }
   };
 
