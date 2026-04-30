@@ -56,8 +56,8 @@ export default function ProductFormModal({
     nom: '',
     description: '',
     category_id: '',
-    unites_par_carton: '',
-    prix_palette_ht: '',
+    unites_par_sachet: '',
+    prix_unitaire_ht: '',
     actif: true,
     image_url: null,
   });
@@ -73,8 +73,8 @@ export default function ProductFormModal({
           nom: product.nom || '',
           description: product.description || '',
           category_id: product.category_id || '',
-          unites_par_carton: String(product.unites_par_carton || ''),
-          prix_palette_ht: String(product.prix_palette_ht || ''),
+          unites_par_sachet: String(product.unites_par_sachet ?? 10),
+          prix_unitaire_ht: String(product.prix_unitaire_ht || ''),
           actif: product.actif !== false,
           image_url: product.image_url || null,
         });
@@ -83,8 +83,8 @@ export default function ProductFormModal({
           nom: '',
           description: '',
           category_id: categories[0]?.id || '',
-          unites_par_carton: '',
-          prix_palette_ht: '',
+          unites_par_sachet: '10',
+          prix_unitaire_ht: '',
           actif: true,
           image_url: null,
         });
@@ -104,14 +104,14 @@ export default function ProductFormModal({
     if (!form.nom.trim()) newErrors.nom = 'Le nom est requis';
     if (!form.category_id) newErrors.category_id = 'La catégorie est requise';
 
-    const unites = parseInt(form.unites_par_carton, 10);
-    if (!form.unites_par_carton || isNaN(unites) || unites < 1) {
-      newErrors.unites_par_carton = 'Doit être un nombre entier supérieur ou égal à 1';
+    const unites = parseInt(form.unites_par_sachet, 10);
+    if (!form.unites_par_sachet || isNaN(unites) || unites < 1) {
+      newErrors.unites_par_sachet = 'Doit être un nombre entier supérieur ou égal à 1';
     }
 
-    const prix = parseFloat(form.prix_palette_ht.replace(',', '.'));
-    if (form.prix_palette_ht === '' || isNaN(prix) || prix < 0) {
-      newErrors.prix_palette_ht = 'Doit être un nombre supérieur ou égal à 0';
+    const prix = parseFloat(form.prix_unitaire_ht.replace(',', '.'));
+    if (form.prix_unitaire_ht === '' || isNaN(prix) || prix < 0) {
+      newErrors.prix_unitaire_ht = 'Doit être un nombre supérieur ou égal à 0';
     }
 
     setErrors(newErrors);
@@ -215,8 +215,8 @@ export default function ProductFormModal({
         nom: form.nom.trim(),
         description: form.description.trim() || null,
         category_id: form.category_id,
-        unites_par_carton: parseInt(form.unites_par_carton, 10),
-        prix_palette_ht: parseFloat(form.prix_palette_ht.replace(',', '.')),
+        unites_par_sachet: parseInt(form.unites_par_sachet, 10),
+        prix_unitaire_ht: parseFloat(form.prix_unitaire_ht.replace(',', '.')),
         actif: form.actif,
         image_url: finalImageUrl,
       };
@@ -276,9 +276,10 @@ export default function ProductFormModal({
   const previewUri = pendingImage?.uri || form.image_url;
 
   // Calculs pour le récapitulatif tarifaire
-  const prixNum = parseFloat((form.prix_palette_ht || '').replace(',', '.'));
+  const prixNum = parseFloat((form.prix_unitaire_ht || '').replace(',', '.'));
+  const unitesSachet = parseInt(form.unites_par_sachet || '10', 10);
   const showSummary =
-    !errors.prix_palette_ht && !isNaN(prixNum) && prixNum > 0;
+    !errors.prix_unitaire_ht && !isNaN(prixNum) && prixNum > 0 && !isNaN(unitesSachet) && unitesSachet > 0;
 
   return (
     <Modal
@@ -394,33 +395,33 @@ export default function ProductFormModal({
               editable={!saving}
             />
 
-            {/* Unités par carton */}
+            {/* Unités par sachet */}
             <Input
-              label="Unités par carton"
+              label="Unités par sachet"
               required
-              value={form.unites_par_carton}
+              value={form.unites_par_sachet}
               onChangeText={(v) =>
-                updateField('unites_par_carton', v.replace(/[^0-9]/g, ''))
+                updateField('unites_par_sachet', v.replace(/[^0-9]/g, ''))
               }
-              placeholder="Ex : 40"
+              placeholder="Ex : 10"
               keyboardType="numeric"
-              error={errors.unites_par_carton}
-              helperText="Nombre d'unités contenues dans un carton"
+              error={errors.unites_par_sachet}
+              helperText="Nombre d'unités contenues dans un sachet (10 par défaut, 1 pour les lahmacun, etc.)"
               editable={!saving}
             />
 
-            {/* Prix palette HT */}
+            {/* Prix unitaire HT */}
             <Input
-              label="Prix de la palette HT (€)"
+              label="Prix unitaire HT (€)"
               required
-              value={form.prix_palette_ht}
+              value={form.prix_unitaire_ht}
               onChangeText={(v) =>
-                updateField('prix_palette_ht', v.replace(/[^0-9.,]/g, ''))
+                updateField('prix_unitaire_ht', v.replace(/[^0-9.,]/g, ''))
               }
-              placeholder="Ex : 280.00"
+              placeholder="Ex : 2.50"
               keyboardType="decimal-pad"
-              error={errors.prix_palette_ht}
-              helperText="Rappel : 1 palette = 24 cartons"
+              error={errors.prix_unitaire_ht}
+              helperText="Le prix de vente d'un sachet sera calculé comme : Prix unitaire × Unités par sachet"
               editable={!saving}
             />
 
@@ -428,7 +429,7 @@ export default function ProductFormModal({
             {showSummary ? (
               <View style={styles.summary}>
                 <Text style={styles.summaryTitle}>Récapitulatif tarifaire</Text>
-                <PricingSummary prixPalette={prixNum} tva={5.5} />
+                <PricingSummary prixUnitaire={prixNum} unitesSachet={unitesSachet} tva={5.5} />
               </View>
             ) : null}
           </ScrollView>
@@ -468,24 +469,19 @@ export default function ProductFormModal({
 }
 
 // ---- Résumé tarifaire ----
-function PricingSummary({ prixPalette, tva }) {
-  const CARTONS = 24;
-  const tvaAmount = prixPalette * (tva / 100);
-  const prixTtc = prixPalette + tvaAmount;
-  const prixCartonHt = prixPalette / CARTONS;
+function PricingSummary({ prixUnitaire, unitesSachet, tva }) {
+  const prixSachetHt = prixUnitaire * unitesSachet;
+  const tvaAmount = prixSachetHt * (tva / 100);
+  const prixSachetTtc = prixSachetHt + tvaAmount;
 
   return (
     <View>
-      <SummaryRow label="Prix HT" value={`${prixPalette.toFixed(2)} €`} />
+      <SummaryRow label={`Prix HT / sachet (${unitesSachet} u.)`} value={`${prixSachetHt.toFixed(2)} €`} />
       <SummaryRow label={`TVA (${tva}%)`} value={`${tvaAmount.toFixed(2)} €`} />
       <SummaryRow
-        label="Prix TTC / palette"
-        value={`${prixTtc.toFixed(2)} €`}
+        label="Prix TTC / sachet"
+        value={`${prixSachetTtc.toFixed(2)} €`}
         bold
-      />
-      <SummaryRow
-        label={`Prix HT / carton (divisé par ${CARTONS})`}
-        value={`${prixCartonHt.toFixed(2)} €`}
       />
     </View>
   );

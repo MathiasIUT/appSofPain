@@ -7,6 +7,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
 import useDebounce from '../hooks/useDebounce';
+import { generateDriverTourPdf } from '../utils/generateDriverTourPdf';
 
 const showAlert = (t, m) => {
   if (Platform.OS === 'web') window.alert(`${t}\n\n${m}`);
@@ -179,7 +180,7 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
       try {
         const [cRes, oRes] = await Promise.all([
           supabase.from('profiles').select('id, nom_societe, nom, prenom').eq('role', 'client').eq('livreur_id', livreur.id),
-          supabase.from('orders').select('*, client:profiles(nom_societe, nom, prenom)')
+          supabase.from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone), order_items(*)')
             .eq('livreur_id', livreur.id).in('statut', ['nouvelle', 'en_preparation', 'en_livraison'])
             .order('date_commande', { ascending: false }),
         ]);
@@ -230,7 +231,22 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
           ))
         }
 
-        <Text style={s.sectionTitle}>Commandes en cours ({orders.length})</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={{ fontSize: fontSizes.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, color: colors.primary }}>Commandes en cours ({orders.length})</Text>
+          {orders.length > 0 && (
+            <TouchableOpacity 
+              onPress={async () => {
+                setToggling(true);
+                try { await generateDriverTourPdf(livreur, orders); }
+                catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
+                finally { setToggling(false); }
+              }}
+              style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 }}
+            >
+              <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>🖨️ Imprimer la tournée</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {loadingData ? <ActivityIndicator color={colors.primary} /> :
           orders.length === 0 ? <Text style={s.emptyText}>Aucune commande en cours.</Text> :
           orders.map(o => (

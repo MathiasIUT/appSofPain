@@ -9,8 +9,8 @@ import React, { createContext, useContext, useState, useMemo, useCallback } from
  *
  * Structure d'un item du panier :
  *   {
- *     product: { id, nom, prix_palette_ht, tva_pourcent, image_url, ... },
- *     quantite_palettes: number
+ *     product: { id, nom, prix_unitaire_ht, unites_par_sachet, tva_pourcent, image_url, ... },
+ *     quantite_sachets: number
  *   }
  */
 
@@ -28,11 +28,11 @@ export function CartProvider({ children }) {
       if (existing) {
         return prev.map((i) =>
           i.product.id === product.id
-            ? { ...i, quantite_palettes: i.quantite_palettes + quantite }
+            ? { ...i, quantite_sachets: i.quantite_sachets + quantite }
             : i
         );
       }
-      return [...prev, { product, quantite_palettes: quantite }];
+      return [...prev, { product, quantite_sachets: quantite }];
     });
   }, []);
 
@@ -44,7 +44,7 @@ export function CartProvider({ children }) {
         return prev.filter((i) => i.product.id !== productId);
       }
       return prev.map((i) =>
-        i.product.id === productId ? { ...i, quantite_palettes: quantite } : i
+        i.product.id === productId ? { ...i, quantite_sachets: quantite } : i
       );
     });
   }, []);
@@ -65,7 +65,9 @@ export function CartProvider({ children }) {
     let totalTva = 0;
 
     items.forEach((item) => {
-      const ligneHt = Number(item.product.prix_palette_ht) * item.quantite_palettes;
+      const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
+      const unitesSachet = Number(item.product.unites_par_sachet || 10);
+      const ligneHt = prixUnitaire * unitesSachet * item.quantite_sachets;
       const ligneTva = ligneHt * (Number(item.product.tva_pourcent) / 100);
       totalHt += ligneHt;
       totalTva += ligneTva;
@@ -75,7 +77,7 @@ export function CartProvider({ children }) {
       totalHt: Math.round(totalHt * 100) / 100,
       totalTva: Math.round(totalTva * 100) / 100,
       totalTtc: Math.round((totalHt + totalTva) * 100) / 100,
-      nbArticles: items.reduce((acc, i) => acc + i.quantite_palettes, 0),
+      nbArticles: items.reduce((acc, i) => acc + i.quantite_sachets, 0),
       nbProduitsDistincts: items.length,
     };
   }, [items]);

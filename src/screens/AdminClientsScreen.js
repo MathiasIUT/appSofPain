@@ -346,14 +346,14 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
           supabase.from('orders').select('*').eq('client_id', client.id)
             .order('date_commande', { ascending: false }),
           supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
-          supabase.from('products').select('id, nom, prix_palette_ht').eq('actif', true).order('nom'),
+          supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('nom'),
           supabase.from('client_prices').select('*').eq('client_id', client.id),
         ]);
         setOrders(ordRes.data || []);
         setLivreurs(livRes.data || []);
         setProducts(prodRes.data || []);
         const priceMap = {};
-        (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = String(p.prix_palette_ht); });
+        (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = String(p.prix_unitaire_ht); });
         setClientPrices(priceMap);
       } catch (err) {
         console.error('Erreur chargement données client :', err);
@@ -413,8 +413,8 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
       for (const [productId, price] of Object.entries(clientPrices)) {
         const p = parseFloat(price);
         const prod = products.find(pr => pr.id === productId);
-        if (!isNaN(p) && p >= 0 && prod && Math.abs(p - Number(prod.prix_palette_ht)) > 0.001) {
-          rows.push({ client_id: client.id, product_id: productId, prix_palette_ht: p });
+        if (!isNaN(p) && p >= 0 && prod && Math.abs(p - Number(prod.prix_unitaire_ht)) > 0.001) {
+          rows.push({ client_id: client.id, product_id: productId, prix_unitaire_ht: p });
         }
       }
       if (rows.length > 0) await supabase.from('client_prices').insert(rows);
@@ -555,7 +555,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
             <>
               {products.map(p => {
                 const hasCustom = clientPrices[p.id] !== undefined;
-                const displayPrice = hasCustom ? clientPrices[p.id] : String(p.prix_palette_ht);
+                const displayPrice = hasCustom ? clientPrices[p.id] : String(p.prix_unitaire_ht);
                 return (
                   <View key={p.id} style={modal.priceRow}>
                     <Text style={modal.priceName} numberOfLines={1}>{p.nom}</Text>
@@ -565,7 +565,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
                         value={displayPrice}
                         onChangeText={v => setClientPrices(prev => ({ ...prev, [p.id]: v }))}
                         keyboardType="decimal-pad"
-                        placeholder={String(p.prix_palette_ht)}
+                        placeholder={String(p.prix_unitaire_ht)}
                         placeholderTextColor={colors.textLight}
                       />
                       <Text style={modal.priceUnit}>€ HT</Text>

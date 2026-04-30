@@ -116,7 +116,7 @@ export default function AdminStatsScreen() {
           const batch = orderIds.slice(i, i + BATCH_SIZE);
           const { data: itemsData, error: itemsErr } = await supabase
             .from('order_items')
-            .select('order_id, product_nom, quantite_palettes, sous_total_ht')
+            .select('order_id, product_nom, quantite_sachets, sous_total_ht')
             .in('order_id', batch);
           if (itemsErr) throw itemsErr;
           allItemsData = allItemsData.concat(itemsData || []);
@@ -227,13 +227,13 @@ export default function AdminStatsScreen() {
   const topProduits = useMemo(() => {
     const map = {};
     items.forEach((it) => {
-      if (!map[it.product_nom]) map[it.product_nom] = { palettes: 0, caHt: 0 };
-      map[it.product_nom].palettes += Number(it.quantite_palettes ?? 0);
+      if (!map[it.product_nom]) map[it.product_nom] = { sachets: 0, caHt: 0 };
+      map[it.product_nom].sachets += Number(it.quantite_sachets ?? 0);
       map[it.product_nom].caHt += Number(it.sous_total_ht ?? 0);
     });
     return Object.entries(map)
       .map(([nom, v]) => ({ nom, ...v }))
-      .sort((a, b) => b.palettes - a.palettes)
+      .sort((a, b) => b.sachets - a.sachets)
       .slice(0, 5);
   }, [items]);
 
@@ -410,12 +410,12 @@ export default function AdminStatsScreen() {
           {/* Top 5 */}
           <View style={[styles.tablesRow, isDesktop && styles.tablesRowDesktop]}>
             {topProduits.length > 0 && (
-              <Section title="Top 5 produits — palettes commandées" flex>
+              <Section title="Top 5 produits — sachets commandés" flex>
                 <RankTable
-                  columns={['Produit', 'Palettes', 'CA HT']}
+                  columns={['Produit', 'Sachets', 'CA HT']}
                   rows={topProduits.map((p, i) => [
                     `${MEDALS[i]} ${p.nom}`,
-                    String(p.palettes),
+                    String(p.sachets),
                     fmtEurCompact(p.caHt),
                   ])}
                   aligns={['left', 'right', 'right']}

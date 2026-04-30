@@ -43,15 +43,15 @@ function buildHtml(order, items, client) {
   const nomClient     = [client?.prenom, client?.nom].filter(Boolean).join(' ');
 
   const lignes = items.map((it) => {
-    const pu    = Number(it.prix_palette_ht);
+    const pu    = Number(it.prix_unitaire_ht);
     const stHt  = Number(it.sous_total_ht);
     const tva   = Number(it.tva_pourcent);
     const stTtc = stHt * (1 + tva / 100);
     return `
       <tr>
         <td class="product-name">${esc(it.product_nom)}</td>
-        <td class="c">${esc(String(it.quantite_palettes))}</td>
-        <td class="c">${esc(String(it.cartons_par_palette))}</td>
+        <td class="c">${esc(String(it.quantite_sachets))}</td>
+        <td class="c">${esc(String(it.unites_par_sachet))}</td>
         <td class="r">${n2(pu)} €</td>
         <td class="c">${n1(tva)} %</td>
         <td class="r">${n2(stHt)} €</td>
@@ -294,8 +294,8 @@ function buildHtml(order, items, client) {
     <thead>
       <tr>
         <th style="text-align:left;min-width:180px">Produit</th>
-        <th class="c">Palettes</th>
-        <th class="c">Crt/pal.</th>
+        <th class="c">Sachets</th>
+        <th class="c">Un./sach.</th>
         <th class="r">PU HT</th>
         <th class="c">TVA</th>
         <th class="r">ST HT</th>

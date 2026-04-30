@@ -179,17 +179,18 @@ export default function CheckoutScreen({ navigation }) {
 
       // 2. Insertion des lignes de commande
       const orderItems = items.map((item) => {
-        const prixHt = Number(item.product.prix_palette_ht);
+        const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
+        const unitesSachet = Number(item.product.unites_par_sachet || 10);
         const tva = Number(item.product.tva_pourcent);
         return {
           order_id: order.id,
           product_id: item.product.id,
           product_nom: item.product.nom,
-          quantite_palettes: item.quantite_palettes,
-          cartons_par_palette: 24,
-          prix_palette_ht: prixHt,
+          quantite_sachets: item.quantite_sachets,
+          unites_par_sachet: unitesSachet,
+          prix_unitaire_ht: prixUnitaire,
           tva_pourcent: tva,
-          sous_total_ht: prixHt * item.quantite_palettes,
+          sous_total_ht: prixUnitaire * unitesSachet * item.quantite_sachets,
         };
       });
 
@@ -340,8 +341,9 @@ export default function CheckoutScreen({ navigation }) {
 
               <View style={styles.itemsList}>
                 {items.map((item) => {
-                  const prixHt = Number(item.product.prix_palette_ht);
-                  const sousTotal = prixHt * item.quantite_palettes;
+                  const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
+                  const unitesSachet = Number(item.product.unites_par_sachet || 10);
+                  const sousTotal = prixUnitaire * unitesSachet * item.quantite_sachets;
                   return (
                     <View key={item.product.id} style={styles.itemRow}>
                       <View style={styles.itemInfo}>
@@ -349,8 +351,8 @@ export default function CheckoutScreen({ navigation }) {
                           {item.product.nom}
                         </Text>
                         <Text style={styles.itemQty}>
-                          {item.quantite_palettes} palette
-                          {item.quantite_palettes > 1 ? 's' : ''}
+                          {item.quantite_sachets} sachet
+                          {item.quantite_sachets > 1 ? 's' : ''}
                         </Text>
                       </View>
                       <Text style={styles.itemPrice}>{sousTotal.toFixed(2)} €</Text>

@@ -197,7 +197,7 @@ export default function OrderDetailScreen({ navigation, route }) {
               {/* En-tête du tableau */}
               <View style={styles.tableHead}>
                 <Text style={[styles.thCell, { flex: 3 }]}>Produit</Text>
-                <Text style={[styles.thCell, styles.right, { flex: 1.5 }]}>Palettes</Text>
+                <Text style={[styles.thCell, styles.right, { flex: 1.5 }]}>Sachets</Text>
                 <Text style={[styles.thCell, styles.right, { flex: 2 }]}>ST HT</Text>
               </View>
 
@@ -211,7 +211,7 @@ export default function OrderDetailScreen({ navigation, route }) {
                     {it.product_nom}
                   </Text>
                   <Text style={[styles.tdCell, styles.right, { flex: 1.5 }]}>
-                    {it.quantite_palettes} pal.
+                    {it.quantite_sachets} sach.
                   </Text>
                   <Text style={[styles.tdCell, styles.right, { flex: 2 }]}>
                     {n2(it.sous_total_ht)} €

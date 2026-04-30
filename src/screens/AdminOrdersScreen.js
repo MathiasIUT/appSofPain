@@ -515,7 +515,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               <>
                 <View style={modal.tableHead}>
                   <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
-                  <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Pal.</Text>
+                  <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Sach.</Text>
                   <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>
                   <Text style={[modal.th, modal.right, { flex: 1 }]}>TVA</Text>
                   <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
@@ -523,8 +523,8 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                 {items.map((it, idx) => (
                   <View key={it.id} style={[modal.tableRow, idx % 2 === 1 && modal.rowAlt]}>
                     <Text style={[modal.td, { flex: 3 }]} numberOfLines={2}>{it.product_nom}</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite_palettes}</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{n2(it.prix_palette_ht)} €</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite_sachets}</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{n2(it.prix_unitaire_ht)} €</Text>
                     <Text style={[modal.td, modal.right, { flex: 1 }]}>{n2(it.tva_pourcent)} %</Text>
                     <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }]}>{n2(it.sous_total_ht)} €</Text>
                   </View>

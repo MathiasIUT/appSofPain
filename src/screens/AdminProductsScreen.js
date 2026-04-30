@@ -214,8 +214,6 @@ function FilterChip({ label, active, onPress }) {
 }
 
 function ProductCard({ product, onEdit }) {
-  const totalCartons = 24;
-
   return (
     <View style={[styles.productCard, !product.actif && styles.productCardInactive]}>
       {/* Image ou placeholder */}
@@ -251,19 +249,16 @@ function ProductCard({ product, onEdit }) {
 
         <View style={styles.productDetails}>
           <Text style={styles.productDetailItem}>
-            {totalCartons} cartons par palette
-          </Text>
-          <Text style={styles.productDetailItem}>
-            {product.unites_par_carton} unité
-            {product.unites_par_carton > 1 ? 's' : ''} par carton
+            {product.unites_par_sachet || 10} unité
+            {(product.unites_par_sachet || 10) > 1 ? 's' : ''} par sachet
           </Text>
         </View>
 
         <View style={styles.productPriceRow}>
           <Text style={styles.productPrice}>
-            {Number(product.prix_palette_ht).toFixed(2)} € HT
+            {Number(product.prix_unitaire_ht || 0).toFixed(2)} € HT
           </Text>
-          <Text style={styles.productPriceUnit}>/ palette</Text>
+          <Text style={styles.productPriceUnit}>/ unité</Text>
         </View>
 
         {/* Spacer to push button to bottom */}

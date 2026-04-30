@@ -51,7 +51,7 @@ export default function ClientHome({ navigation }) {
           .order('nom', { ascending: true }),
         supabase
           .from('client_prices')
-          .select('product_id, prix_palette_ht')
+          .select('product_id, prix_unitaire_ht')
           .eq('client_id', user.id),
       ]);
 
@@ -60,7 +60,7 @@ export default function ClientHome({ navigation }) {
 
       // Construction de la map des prix spécifiques au client
       const priceMap = {};
-      (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = Number(p.prix_palette_ht); });
+      (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = Number(p.prix_unitaire_ht); });
       setClientPrices(priceMap);
 
       // Ne garder que les produits des catégories visibles
@@ -69,7 +69,7 @@ export default function ClientHome({ navigation }) {
       ).map(p => ({
         ...p,
         // Appliquer le prix spécifique au client si disponible
-        prix_palette_ht: priceMap[p.id] !== undefined ? priceMap[p.id] : p.prix_palette_ht,
+        prix_unitaire_ht: priceMap[p.id] !== undefined ? priceMap[p.id] : p.prix_unitaire_ht,
       }));
       setProducts(visibleProducts);
     } catch (err) {
@@ -223,10 +223,10 @@ export default function ClientHome({ navigation }) {
           <View style={styles.cartBarInfo}>
             <Text style={styles.cartBarCount}>
               {totals.nbProduitsDistincts} produit{totals.nbProduitsDistincts > 1 ? 's' : ''} ·{' '}
-              {totals.nbArticles} palette{totals.nbArticles > 1 ? 's' : ''}
+              {totals.nbArticles} sachet{totals.nbArticles > 1 ? 's' : ''}
             </Text>
             <Text style={styles.cartBarTotal}>
-              {totals.totalTtc.toFixed(2)} € TTC
+              {totals.totalHt.toFixed(2)} € HT
             </Text>
           </View>
           <Button
@@ -246,12 +246,14 @@ export default function ClientHome({ navigation }) {
 function ProductCard({ product }) {
   const { items, addToCart, setQuantity } = useCart();
   const TVA = Number(product.tva_pourcent);
-  const prixHt = Number(product.prix_palette_ht);
-  const prixTtc = prixHt * (1 + TVA / 100);
+  const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
+  const unitesSachet = Number(product.unites_par_sachet || 10);
+  const prixSachetHt = prixUnitaireHt * unitesSachet;
+  const prixSachetTtc = prixSachetHt * (1 + TVA / 100);
 
   // Quantité actuelle dans le panier
   const inCart = items.find((i) => i.product.id === product.id);
-  const currentQty = inCart ? inCart.quantite_palettes : 0;
+  const currentQty = inCart ? inCart.quantite_sachets : 0;
 
   const handleIncrement = () => {
     if (currentQty === 0) {
@@ -291,19 +293,15 @@ function ProductCard({ product }) {
 
         <View style={styles.productMeta}>
           <Text style={styles.productMetaItem}>
-            24 cartons / palette · {product.unites_par_carton} unité
-            {product.unites_par_carton > 1 ? 's' : ''} / carton
+            {unitesSachet} unité{unitesSachet > 1 ? 's' : ''} / sachet
           </Text>
         </View>
 
         {/* Prix */}
         <View style={styles.pricingBlock}>
           <View>
-            <Text style={styles.priceTtc}>{prixTtc.toFixed(2)} € TTC</Text>
-            <Text style={styles.priceHt}>
-              {prixHt.toFixed(2)} € HT · TVA {TVA}%
-            </Text>
-            <Text style={styles.pricePer}>par palette</Text>
+            <Text style={styles.priceMain}>{prixSachetHt.toFixed(2)} € HT</Text>
+            <Text style={styles.pricePer}>par sachet ({prixUnitaireHt.toFixed(2)} € HT / unité)</Text>
           </View>
         </View>
 
@@ -347,7 +345,7 @@ function ProductCard({ product }) {
                   maxLength={3}
                 />
                 <Text style={styles.qtyLabel}>
-                  palette{currentQty > 1 ? 's' : ''}
+                  sachet{currentQty > 1 ? 's' : ''}
                 </Text>
               </View>
               <TouchableOpacity
@@ -626,7 +624,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  priceTtc: {
+  priceMain: {
     fontSize: fontSizes.lg,
     fontWeight: '800',
     color: colors.primary,

@@ -55,13 +55,13 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     (async () => {
       const [livRes, prodRes] = await Promise.all([
         supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
-        supabase.from('products').select('id, nom, prix_palette_ht').eq('actif', true).order('nom'),
+        supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('nom'),
       ]);
       setLivreurs(livRes.data || []);
       const prods = prodRes.data || [];
       setProducts(prods);
       const defaults = {};
-      prods.forEach(p => { defaults[p.id] = String(p.prix_palette_ht); });
+      prods.forEach(p => { defaults[p.id] = String(p.prix_unitaire_ht); });
       setCustomPrices(defaults);
     })();
   }, [visible]);
@@ -119,9 +119,9 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         for (const [productId, price] of Object.entries(customPrices)) {
           const p = parseFloat(price);
           if (!isNaN(p) && p >= 0) {
-            const defaultPrice = products.find(pr => pr.id === productId)?.prix_palette_ht;
+            const defaultPrice = products.find(pr => pr.id === productId)?.prix_unitaire_ht;
             if (defaultPrice !== undefined && Math.abs(p - Number(defaultPrice)) > 0.001) {
-              rows.push({ client_id: userId, product_id: productId, prix_palette_ht: p });
+              rows.push({ client_id: userId, product_id: productId, prix_unitaire_ht: p });
             }
           }
         }
@@ -256,7 +256,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
                     value={customPrices[p.id] || ''}
                     onChangeText={v => setCustomPrices(prev => ({ ...prev, [p.id]: v }))}
                     keyboardType="decimal-pad"
-                    placeholder={String(p.prix_palette_ht)}
+                    placeholder={String(p.prix_unitaire_ht)}
                     placeholderTextColor={colors.textLight}
                   />
                   <Text style={s.priceUnit}>€ HT</Text>
