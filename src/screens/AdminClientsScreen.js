@@ -153,7 +153,7 @@ export default function AdminClientsScreen() {
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.screenTitle}>Clients</Text>
-          <Text style={styles.screenCount}>{clients.length} / {totalCount}</Text>
+          <Text style={styles.screenCount}>{`${clients.length} / ${totalCount}`}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
           <TouchableOpacity onPress={() => loadClients(true)} style={styles.refreshBtn} activeOpacity={0.7}>
@@ -230,7 +230,7 @@ export default function AdminClientsScreen() {
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <Text style={styles.loadMoreText}>
-                  Charger plus ({clients.length}/{totalCount})
+                  {`Charger plus (${clients.length}/${totalCount})`}
                 </Text>
               )}
             </TouchableOpacity>
@@ -389,15 +389,16 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
     } finally { setSaving(false); }
   };
 
-  const handleSaveLivreur = async () => {
+  const handleSelectLivreur = async (livId) => {
+    setSelectedLivreur(livId);
     setSavingLivreur(true);
     try {
       const { data, error } = await supabase.from('profiles')
-        .update({ livreur_id: selectedLivreur || null })
+        .update({ livreur_id: livId || null })
         .eq('id', client.id).select('*').single();
       if (error) throw error;
       onUpdated(data);
-      showAlert('Succès', 'Livreur assigné mis à jour.');
+      // Optional: showAlert('Succès', 'Livreur assigné mis à jour.');
     } catch (err) {
       showAlert('Erreur', 'Impossible de changer le livreur.');
     } finally { setSavingLivreur(false); }
@@ -477,9 +478,9 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
             <Text style={modal.monthLabel}>
               {now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
             </Text>
-            <Text style={modal.monthTotal}>{monthTotalHt.toFixed(2)} € HT</Text>
+            <Text style={modal.monthTotal}>{`${monthTotalHt.toFixed(2)} € HT`}</Text>
             <Text style={modal.monthSub}>
-              {monthOrders.length} commande{monthOrders.length > 1 ? 's' : ''} (hors annulées)
+              {`${monthOrders.length} commande${monthOrders.length > 1 ? 's' : ''} (hors annulées)`}
             </Text>
           </View>
         </View>
@@ -522,7 +523,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
               <View style={modal.chipsRow}>
                 <TouchableOpacity
                   style={[modal.chip, !selectedLivreur && modal.chipActive]}
-                  onPress={() => setSelectedLivreur(null)}
+                  onPress={() => handleSelectLivreur(null)}
                 >
                   <Text style={[modal.chipText, !selectedLivreur && modal.chipTextActive]}>Aucun</Text>
                 </TouchableOpacity>
@@ -530,7 +531,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
                   <TouchableOpacity
                     key={l.id}
                     style={[modal.chip, selectedLivreur === l.id && modal.chipActive]}
-                    onPress={() => setSelectedLivreur(l.id)}
+                    onPress={() => handleSelectLivreur(l.id)}
                   >
                     <Text style={[modal.chipText, selectedLivreur === l.id && modal.chipTextActive]}>
                       {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
@@ -538,9 +539,8 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
                   </TouchableOpacity>
                 ))}
               </View>
-              {livreurChanged && (
-                <Button title="Sauvegarder le livreur" onPress={handleSaveLivreur}
-                  loading={savingLivreur} disabled={savingLivreur} fullWidth size="sm" variant="secondary" />
+              {savingLivreur && (
+                <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: spacing.sm }} />
               )}
             </>
           )}
@@ -549,7 +549,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
         {/* Prix personnalisés */}
         <View style={modal.section}>
           <TouchableOpacity onPress={() => setShowPrices(!showPrices)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={modal.sectionTitle}>Prix personnalisés {showPrices ? '▾' : '▸'}</Text>
+            <Text style={modal.sectionTitle}>{`Prix personnalisés ${showPrices ? '▾' : '▸'}`}</Text>
           </TouchableOpacity>
           {showPrices && (
             <>
@@ -599,7 +599,7 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
 
         {/* Historique commandes */}
         <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Historique des commandes ({orders.length})</Text>
+          <Text style={modal.sectionTitle}>{`Historique des commandes (${orders.length})`}</Text>
           {loadingOrders ? (
             <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
           ) : orders.length === 0 ? (
@@ -610,10 +610,10 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
               return (
                 <View key={o.id} style={[modal.orderRow, idx % 2 === 1 && modal.orderRowAlt]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={modal.orderNum}>N° {o.numero}</Text>
+                    <Text style={modal.orderNum}>{`N° ${o.numero}`}</Text>
                     <Text style={modal.orderDate}>{fmt(o.date_commande)}</Text>
                   </View>
-                  <Text style={modal.orderTotal}>{n2(o.total_ht)} € HT</Text>
+                  <Text style={modal.orderTotal}>{`${n2(o.total_ht)} € HT`}</Text>
                   <View style={[modal.orderBadge, { backgroundColor: sColor + '22' }]}>
                     <Text style={[modal.orderBadgeText, { color: sColor }]}>
                       {ORDER_STATUS_LABELS[o.statut] || o.statut}

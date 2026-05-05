@@ -6,6 +6,7 @@ import AdminOrdersScreen from './AdminOrdersScreen';
 import AdminClientsScreen from './AdminClientsScreen';
 import AdminStatsScreen from './AdminStatsScreen';
 import AdminLogistiqueScreen from './AdminLogistiqueScreen';
+import AdminComptaScreen from './AdminComptaScreen';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes } from '../config/theme';
 
@@ -39,6 +40,8 @@ export default function AdminDashboard({ navigation }) {
         return <AdminClientsScreen />;
       case 'logistique':
         return <AdminLogistiqueScreen />;
+      case 'compta':
+        return <AdminComptaScreen />;
       case 'stats':
         return <AdminStatsScreen />;
       default:

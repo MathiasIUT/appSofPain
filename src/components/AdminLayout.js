@@ -18,12 +18,12 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
  * - Mobile : onglets en bas
  */
 
-// Liste des sections du panneau admin
 const SECTIONS = [
   { key: 'products', label: 'Produits' },
   { key: 'orders', label: 'Commandes' },
   { key: 'clients', label: 'Clients' },
   { key: 'logistique', label: 'Logistique' },
+  { key: 'compta', label: 'Comptabilité' },
   { key: 'stats', label: 'Statistiques' },
 ];
 
