@@ -157,7 +157,7 @@ export default function AdminOrdersScreen() {
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.screenTitle}>Commandes</Text>
-          <Text style={styles.screenCount}>{orders.length} / {totalCount}</Text>
+          <Text style={styles.screenCount}>{`${orders.length} / ${totalCount}`}</Text>
         </View>
         <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
           <Text style={styles.refreshText}>↻ Actualiser</Text>
@@ -229,7 +229,7 @@ export default function AdminOrdersScreen() {
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <Text style={styles.loadMoreText}>
-                  Charger plus ({orders.length}/{totalCount})
+                  {`Charger plus (${orders.length}/${totalCount})`}
                 </Text>
               )}
             </TouchableOpacity>
@@ -278,7 +278,7 @@ function OrderRow({ item, onPress, isDesktop }) {
       activeOpacity={0.75}
     >
       <View style={styles.rowCol}>
-        <Text style={styles.rowNum}>N° {item.numero}</Text>
+        <Text style={styles.rowNum}>{`N° ${item.numero}`}</Text>
         <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
       </View>
 
@@ -297,7 +297,7 @@ function OrderRow({ item, onPress, isDesktop }) {
       )}
 
       <View style={[styles.rowCol, styles.rowColRight]}>
-        <Text style={styles.rowTotal}>{n2(item.total_ttc)} €</Text>
+        <Text style={styles.rowTotal}>{`${n2(item.total_ttc)} €`}</Text>
         <Text style={styles.rowTotalLabel}>TTC</Text>
       </View>
 
@@ -408,7 +408,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       {/* ── Header ─────────────────────────────────────────── */}
       <View style={modal.header}>
         <View>
-          <Text style={modal.headerNum}>N° {order.numero}</Text>
+          <Text style={modal.headerNum}>{`N° ${order.numero}`}</Text>
           <Text style={modal.headerDate}>Passée le {fmt(order.date_commande)}</Text>
         </View>
         <View style={modal.headerRight}>
@@ -515,7 +515,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               <>
                 <View style={modal.tableHead}>
                   <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
-                  <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Sach.</Text>
+                  <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Qté</Text>
                   <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>
                   <Text style={[modal.th, modal.right, { flex: 1 }]}>TVA</Text>
                   <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
@@ -523,10 +523,10 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                 {items.map((it, idx) => (
                   <View key={it.id} style={[modal.tableRow, idx % 2 === 1 && modal.rowAlt]}>
                     <Text style={[modal.td, { flex: 3 }]} numberOfLines={2}>{it.product_nom}</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite_sachets}</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{n2(it.prix_unitaire_ht)} €</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1 }]}>{n2(it.tva_pourcent)} %</Text>
-                    <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }]}>{n2(it.sous_total_ht)} €</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite}</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} €`}</Text>
+                    <Text style={[modal.td, modal.right, { flex: 1 }]}>{`${n2(it.tva_pourcent)} %`}</Text>
+                    <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }]}>{`${n2(it.sous_total_ht)} €`}</Text>
                   </View>
                 ))}
                 <View style={modal.totals}>

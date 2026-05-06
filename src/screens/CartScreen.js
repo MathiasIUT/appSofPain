@@ -71,9 +71,7 @@ export default function CartScreen({ navigation }) {
           <Text style={styles.title}>Mon panier</Text>
           {items.length > 0 ? (
             <Text style={styles.subtitle}>
-              {totals.nbProduitsDistincts} produit
-              {totals.nbProduitsDistincts > 1 ? 's' : ''} · {totals.nbArticles}{' '}
-              sachet{totals.nbArticles > 1 ? 's' : ''}
+              {`${totals.nbProduitsDistincts} produit${totals.nbProduitsDistincts > 1 ? 's' : ''} · ${totals.nbArticles} unité${totals.nbArticles > 1 ? 's' : ''}`}
             </Text>
           ) : null}
         </View>
@@ -100,10 +98,10 @@ export default function CartScreen({ navigation }) {
                   key={item.product.id}
                   item={item}
                   onIncrement={() =>
-                    setQuantity(item.product.id, item.quantite_sachets + 1)
+                    setQuantity(item.product.id, item.quantite + (item.product.increment || 10))
                   }
                   onDecrement={() =>
-                    setQuantity(item.product.id, item.quantite_sachets - 1)
+                    setQuantity(item.product.id, Math.max(0, item.quantite - (item.product.increment || 10)))
                   }
                   onSetQuantity={(qty) => setQuantity(item.product.id, qty)}
                   onRemove={() => removeFromCart(item.product.id)}
@@ -164,12 +162,11 @@ export default function CartScreen({ navigation }) {
 // ---------------------------------------------------------
 
 function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }) {
-  const { product, quantite_sachets } = item;
+  const { product, quantite } = item;
   const TVA = Number(product.tva_pourcent);
   const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
-  const unitesSachet = Number(product.unites_par_sachet || 10);
-  const prixSachetHt = prixUnitaireHt * unitesSachet;
-  const sousTotalHt = prixSachetHt * quantite_sachets;
+  const increment = Number(product.increment || 10);
+  const sousTotalHt = prixUnitaireHt * quantite;
   const sousTotalTtc = sousTotalHt * (1 + TVA / 100);
 
   // Gestion saisie manuelle de la quantité
@@ -180,8 +177,8 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
       // On garde au moins 1 pendant la saisie pour ne pas vider le panier involontairement
       onSetQuantity(1);
     } else {
-      // Plafond à 999 pour éviter n'importe quoi
-      onSetQuantity(Math.min(num, 999));
+      // Plafond à 9999 pour éviter n'importe quoi
+      onSetQuantity(Math.min(num, 9999));
     }
   };
 
@@ -200,7 +197,7 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
       <View style={styles.cartItemBody}>
         <Text style={styles.cartItemName}>{product.nom}</Text>
         <Text style={styles.cartItemPriceUnit}>
-          {prixSachetHt.toFixed(2)} € HT / sachet · TVA {TVA}%
+          {`${prixUnitaireHt.toFixed(2)} € HT / unité · TVA ${TVA}%`}
         </Text>
 
         <View style={styles.cartItemControls}>
@@ -214,10 +211,16 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
             </TouchableOpacity>
             <TextInput
               style={styles.cartQtyInput}
-              value={String(quantite_sachets)}
+              value={String(quantite)}
               onChangeText={handleManualChange}
+              onBlur={() => {
+                if (quantite > 0) {
+                  const rounded = Math.ceil(quantite / increment) * increment;
+                  onSetQuantity(Math.min(rounded, 9999));
+                }
+              }}
               keyboardType="numeric"
-              maxLength={3}
+              maxLength={4}
             />
             <TouchableOpacity
               style={styles.cartQtyBtn}
@@ -230,7 +233,7 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
 
           <View style={styles.cartItemTotals}>
             <Text style={styles.cartItemSubtotalMain}>
-              {sousTotalHt.toFixed(2)} € HT
+              {`${sousTotalHt.toFixed(2)} € HT`}
             </Text>
           </View>
         </View>

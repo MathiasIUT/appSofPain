@@ -116,7 +116,7 @@ export default function AdminStatsScreen() {
           const batch = orderIds.slice(i, i + BATCH_SIZE);
           const { data: itemsData, error: itemsErr } = await supabase
             .from('order_items')
-            .select('order_id, product_nom, quantite_sachets, sous_total_ht')
+            .select('order_id, product_nom, quantite, sous_total_ht')
             .in('order_id', batch);
           if (itemsErr) throw itemsErr;
           allItemsData = allItemsData.concat(itemsData || []);
@@ -226,14 +226,14 @@ export default function AdminStatsScreen() {
   // ── Top produits ───────────────────────────────────────────
   const topProduits = useMemo(() => {
     const map = {};
-    items.forEach((it) => {
-      if (!map[it.product_nom]) map[it.product_nom] = { sachets: 0, caHt: 0 };
-      map[it.product_nom].sachets += Number(it.quantite_sachets ?? 0);
+    items.forEach(it => {
+      if (!map[it.product_nom]) map[it.product_nom] = { quantite: 0, caHt: 0 };
+      map[it.product_nom].quantite += Number(it.quantite ?? 0);
       map[it.product_nom].caHt += Number(it.sous_total_ht ?? 0);
     });
     return Object.entries(map)
-      .map(([nom, v]) => ({ nom, ...v }))
-      .sort((a, b) => b.sachets - a.sachets)
+      .map(([nom, val]) => ({ nom, ...val }))
+      .sort((a, b) => b.quantite - a.quantite)
       .slice(0, 5);
   }, [items]);
 
@@ -410,12 +410,12 @@ export default function AdminStatsScreen() {
           {/* Top 5 */}
           <View style={[styles.tablesRow, isDesktop && styles.tablesRowDesktop]}>
             {topProduits.length > 0 && (
-              <Section title="Top 5 produits — sachets commandés" flex>
+              <Section title="Top 5 produits — unités commandées" flex>
                 <RankTable
-                  columns={['Produit', 'Sachets', 'CA HT']}
+                  columns={['Produit', 'Unités', 'CA HT']}
                   rows={topProduits.map((p, i) => [
                     `${MEDALS[i]} ${p.nom}`,
-                    String(p.sachets),
+                    String(p.quantite),
                     fmtEurCompact(p.caHt),
                   ])}
                   aligns={['left', 'right', 'right']}

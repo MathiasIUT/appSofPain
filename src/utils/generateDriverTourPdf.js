@@ -63,7 +63,7 @@ function buildHtml(livreur, orders) {
     const notesAdmin = o.notes_admin ? `<b>Admin:</b> ${esc(o.notes_admin)}` : '';
 
     const itemsStr = (o.order_items || []).map(it => {
-      return `• <b>${esc(it.product_nom)}</b> : ${esc(String(it.quantite_sachets))} sach. <span style="font-size:9px;color:#555;">(${esc(String(it.unites_par_sachet))} u/s)</span>`;
+      return `• <b>${esc(it.product_nom)}</b> : ${esc(String(it.quantite))} u.`;
     }).join('<br>');
 
     return `
@@ -146,7 +146,7 @@ function buildHtml(livreur, orders) {
         <th class="col-num">N°</th>
         <th class="col-client">Client / Tél.</th>
         <th class="col-adresse">Adresse</th>
-        <th class="col-produits">Produits (Sachets)</th>
+        <th class="col-produits">Produits (Qté)</th>
         <th class="col-notes">Notes</th>
       </tr>
     </thead>

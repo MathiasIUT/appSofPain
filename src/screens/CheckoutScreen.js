@@ -177,20 +177,19 @@ export default function CheckoutScreen({ navigation }) {
 
       if (orderError) throw orderError;
 
-      // 2. Insertion des lignes de commande
       const orderItems = items.map((item) => {
         const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
-        const unitesSachet = Number(item.product.unites_par_sachet || 10);
+        const increment = Number(item.product.increment || 10);
         const tva = Number(item.product.tva_pourcent);
         return {
           order_id: order.id,
           product_id: item.product.id,
           product_nom: item.product.nom,
-          quantite_sachets: item.quantite_sachets,
-          unites_par_sachet: unitesSachet,
+          quantite: item.quantite,
+          increment: increment,
           prix_unitaire_ht: prixUnitaire,
           tva_pourcent: tva,
-          sous_total_ht: prixUnitaire * unitesSachet * item.quantite_sachets,
+          sous_total_ht: prixUnitaire * item.quantite,
         };
       });
 
@@ -342,8 +341,7 @@ export default function CheckoutScreen({ navigation }) {
               <View style={styles.itemsList}>
                 {items.map((item) => {
                   const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
-                  const unitesSachet = Number(item.product.unites_par_sachet || 10);
-                  const sousTotal = prixUnitaire * unitesSachet * item.quantite_sachets;
+                  const sousTotal = prixUnitaire * item.quantite;
                   return (
                     <View key={item.product.id} style={styles.itemRow}>
                       <View style={styles.itemInfo}>
@@ -351,11 +349,10 @@ export default function CheckoutScreen({ navigation }) {
                           {item.product.nom}
                         </Text>
                         <Text style={styles.itemQty}>
-                          {item.quantite_sachets} sachet
-                          {item.quantite_sachets > 1 ? 's' : ''}
+                          {`${item.quantite} unité${item.quantite > 1 ? 's' : ''}`}
                         </Text>
                       </View>
-                      <Text style={styles.itemPrice}>{sousTotal.toFixed(2)} €</Text>
+                      <Text style={styles.itemPrice}>{`${sousTotal.toFixed(2)} €`}</Text>
                     </View>
                   );
                 })}
@@ -365,17 +362,17 @@ export default function CheckoutScreen({ navigation }) {
 
               <View style={styles.totalLine}>
                 <Text style={styles.totalLabel}>Total HT</Text>
-                <Text style={styles.totalValue}>{totals.totalHt.toFixed(2)} €</Text>
+                <Text style={styles.totalValue}>{`${totals.totalHt.toFixed(2)} €`}</Text>
               </View>
               <View style={styles.totalLine}>
                 <Text style={styles.totalLabel}>TVA</Text>
-                <Text style={styles.totalValue}>{totals.totalTva.toFixed(2)} €</Text>
+                <Text style={styles.totalValue}>{`${totals.totalTva.toFixed(2)} €`}</Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.totalLine}>
                 <Text style={styles.totalLabelFinal}>Total TTC</Text>
                 <Text style={styles.totalValueFinal}>
-                  {totals.totalTtc.toFixed(2)} €
+                  {`${totals.totalTtc.toFixed(2)} €`}
                 </Text>
               </View>
 

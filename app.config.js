@@ -28,6 +28,7 @@ module.exports = {
     },
     web: {
       favicon: './assets/favicon.png',
+      lang: 'fr',
     },
     extra: {
       supabaseUrl: process.env.SUPABASE_URL,

@@ -44,7 +44,7 @@ export default function AdminComptaScreen() {
         supabase.from('client_prices').select('*'),
         supabase
           .from('orders')
-          .select('id, client_id, total_ht, order_items(product_id, quantite_sachets, prix_unitaire_ht)')
+          .select('id, client_id, total_ht, order_items(product_id, quantite, prix_unitaire_ht)')
           .gte('date_commande', startOfMonth.toISOString())
           .lte('date_commande', endOfMonth.toISOString())
           .neq('statut', 'annulee')
@@ -108,7 +108,7 @@ export default function AdminComptaScreen() {
           if (!productAgg[item.product_id]) {
             productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
           }
-          productAgg[item.product_id].qty += item.quantite_sachets;
+          productAgg[item.product_id].qty += item.quantite;
           // on garde le dernier prix facturé
           productAgg[item.product_id].price = item.prix_unitaire_ht; 
         }
@@ -260,7 +260,7 @@ export default function AdminComptaScreen() {
                             {qty > 0 ? (
                               <>
                                 <Text style={styles.tdQtyText}>{qty}</Text>
-                                <Text style={styles.tdPriceText}>({n2(price)} €)</Text>
+                                <Text style={styles.tdPriceText}>{`(${n2(price)} €)`}</Text>
                               </>
                             ) : (
                               <Text style={styles.tdEmptyText}>—</Text>
@@ -270,7 +270,7 @@ export default function AdminComptaScreen() {
                       })}
                       
                       <View style={[styles.td, styles.colTotal]}>
-                        <Text style={styles.tdTotalText}>{n2(row.totalHt)} €</Text>
+                        <Text style={styles.tdTotalText}>{`${n2(row.totalHt)} €`}</Text>
                       </View>
                     </View>
                   );
@@ -297,7 +297,7 @@ export default function AdminComptaScreen() {
                     );
                   })}
                   <View style={[styles.td, styles.colTotal]}>
-                    <Text style={[styles.tdTotalText, { fontSize: 16 }]}>{n2(tableData.globalTotalHt)} €</Text>
+                    <Text style={[styles.tdTotalText, { fontSize: 16 }]}>{`${n2(tableData.globalTotalHt)} €`}</Text>
                   </View>
                 </View>
 

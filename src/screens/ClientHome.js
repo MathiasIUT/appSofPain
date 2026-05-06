@@ -222,11 +222,10 @@ export default function ClientHome({ navigation }) {
         <View style={styles.cartBar}>
           <View style={styles.cartBarInfo}>
             <Text style={styles.cartBarCount}>
-              {totals.nbProduitsDistincts} produit{totals.nbProduitsDistincts > 1 ? 's' : ''} ·{' '}
-              {totals.nbArticles} sachet{totals.nbArticles > 1 ? 's' : ''}
+              {`${totals.nbProduitsDistincts} produit${totals.nbProduitsDistincts > 1 ? 's' : ''} · ${totals.nbArticles} unité${totals.nbArticles > 1 ? 's' : ''}`}
             </Text>
             <Text style={styles.cartBarTotal}>
-              {totals.totalHt.toFixed(2)} € HT
+              {`${totals.totalHt.toFixed(2)} € HT`}
             </Text>
           </View>
           <Button
@@ -247,25 +246,23 @@ function ProductCard({ product }) {
   const { items, addToCart, setQuantity } = useCart();
   const TVA = Number(product.tva_pourcent);
   const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
-  const unitesSachet = Number(product.unites_par_sachet || 10);
-  const prixSachetHt = prixUnitaireHt * unitesSachet;
-  const prixSachetTtc = prixSachetHt * (1 + TVA / 100);
+  const increment = Number(product.increment || 10);
 
   // Quantité actuelle dans le panier
   const inCart = items.find((i) => i.product.id === product.id);
-  const currentQty = inCart ? inCart.quantite_sachets : 0;
+  const currentQty = inCart ? inCart.quantite : 0;
 
   const handleIncrement = () => {
     if (currentQty === 0) {
-      addToCart(product, 1);
+      addToCart(product, increment);
     } else {
-      setQuantity(product.id, currentQty + 1);
+      setQuantity(product.id, currentQty + increment);
     }
   };
 
   const handleDecrement = () => {
     if (currentQty > 0) {
-      setQuantity(product.id, currentQty - 1);
+      setQuantity(product.id, Math.max(0, currentQty - increment));
     }
   };
 
@@ -293,15 +290,14 @@ function ProductCard({ product }) {
 
         <View style={styles.productMeta}>
           <Text style={styles.productMetaItem}>
-            {unitesSachet} unité{unitesSachet > 1 ? 's' : ''} / sachet
+            {`Commande par lot de ${increment}`}
           </Text>
         </View>
 
         {/* Prix */}
         <View style={styles.pricingBlock}>
           <View>
-            <Text style={styles.priceMain}>{prixSachetHt.toFixed(2)} € HT</Text>
-            <Text style={styles.pricePer}>par sachet ({prixUnitaireHt.toFixed(2)} € HT / unité)</Text>
+            <Text style={styles.priceMain}>{`${prixUnitaireHt.toFixed(2)} € HT / unité`}</Text>
           </View>
         </View>
 
@@ -330,22 +326,22 @@ function ProductCard({ product }) {
                   style={styles.qtyInput}
                   value={String(currentQty)}
                   onChangeText={(v) => {
-                    // On n'autorise que les chiffres
                     const cleaned = v.replace(/[^0-9]/g, '');
-                    const num = parseInt(cleaned, 10);
-                    // Si champ vide ou 0, on garde 1 minimum pour ne pas sortir du panier pendant la saisie
-                    if (cleaned === '' || isNaN(num)) {
-                      setQuantity(product.id, 1);
-                    } else {
-                      // Plafond à 999 pour éviter n'importe quoi
-                      setQuantity(product.id, Math.min(num, 999));
+                    if (cleaned !== '') {
+                      setQuantity(product.id, parseInt(cleaned, 10));
+                    }
+                  }}
+                  onBlur={() => {
+                    if (currentQty > 0) {
+                      const rounded = Math.ceil(currentQty / increment) * increment;
+                      setQuantity(product.id, Math.min(rounded, 9999));
                     }
                   }}
                   keyboardType="numeric"
-                  maxLength={3}
+                  maxLength={4}
                 />
                 <Text style={styles.qtyLabel}>
-                  sachet{currentQty > 1 ? 's' : ''}
+                  {`unité${currentQty > 1 ? 's' : ''}`}
                 </Text>
               </View>
               <TouchableOpacity

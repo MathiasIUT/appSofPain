@@ -56,7 +56,7 @@ export default function ProductFormModal({
     nom: '',
     description: '',
     category_id: '',
-    unites_par_sachet: '',
+    increment: '',
     prix_unitaire_ht: '',
     actif: true,
     image_url: null,
@@ -73,7 +73,7 @@ export default function ProductFormModal({
           nom: product.nom || '',
           description: product.description || '',
           category_id: product.category_id || '',
-          unites_par_sachet: String(product.unites_par_sachet ?? 10),
+          increment: String(product.increment ?? 10),
           prix_unitaire_ht: String(product.prix_unitaire_ht || ''),
           actif: product.actif !== false,
           image_url: product.image_url || null,
@@ -83,7 +83,7 @@ export default function ProductFormModal({
           nom: '',
           description: '',
           category_id: categories[0]?.id || '',
-          unites_par_sachet: '10',
+          increment: '10',
           prix_unitaire_ht: '',
           actif: true,
           image_url: null,
@@ -104,9 +104,9 @@ export default function ProductFormModal({
     if (!form.nom.trim()) newErrors.nom = 'Le nom est requis';
     if (!form.category_id) newErrors.category_id = 'La catégorie est requise';
 
-    const unites = parseInt(form.unites_par_sachet, 10);
-    if (!form.unites_par_sachet || isNaN(unites) || unites < 1) {
-      newErrors.unites_par_sachet = 'Doit être un nombre entier supérieur ou égal à 1';
+    const unites = parseInt(form.increment, 10);
+    if (!form.increment || isNaN(unites) || unites < 1) {
+      newErrors.increment = 'Doit être un nombre entier supérieur ou égal à 1';
     }
 
     const prix = parseFloat(form.prix_unitaire_ht.replace(',', '.'));
@@ -215,7 +215,7 @@ export default function ProductFormModal({
         nom: form.nom.trim(),
         description: form.description.trim() || null,
         category_id: form.category_id,
-        unites_par_sachet: parseInt(form.unites_par_sachet, 10),
+        increment: parseInt(form.increment, 10),
         prix_unitaire_ht: parseFloat(form.prix_unitaire_ht.replace(',', '.')),
         actif: form.actif,
         image_url: finalImageUrl,
@@ -277,9 +277,9 @@ export default function ProductFormModal({
 
   // Calculs pour le récapitulatif tarifaire
   const prixNum = parseFloat((form.prix_unitaire_ht || '').replace(',', '.'));
-  const unitesSachet = parseInt(form.unites_par_sachet || '10', 10);
+  const incrementValue = parseInt(form.increment || '10', 10);
   const showSummary =
-    !errors.prix_unitaire_ht && !isNaN(prixNum) && prixNum > 0 && !isNaN(unitesSachet) && unitesSachet > 0;
+    !errors.prix_unitaire_ht && !isNaN(prixNum) && prixNum > 0 && !isNaN(incrementValue) && incrementValue > 0;
 
   return (
     <Modal
@@ -395,18 +395,18 @@ export default function ProductFormModal({
               editable={!saving}
             />
 
-            {/* Unités par sachet */}
+            {/* Increment de commande */}
             <Input
-              label="Unités par sachet"
+              label="Multiple de commande"
               required
-              value={form.unites_par_sachet}
+              value={form.increment}
               onChangeText={(v) =>
-                updateField('unites_par_sachet', v.replace(/[^0-9]/g, ''))
+                updateField('increment', v.replace(/[^0-9]/g, ''))
               }
               placeholder="Ex : 10"
               keyboardType="numeric"
-              error={errors.unites_par_sachet}
-              helperText="Nombre d'unités contenues dans un sachet (10 par défaut, 1 pour les lahmacun, etc.)"
+              error={errors.increment}
+              helperText="Les clients commanderont ce produit par multiple de cette valeur (10 par défaut)"
               editable={!saving}
             />
 
@@ -421,7 +421,7 @@ export default function ProductFormModal({
               placeholder="Ex : 2.50"
               keyboardType="decimal-pad"
               error={errors.prix_unitaire_ht}
-              helperText="Le prix de vente d'un sachet sera calculé comme : Prix unitaire × Unités par sachet"
+              helperText="Prix d'une seule unité. Le prix d'un lot sera calculé automatiquement."
               editable={!saving}
             />
 
@@ -429,7 +429,7 @@ export default function ProductFormModal({
             {showSummary ? (
               <View style={styles.summary}>
                 <Text style={styles.summaryTitle}>Récapitulatif tarifaire</Text>
-                <PricingSummary prixUnitaire={prixNum} unitesSachet={unitesSachet} tva={5.5} />
+                <PricingSummary prixUnitaire={prixNum} increment={incrementValue} tva={5.5} />
               </View>
             ) : null}
           </ScrollView>
@@ -469,18 +469,18 @@ export default function ProductFormModal({
 }
 
 // ---- Résumé tarifaire ----
-function PricingSummary({ prixUnitaire, unitesSachet, tva }) {
-  const prixSachetHt = prixUnitaire * unitesSachet;
-  const tvaAmount = prixSachetHt * (tva / 100);
-  const prixSachetTtc = prixSachetHt + tvaAmount;
+function PricingSummary({ prixUnitaire, increment, tva }) {
+  const prixLotHt = prixUnitaire * increment;
+  const tvaAmount = prixLotHt * (tva / 100);
+  const prixLotTtc = prixLotHt + tvaAmount;
 
   return (
     <View>
-      <SummaryRow label={`Prix HT / sachet (${unitesSachet} u.)`} value={`${prixSachetHt.toFixed(2)} €`} />
+      <SummaryRow label={`Prix HT / lot (${increment} u.)`} value={`${prixLotHt.toFixed(2)} €`} />
       <SummaryRow label={`TVA (${tva}%)`} value={`${tvaAmount.toFixed(2)} €`} />
       <SummaryRow
-        label="Prix TTC / sachet"
-        value={`${prixSachetTtc.toFixed(2)} €`}
+        label={`Prix TTC / lot`}
+        value={`${prixLotTtc.toFixed(2)} €`}
         bold
       />
     </View>
