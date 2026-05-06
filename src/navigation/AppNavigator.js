@@ -10,6 +10,7 @@ import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import MyOrdersScreen from '../screens/MyOrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
+import ClientProfileScreen from '../screens/ClientProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,7 @@ export default function AppNavigator() {
         <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
         <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
         <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+        <Stack.Screen name="ClientProfile" component={ClientProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

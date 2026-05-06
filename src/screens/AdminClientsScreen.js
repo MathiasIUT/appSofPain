@@ -18,29 +18,30 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 import Button from '../components/Button';
 import CreateClientModal from '../components/CreateClientModal';
 import useDebounce from '../hooks/useDebounce';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const FILTERS = [
-  { key: 'tous',     label: 'Tous' },
-  { key: 'actifs',   label: 'Actifs' },
+  { key: 'tous', label: 'Tous' },
+  { key: 'actifs', label: 'Actifs' },
   { key: 'inactifs', label: 'Inactifs' },
 ];
 
 const ORDER_STATUS_LABELS = {
-  nouvelle:       'Nouvelle',
+  nouvelle: 'Nouvelle',
   en_preparation: 'En préparation',
-  en_livraison:   'En livraison',
-  livree:         'Livrée',
-  annulee:        'Annulée',
+  en_livraison: 'En livraison',
+  livree: 'Livrée',
+  annulee: 'Annulée',
 };
 
 const ORDER_STATUS_COLORS = {
-  nouvelle:       '#2196F3',
+  nouvelle: '#2196F3',
   en_preparation: '#FF9800',
-  en_livraison:   '#00BCD4',
-  livree:         '#4CAF50',
-  annulee:        '#E53935',
+  en_livraison: '#00BCD4',
+  livree: '#4CAF50',
+  annulee: '#E53935',
 };
 
 const fmt = (d) =>
@@ -69,13 +70,13 @@ const PAGE_SIZE = 30;
 // ─── Écran principal ─────────────────────────────────────────────────────────
 
 export default function AdminClientsScreen() {
-  const [clients, setClients]           = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [loadingMore, setLoadingMore]   = useState(false);
-  const [filter, setFilter]             = useState('tous');
-  const [search, setSearch]             = useState('');
-  const [totalCount, setTotalCount]     = useState(0);
-  const [selectedClient, setSelected]   = useState(null);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [filter, setFilter] = useState('tous');
+  const [search, setSearch] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
+  const [selectedClient, setSelected] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
   const { width } = useWindowDimensions();
@@ -144,6 +145,12 @@ export default function AdminClientsScreen() {
   const handleClientUpdated = (updated) => {
     setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
     setSelected((prev) => (prev ? { ...prev, ...updated } : prev));
+  };
+
+  const handleClientDeleted = (deletedId) => {
+    setClients((prev) => prev.filter((c) => c.id !== deletedId));
+    setTotalCount((prev) => prev - 1);
+    closeModal();
   };
 
   return (
@@ -252,6 +259,7 @@ export default function AdminClientsScreen() {
                 client={selectedClient}
                 onClose={closeModal}
                 onUpdated={handleClientUpdated}
+                onDeleted={handleClientDeleted}
               />
             )}
           </View>
@@ -303,31 +311,33 @@ function ClientRow({ item, onPress }) {
   );
 }
 
-function ClientDetailModal({ client, onClose, onUpdated }) {
+function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const initial = {
-    nom:         client.nom         || '',
-    prenom:      client.prenom      || '',
+    nom: client.nom || '',
+    prenom: client.prenom || '',
     nom_societe: client.nom_societe || '',
-    email:       client.email       || '',
-    telephone:   client.telephone   || '',
-    adresse:     client.adresse     || '',
+    email: client.email || '',
+    telephone: client.telephone || '',
+    adresse: client.adresse || '',
     code_postal: client.code_postal || '',
-    ville:       client.ville       || '',
-    siret:       client.siret       || '',
+    ville: client.ville || '',
+    siret: client.siret || '',
   };
 
-  const [form, setForm]                   = useState(initial);
-  const [saving, setSaving]               = useState(false);
-  const [toggling, setToggling]           = useState(false);
-  const [orders, setOrders]               = useState([]);
+  const [form, setForm] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
-  const [livreurs, setLivreurs]           = useState([]);
+  const [livreurs, setLivreurs] = useState([]);
   const [selectedLivreur, setSelectedLivreur] = useState(client.livreur_id || null);
   const [savingLivreur, setSavingLivreur] = useState(false);
-  const [clientPrices, setClientPrices]   = useState({});
-  const [products, setProducts]           = useState([]);
-  const [savingPrices, setSavingPrices]   = useState(false);
-  const [showPrices, setShowPrices]       = useState(false);
+  const [clientPrices, setClientPrices] = useState({});
+  const [products, setProducts] = useState([]);
+  const [savingPrices, setSavingPrices] = useState(false);
+  const [showPrices, setShowPrices] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isActif = client.actif !== false;
   const changed = Object.keys(form).some((k) => form[k] !== initial[k]);
@@ -369,13 +379,13 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
       const { data, error } = await supabase
         .from('profiles')
         .update({
-          nom: form.nom.trim(), 
+          nom: form.nom.trim(),
           prenom: form.prenom.trim(),
-          nom_societe: form.nom_societe.trim(), 
+          nom_societe: form.nom_societe.trim(),
           email: form.email.trim(),
-          telephone: form.telephone.trim(), 
+          telephone: form.telephone.trim(),
           adresse: form.adresse.trim(),
-          code_postal: form.code_postal.trim(), 
+          code_postal: form.code_postal.trim(),
           ville: form.ville.trim(),
           siret: form.siret.trim(),
         })
@@ -442,6 +452,41 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
         showAlert('Erreur', 'Impossible de modifier le statut.');
       } finally { setToggling(false); }
     });
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      // Nom à conserver dans les commandes pour la comptabilité
+      const snapshot = client.nom_societe
+        || [client.prenom, client.nom].filter(Boolean).join(' ')
+        || 'Client supprimé';
+
+      // 1. Sauvegarder le nom dans les commandes et détacher le profil
+      await supabase.from('orders')
+        .update({
+          client_nom: snapshot,
+          client_id: null,
+        })
+        .eq('client_id', client.id);
+
+      // 2. Supprimer les prix personnalisés
+      await supabase.from('client_prices').delete().eq('client_id', client.id);
+
+      // 3. Supprimer physiquement le profil
+      const { error } = await supabase.from('profiles')
+        .delete()
+        .eq('id', client.id);
+
+      if (error) throw error;
+
+      setConfirmDelete(false);
+      showAlert('Compte supprimé', `Le profil de ${snapshot} a été supprimé. Son nom a été conservé sur les commandes pour la comptabilité.`);
+      onDeleted(client.id);
+    } catch (err) {
+      console.error('Erreur suppression admin :', err);
+      showAlert('Erreur', 'Impossible de supprimer le compte. Détail : ' + err.message);
+    } finally { setDeleting(false); }
   };
 
   const setField = (key) => (v) => setForm((prev) => ({ ...prev, [key]: v }));
@@ -591,9 +636,18 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
             {toggling
               ? <ActivityIndicator color={colors.white} size="small" />
               : <Text style={modal.toggleBtnText}>
-                  {isActif ? '🔒 Désactiver le compte' : '✅ Réactiver le compte'}
-                </Text>
+                {isActif ? '🔒 Désactiver le compte' : '✅ Réactiver le compte'}
+              </Text>
             }
+          </TouchableOpacity>
+
+          {/* Supprimer définitivement */}
+          <TouchableOpacity
+            style={[modal.toggleBtn, modal.toggleBtnDelete]}
+            onPress={() => setConfirmDelete(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={modal.toggleBtnText}>🗑 Supprimer le compte</Text>
           </TouchableOpacity>
         </View>
 
@@ -627,6 +681,19 @@ function ClientDetailModal({ client, onClose, onUpdated }) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      {/* Modal confirmation suppression */}
+      <ConfirmModal
+        visible={confirmDelete}
+        title="Supprimer DÉFINITIVEMENT"
+        message={`ATTENTION : Vous allez supprimer toutes les données de ${displayName}.\n\nCette action est irréversible et supprimera le profil de la base de données.`}
+        confirmLabel="Supprimer pour de bon"
+        cancelLabel="Annuler"
+        danger
+        loading={deleting}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </View>
   );
 }
@@ -664,11 +731,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  topBarLeft:   { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  screenTitle:  { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
-  screenCount:  { fontSize: fontSizes.sm, color: colors.textSecondary },
-  refreshBtn:   { ...Platform.select({ web: { cursor: 'pointer' } }) },
-  refreshText:  { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
+  topBarLeft: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+  screenTitle: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
+  screenCount: { fontSize: fontSizes.sm, color: colors.textSecondary },
+  refreshBtn: { ...Platform.select({ web: { cursor: 'pointer' } }) },
+  refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   searchWrap: {
     paddingHorizontal: spacing.lg,
@@ -710,20 +777,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  filterChipActive:      { borderColor: colors.primary, backgroundColor: colors.secondary },
-  filterLabel:           { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
-  filterLabelActive:     { color: colors.primary, fontWeight: '700' },
-  filterCount:           { backgroundColor: colors.border, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
-  filterCountActive:     { backgroundColor: colors.primary },
-  filterCountText:       { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  filterChipActive: { borderColor: colors.primary, backgroundColor: colors.secondary },
+  filterLabel: { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
+  filterLabelActive: { color: colors.primary, fontWeight: '700' },
+  filterCount: { backgroundColor: colors.border, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
+  filterCountActive: { backgroundColor: colors.primary },
+  filterCountText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
   filterCountTextActive: { color: colors.white },
 
-  centered:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: spacing.md, color: colors.textSecondary },
-  emptyIcon:   { fontSize: 36, marginBottom: spacing.sm },
-  emptyText:   { fontSize: fontSizes.md, color: colors.textSecondary },
+  emptyIcon: { fontSize: 36, marginBottom: spacing.sm },
+  emptyText: { fontSize: fontSizes.md, color: colors.textSecondary },
 
-  list:        { padding: spacing.lg, paddingBottom: spacing.xxl },
+  list: { padding: spacing.lg, paddingBottom: spacing.xxl },
   listDesktop: { maxWidth: 1100, alignSelf: 'center', width: '100%' },
   loadMoreBtn: {
     alignItems: 'center', justifyContent: 'center',
@@ -748,11 +815,11 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   rowInactive: { opacity: 0.6 },
-  rowCol:      { flexDirection: 'column', justifyContent: 'center' },
-  rowColFlex:  { flex: 1 },
-  rowName:     { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
-  rowEmail:    { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
-  rowMeta:     { fontSize: fontSizes.xs, color: colors.textSecondary },
+  rowCol: { flexDirection: 'column', justifyContent: 'center' },
+  rowColFlex: { flex: 1 },
+  rowName: { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
+  rowEmail: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
+  rowMeta: { fontSize: fontSizes.xs, color: colors.textSecondary },
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -761,7 +828,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
-  arrow:     { fontSize: 20, color: colors.border, marginLeft: spacing.xs },
+  arrow: { fontSize: 20, color: colors.border, marginLeft: spacing.xs },
 
   modalOverlay: {
     flex: 1,
@@ -801,16 +868,16 @@ const modal = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
   },
-  headerName:      { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
-  headerBadge:     { alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.round },
+  headerName: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+  headerBadge: { alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.round },
   headerBadgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
-  closeBtn:        { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
-  closeText:       { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
+  closeBtn: { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
+  closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
 
-  body:        { flex: 1 },
+  body: { flex: 1 },
   bodyContent: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
 
-  section:      { marginBottom: spacing.sm },
+  section: { marginBottom: spacing.sm },
   sectionTitle: {
     fontSize: fontSizes.xs,
     fontWeight: '700',
@@ -823,8 +890,8 @@ const modal = StyleSheet.create({
     borderBottomColor: colors.border,
   },
 
-  row2:       { flexDirection: 'row', gap: spacing.sm },
-  fieldWrap:  { flex: 1, marginBottom: spacing.sm },
+  row2: { flexDirection: 'row', gap: spacing.sm },
+  fieldWrap: { flex: 1, marginBottom: spacing.sm },
   fieldLabel: {
     fontSize: fontSizes.xs,
     fontWeight: '600',
@@ -852,18 +919,19 @@ const modal = StyleSheet.create({
     justifyContent: 'center',
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  toggleBtnDanger:  { backgroundColor: colors.error },
+  toggleBtnDanger: { backgroundColor: colors.error },
   toggleBtnSuccess: { backgroundColor: colors.success },
-  toggleBtnText:    { color: colors.white, fontWeight: '600', fontSize: fontSizes.sm },
+  toggleBtnDelete: { backgroundColor: '#6B2D2D', marginTop: spacing.sm },
+  toggleBtnText: { color: colors.white, fontWeight: '600', fontSize: fontSizes.sm },
 
   emptyOrders: { fontSize: fontSizes.sm, color: colors.textSecondary, fontStyle: 'italic', paddingVertical: spacing.sm },
 
-  orderRow:       { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 9, paddingHorizontal: 4, borderRadius: borderRadius.sm },
-  orderRowAlt:    { backgroundColor: colors.secondary },
-  orderNum:       { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
-  orderDate:      { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
-  orderTotal:     { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary },
-  orderBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.round, minWidth: 90, alignItems: 'center' },
+  orderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 9, paddingHorizontal: 4, borderRadius: borderRadius.sm },
+  orderRowAlt: { backgroundColor: colors.secondary },
+  orderNum: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
+  orderDate: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
+  orderTotal: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary },
+  orderBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.round, minWidth: 90, alignItems: 'center' },
   orderBadgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
 
   monthBox: {

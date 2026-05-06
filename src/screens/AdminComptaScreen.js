@@ -44,7 +44,7 @@ export default function AdminComptaScreen() {
         supabase.from('client_prices').select('*'),
         supabase
           .from('orders')
-          .select('id, client_id, total_ht, order_items(product_id, quantite, prix_unitaire_ht)')
+          .select('id, client_id, client_nom, total_ht, order_items(product_id, quantite, prix_unitaire_ht)')
           .gte('date_commande', startOfMonth.toISOString())
           .lte('date_commande', endOfMonth.toISOString())
           .neq('statut', 'annulee')
@@ -89,15 +89,12 @@ export default function AdminComptaScreen() {
       filteredClients = clients.filter(c => c.livreur_id === selectedLivreurId);
     }
 
-    // 2. Agréger les commandes
+    // 2. Agréger les commandes des clients existants
     const result = [];
     let globalTotalHt = 0;
 
     for (const client of filteredClients) {
       const clientOrders = orders.filter(o => o.client_id === client.id);
-      
-      // Si on ne veut afficher que les clients qui ont commandé, on peut décommenter :
-      // if (clientOrders.length === 0) continue;
 
       const productAgg = {};
       let totalHt = 0;
@@ -109,7 +106,6 @@ export default function AdminComptaScreen() {
             productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
           }
           productAgg[item.product_id].qty += item.quantite;
-          // on garde le dernier prix facturé
           productAgg[item.product_id].price = item.prix_unitaire_ht; 
         }
       }
@@ -121,6 +117,34 @@ export default function AdminComptaScreen() {
         productAgg,
         totalHt
       });
+    }
+
+    // 3. Ajouter les commandes orphelines (clients supprimés) — regroupées par client_nom
+    if (selectedLivreurId === 'all') {
+      const orphanOrders = orders.filter(o => !o.client_id && o.client_nom);
+      const orphanByName = {};
+      for (const order of orphanOrders) {
+        const name = order.client_nom;
+        if (!orphanByName[name]) {
+          orphanByName[name] = { productAgg: {}, totalHt: 0 };
+        }
+        orphanByName[name].totalHt += Number(order.total_ht || 0);
+        for (const item of (order.order_items || [])) {
+          if (!orphanByName[name].productAgg[item.product_id]) {
+            orphanByName[name].productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
+          }
+          orphanByName[name].productAgg[item.product_id].qty += item.quantite;
+          orphanByName[name].productAgg[item.product_id].price = item.prix_unitaire_ht;
+        }
+      }
+      for (const [name, data] of Object.entries(orphanByName)) {
+        globalTotalHt += data.totalHt;
+        result.push({
+          client: { id: `deleted-${name}`, nom_societe: `${name} (supprimé)`, ville: '' },
+          productAgg: data.productAgg,
+          totalHt: data.totalHt,
+        });
+      }
     }
 
     // Trier par nom de société ou nom du client

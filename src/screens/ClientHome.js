@@ -147,13 +147,22 @@ export default function ClientHome({ navigation }) {
             ) : null}
           </TouchableOpacity>
 
-          {/* Bouton mes commandes (placeholder pour plus tard) */}
+          {/* Bouton mes commandes */}
           <TouchableOpacity
             style={styles.ordersButton}
             onPress={() => navigation.navigate('MyOrders')}
             activeOpacity={0.7}
           >
             <Text style={styles.ordersButtonText}>Mes commandes</Text>
+          </TouchableOpacity>
+
+          {/* Bouton profil */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('ClientProfile')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.profileButtonText}>👤 Mon profil</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
@@ -463,6 +472,20 @@ const styles = StyleSheet.create({
   },
   ordersButtonText: {
     color: colors.primary,
+    fontWeight: '600',
+    fontSize: fontSizes.sm,
+  },
+  profileButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  profileButtonText: {
+    color: colors.textSecondary,
     fontWeight: '600',
     fontSize: fontSizes.sm,
   },

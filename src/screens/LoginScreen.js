@@ -81,8 +81,14 @@ export default function LoginScreen({ navigation }) {
         .eq('id', authData.user.id)
         .single();
 
-      if (profileError) {
-        showAlert('Erreur', 'Impossible de récupérer votre profil.');
+      if (profileError || !profile) {
+        // Le profil n'existe plus = compte supprimé.
+        // On déconnecte la session auth immédiatement.
+        await supabase.auth.signOut();
+        showAlert(
+          'Compte supprimé',
+          'Ce compte a été supprimé. Si vous pensez qu\'il s\'agit d\'une erreur, contactez l\'administrateur.'
+        );
         return;
       }
 

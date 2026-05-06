@@ -94,7 +94,7 @@ export default function AdminOrdersScreen() {
       let query = supabase
         .from('orders')
         .select(`
-          id, numero, client_id, statut, date_commande, date_livraison_souhaitee,
+          id, numero, client_id, client_nom, statut, date_commande, date_livraison_souhaitee,
           total_ht, total_tva, total_ttc, livreur_id, notes_client, notes_admin,
           adresse_livraison, date_livraison_reelle,
           client:profiles!client_id(
@@ -269,7 +269,8 @@ function OrderRow({ item, onPress, isDesktop }) {
   const sColor = STATUT_COLORS[item.statut] || colors.textSecondary;
   const clientName = item.client?.nom_societe
     || [item.client?.prenom, item.client?.nom].filter(Boolean).join(' ')
-    || '—';
+    || item.client_nom
+    || '— Client supprimé —';
 
   return (
     <TouchableOpacity
@@ -390,7 +391,8 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
 
   const clientName = order.client?.nom_societe
     || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
-    || '—';
+    || order.client_nom
+    || '— Client supprimé —';
 
   // Fallback : extraire le téléphone depuis l'adresse si absent du profil
   const telephone = order.client?.telephone

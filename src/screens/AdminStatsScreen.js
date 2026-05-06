@@ -94,7 +94,7 @@ export default function AdminStatsScreen() {
       // 1. Charger les commandes filtrées par période (côté serveur)
       let ordersQuery = supabase
         .from('orders')
-        .select('id, client_id, statut, date_commande, total_ht, total_ttc, total_tva, client:profiles!client_id(nom, prenom, nom_societe)')
+        .select('id, client_id, client_nom, statut, date_commande, total_ht, total_ttc, total_tva, client:profiles!client_id(nom, prenom, nom_societe)')
         .order('date_commande', { ascending: false });
 
       if (bounds) {
@@ -241,11 +241,11 @@ export default function AdminStatsScreen() {
   const topClients = useMemo(() => {
     const map = {};
     orders.forEach((o) => {
-      const id = o.client_id;
+      const id = o.client_id || `deleted-${o.client_nom || 'inconnu'}`;
       if (!map[id]) {
         const c = o.client || {};
         map[id] = {
-          nom: c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—',
+          nom: c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || o.client_nom || '— Client supprimé —',
           nbCmds: 0,
           caTtc: 0,
         };
