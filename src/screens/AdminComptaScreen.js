@@ -261,9 +261,18 @@ export default function AdminComptaScreen() {
             <Text style={styles.emptyText}>Aucun client trouvé pour ce livreur.</Text>
           </View>
         ) : (
-          <ScrollView horizontal style={styles.horizontalScroll} showsHorizontalScrollIndicator={true}>
-            <ScrollView style={styles.verticalScroll} showsVerticalScrollIndicator={true}>
-              <View style={styles.table}>
+          <ScrollView 
+            horizontal 
+            style={styles.horizontalScroll} 
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsHorizontalScrollIndicator={true}
+          >
+            <ScrollView 
+              style={styles.verticalScroll} 
+              contentContainerStyle={{ flexGrow: 1 }}
+              showsVerticalScrollIndicator={true}
+            >
+              <View style={[styles.table, { flex: 1 }]}>
                 
                 {/* Ligne d'en-tête */}
                 <View style={styles.tableHeaderRow}>
@@ -717,19 +726,22 @@ const styles = StyleSheet.create({
     borderRightColor: colors.border,
   },
   colClient: {
-    width: 180,
+    width: 220,
+    flexShrink: 0,
     alignItems: 'flex-start',
     backgroundColor: colors.surface,
   },
   colProduct: {
-    width: 80,
+    minWidth: 90,
+    flex: 1,
   },
   colTotal: {
-    width: 100,
+    width: 120,
+    flexShrink: 0,
     backgroundColor: '#FFF9F5',
   },
   tdClientText: {
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.md,
     fontWeight: '700',
     color: colors.textPrimary,
   },
