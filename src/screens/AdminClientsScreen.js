@@ -28,21 +28,7 @@ const FILTERS = [
   { key: 'inactifs', label: 'Inactifs' },
 ];
 
-const ORDER_STATUS_LABELS = {
-  nouvelle: 'Nouvelle',
-  en_preparation: 'En préparation',
-  en_livraison: 'En livraison',
-  livree: 'Livrée',
-  annulee: 'Annulée',
-};
 
-const ORDER_STATUS_COLORS = {
-  nouvelle: '#2196F3',
-  en_preparation: '#FF9800',
-  en_livraison: '#00BCD4',
-  livree: '#4CAF50',
-  annulee: '#E53935',
-};
 
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -327,8 +313,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
-  const [orders, setOrders] = useState([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
   const [livreurs, setLivreurs] = useState([]);
   const [selectedLivreur, setSelectedLivreur] = useState(client.livreur_id || null);
   const [savingLivreur, setSavingLivreur] = useState(false);
@@ -342,24 +326,14 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const isActif = client.actif !== false;
   const changed = Object.keys(form).some((k) => form[k] !== initial[k]);
 
-  // Monthly HT total
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const monthOrders = orders.filter(o => o.date_commande >= monthStart && o.statut !== 'annulee');
-  const monthTotalHt = monthOrders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
-
   useEffect(() => {
     (async () => {
-      setLoadingOrders(true);
       try {
-        const [ordRes, livRes, prodRes, pricesRes] = await Promise.all([
-          supabase.from('orders').select('*').eq('client_id', client.id)
-            .order('date_commande', { ascending: false }),
+        const [livRes, prodRes, pricesRes] = await Promise.all([
           supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
           supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('nom'),
           supabase.from('client_prices').select('*').eq('client_id', client.id),
         ]);
-        setOrders(ordRes.data || []);
         setLivreurs(livRes.data || []);
         setProducts(prodRes.data || []);
         const priceMap = {};
@@ -367,8 +341,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         setClientPrices(priceMap);
       } catch (err) {
         console.error('Erreur chargement données client :', err);
-      } finally {
-        setLoadingOrders(false);
       }
     })();
   }, [client.id]);
@@ -462,10 +434,11 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         || [client.prenom, client.nom].filter(Boolean).join(' ')
         || 'Client supprimé';
 
-      // 1. Sauvegarder le nom dans les commandes et détacher le profil
+      // 1. Sauvegarder le nom ET l'UUID dans les commandes, puis détacher le profil
       await supabase.from('orders')
         .update({
           client_nom: snapshot,
+          client_uuid_snapshot: client.id,
           client_id: null,
         })
         .eq('client_id', client.id);
@@ -515,20 +488,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
       </View>
 
       <ScrollView style={modal.body} contentContainerStyle={modal.bodyContent} showsVerticalScrollIndicator={false}>
-
-        {/* Total du mois */}
-        <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Total du mois en cours</Text>
-          <View style={modal.monthBox}>
-            <Text style={modal.monthLabel}>
-              {now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-            </Text>
-            <Text style={modal.monthTotal}>{`${monthTotalHt.toFixed(2)} € HT`}</Text>
-            <Text style={modal.monthSub}>
-              {`${monthOrders.length} commande${monthOrders.length > 1 ? 's' : ''} (hors annulées)`}
-            </Text>
-          </View>
-        </View>
 
         {/* Informations */}
         <View style={modal.section}>
@@ -649,34 +608,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           >
             <Text style={modal.toggleBtnText}>🗑 Supprimer le compte</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Historique commandes */}
-        <View style={modal.section}>
-          <Text style={modal.sectionTitle}>{`Historique des commandes (${orders.length})`}</Text>
-          {loadingOrders ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
-          ) : orders.length === 0 ? (
-            <Text style={modal.emptyOrders}>Aucune commande pour ce client.</Text>
-          ) : (
-            orders.map((o, idx) => {
-              const sColor = ORDER_STATUS_COLORS[o.statut] || colors.textSecondary;
-              return (
-                <View key={o.id} style={[modal.orderRow, idx % 2 === 1 && modal.orderRowAlt]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={modal.orderNum}>{`N° ${o.numero}`}</Text>
-                    <Text style={modal.orderDate}>{fmt(o.date_commande)}</Text>
-                  </View>
-                  <Text style={modal.orderTotal}>{`${n2(o.total_ht)} € HT`}</Text>
-                  <View style={[modal.orderBadge, { backgroundColor: sColor + '22' }]}>
-                    <Text style={[modal.orderBadgeText, { color: sColor }]}>
-                      {ORDER_STATUS_LABELS[o.statut] || o.statut}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          )}
         </View>
 
         <View style={{ height: spacing.xl }} />
@@ -925,14 +856,6 @@ const modal = StyleSheet.create({
   toggleBtnText: { color: colors.white, fontWeight: '600', fontSize: fontSizes.sm },
 
   emptyOrders: { fontSize: fontSizes.sm, color: colors.textSecondary, fontStyle: 'italic', paddingVertical: spacing.sm },
-
-  orderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 9, paddingHorizontal: 4, borderRadius: borderRadius.sm },
-  orderRowAlt: { backgroundColor: colors.secondary },
-  orderNum: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
-  orderDate: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
-  orderTotal: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary },
-  orderBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.round, minWidth: 90, alignItems: 'center' },
-  orderBadgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
 
   monthBox: {
     backgroundColor: colors.secondary, padding: spacing.md,

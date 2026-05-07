@@ -142,9 +142,9 @@ export default function ClientProfileScreen({ navigation }) {
         || [profile?.prenom, profile?.nom].filter(Boolean).join(' ')
         || 'Client supprimé';
 
-      // 1. Sauvegarder le nom dans les commandes et détacher le profil
+      // 1. Sauvegarder le nom ET l'UUID dans les commandes, puis détacher le profil
       const { error: ordersError } = await supabase.from('orders')
-        .update({ client_nom: snapshot, client_id: null })
+        .update({ client_nom: snapshot, client_uuid_snapshot: user.id, client_id: null })
         .eq('client_id', user.id);
       if (ordersError) console.warn('Avertissement orders :', ordersError.message);
 

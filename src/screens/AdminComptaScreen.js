@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,24 +6,33 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Modal,
   Platform,
 } from 'react-native';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
+import { generateMonthlyBonPdf } from '../utils/generateMonthlyBonPdf';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
 export default function AdminComptaScreen() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
-  
+
   const [livreurs, setLivreurs] = useState([]);
   const [products, setProducts] = useState([]);
   const [clients, setClients] = useState([]);
   const [clientPrices, setClientPrices] = useState([]);
   const [orders, setOrders] = useState([]);
-  
+
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
+
+  // Bon mensuel modal
+  const [bonClient, setBonClient] = useState(null);
+  const [bonVisible, setBonVisible] = useState(false);
+
+  const openBon = (client) => { setBonClient(client); setBonVisible(true); };
+  const closeBon = () => { setBonVisible(false); setBonClient(null); };
 
   useEffect(() => {
     loadData();
@@ -44,7 +53,7 @@ export default function AdminComptaScreen() {
         supabase.from('client_prices').select('*'),
         supabase
           .from('orders')
-          .select('id, client_id, client_nom, total_ht, order_items(product_id, quantite, prix_unitaire_ht)')
+          .select('id, client_id, client_nom, client_uuid_snapshot, total_ht, order_items(product_id, quantite, prix_unitaire_ht)')
           .gte('date_commande', startOfMonth.toISOString())
           .lte('date_commande', endOfMonth.toISOString())
           .neq('statut', 'annulee')
@@ -119,28 +128,41 @@ export default function AdminComptaScreen() {
       });
     }
 
-    // 3. Ajouter les commandes orphelines (clients supprimés) — regroupées par client_nom
+    // 3. Ajouter les commandes orphelines (clients supprimés)
+    // Groupées par client_uuid_snapshot si dispo, sinon par client_nom (rcompat.)
     if (selectedLivreurId === 'all') {
       const orphanOrders = orders.filter(o => !o.client_id && o.client_nom);
-      const orphanByName = {};
+      const orphanByKey = {};
       for (const order of orphanOrders) {
-        const name = order.client_nom;
-        if (!orphanByName[name]) {
-          orphanByName[name] = { productAgg: {}, totalHt: 0 };
+        // Clé unique : UUID snapshot si dispo, sinon préfixe 'name-' + nom
+        const key = order.client_uuid_snapshot || `name-${order.client_nom}`;
+        if (!orphanByKey[key]) {
+          orphanByKey[key] = {
+            productAgg: {},
+            totalHt: 0,
+            name: order.client_nom,
+            uuid_snapshot: order.client_uuid_snapshot || null,
+          };
         }
-        orphanByName[name].totalHt += Number(order.total_ht || 0);
+        orphanByKey[key].totalHt += Number(order.total_ht || 0);
         for (const item of (order.order_items || [])) {
-          if (!orphanByName[name].productAgg[item.product_id]) {
-            orphanByName[name].productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
+          if (!orphanByKey[key].productAgg[item.product_id]) {
+            orphanByKey[key].productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
           }
-          orphanByName[name].productAgg[item.product_id].qty += item.quantite;
-          orphanByName[name].productAgg[item.product_id].price = item.prix_unitaire_ht;
+          orphanByKey[key].productAgg[item.product_id].qty += item.quantite;
+          orphanByKey[key].productAgg[item.product_id].price = item.prix_unitaire_ht;
         }
       }
-      for (const [name, data] of Object.entries(orphanByName)) {
+      for (const [key, data] of Object.entries(orphanByKey)) {
         globalTotalHt += data.totalHt;
         result.push({
-          client: { id: `deleted-${name}`, nom_societe: `${name} (supprimé)`, ville: '' },
+          client: {
+            id: `deleted-${key}`,
+            nom_societe: `${data.name} (supprimé)`,
+            ville: '',
+            _orphan_name: data.name,
+            _orphan_uuid: data.uuid_snapshot,
+          },
           productAgg: data.productAgg,
           totalHt: data.totalHt,
         });
@@ -267,11 +289,18 @@ export default function AdminComptaScreen() {
                       <View style={[styles.td, styles.colClient]}>
                         <Text style={styles.tdClientText} numberOfLines={2}>{clientName}</Text>
                         <Text style={styles.tdClientSub} numberOfLines={1}>{row.client.ville || ''}</Text>
-                        {!row.client.livreur_id && (
+                        {!row.client.livreur_id && !String(row.client.id).startsWith('deleted-') && (
                           <View style={{ backgroundColor: '#FFEBEE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, alignSelf: 'flex-start' }}>
                             <Text style={{ color: '#D32F2F', fontSize: 10, fontWeight: '700' }}>⚠️ SANS LIVREUR</Text>
                           </View>
                         )}
+                        <TouchableOpacity
+                          onPress={() => openBon(row.client)}
+                          style={styles.bonBtn}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.bonBtnText}>📋 Voir le détail →</Text>
+                        </TouchableOpacity>
                       </View>
                       
                       {products.map(p => {
@@ -330,9 +359,200 @@ export default function AdminComptaScreen() {
           </ScrollView>
         )}
       </View>
+
+      {/* ── Modal bon mensuel ── */}
+      <Modal
+        visible={bonVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeBon}
+      >
+        <View style={styles.bonOverlay}>
+          <View style={styles.bonBox}>
+            {bonClient && (
+              <BonMensuelModal
+                client={bonClient}
+                currentDate={currentDate}
+                onClose={closeBon}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+// ─── Composant Bon Mensuel ───────────────────────────────────────────────────
+
+function BonMensuelModal({ client, currentDate, onClose }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  const isOrphan = String(client.id).startsWith('deleted-');
+
+  // Nom propre sans le suffixe "(supprimé)"
+  const clientName = isOrphan
+    ? (client._orphan_name || 'Client supprimé')
+    : (client.nom_societe || [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client');
+
+  const monthLabel = currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+  const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
+  const n2 = (v) => Number(v ?? 0).toFixed(2);
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+
+        let query = supabase
+          .from('orders')
+          .select('id, numero, date_commande, total_ht, order_items(product_id, quantite, prix_unitaire_ht, products(nom))')
+          .gte('date_commande', startOfMonth.toISOString())
+          .lte('date_commande', endOfMonth.toISOString())
+          .neq('statut', 'annulee')
+          .order('date_commande', { ascending: true });
+
+        if (isOrphan) {
+          if (client._orphan_uuid) {
+            // Nouveau système : requête fiable par UUID même si deux clients ont le même nom
+            query = query.is('client_id', null).eq('client_uuid_snapshot', client._orphan_uuid);
+          } else {
+            // Fallback pour les vieilles commandes orphelines sans UUID snapshot
+            query = query.is('client_id', null).eq('client_nom', client._orphan_name);
+          }
+        } else {
+          query = query.eq('client_id', client.id);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setOrders(data || []);
+      } catch (err) {
+        console.error('Erreur chargement bon mensuel:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [client.id, currentDate]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const enriched = orders.map(o => ({
+        ...o,
+        order_items: (o.order_items || []).map(it => ({
+          ...it,
+          product_nom: it.products?.nom || `Produit #${it.product_id}`,
+        })),
+      }));
+      await generateMonthlyBonPdf(client, currentDate, enriched);
+    } catch (err) {
+      console.error('Erreur export PDF:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <View style={bon.container}>
+      {/* Header */}
+      <View style={bon.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={bon.headerTitle}>Bon mensuel</Text>
+          <Text style={bon.headerSub}>{clientName} · {monthLabelCap}</Text>
+        </View>
+        <TouchableOpacity onPress={onClose} style={bon.closeBtn} activeOpacity={0.7}>
+          <Text style={bon.closeText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Barre actions */}
+      <View style={bon.actionsBar}>
+        <TouchableOpacity
+          style={[bon.exportBtn, exporting && { opacity: 0.6 }]}
+          onPress={handleExport}
+          disabled={exporting || loading}
+          activeOpacity={0.8}
+        >
+          {exporting
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={bon.exportBtnText}>🖨️ Exporter / Imprimer PDF</Text>
+          }
+        </TouchableOpacity>
+        <View style={bon.totalPill}>
+          <Text style={bon.totalPillLabel}>Total du mois</Text>
+          <Text style={bon.totalPillValue}>{n2(totalMois)} € HT</Text>
+        </View>
+      </View>
+
+      {/* Corps */}
+      {loading ? (
+        <View style={bon.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={bon.loadingText}>Chargement...</Text>
+        </View>
+      ) : orders.length === 0 ? (
+        <View style={bon.centered}>
+          <Text style={bon.emptyText}>Aucune commande ce mois-ci.</Text>
+        </View>
+      ) : (
+        <ScrollView style={bon.body} contentContainerStyle={bon.bodyContent} showsVerticalScrollIndicator={false}>
+          {orders.map((o) => {
+            const items = o.order_items || [];
+            const sousTotal = Number(o.total_ht || 0);
+            return (
+              <View key={o.id} style={bon.orderCard}>
+                <View style={bon.orderCardHeader}>
+                  <Text style={bon.orderNum}>Commande N° {o.numero}</Text>
+                  <Text style={bon.orderDate}>{fmtDate(o.date_commande)}</Text>
+                </View>
+                <View style={bon.itemsTable}>
+                  <View style={bon.itemsTableHeader}>
+                    <Text style={[bon.thText, { flex: 2 }]}>Produit</Text>
+                    <Text style={[bon.thText, bon.thRight, { flex: 0.6 }]}>Qté</Text>
+                    <Text style={[bon.thText, bon.thRight, { flex: 1 }]}>PU HT</Text>
+                    <Text style={[bon.thText, bon.thRight, { flex: 1 }]}>Total HT</Text>
+                  </View>
+                  {items.map((it, idx) => {
+                    const nom = it.products?.nom || `Produit #${it.product_id}`;
+                    const pu = Number(it.prix_unitaire_ht || 0);
+                    const ligneTotal = pu * it.quantite;
+                    return (
+                      <View key={idx} style={[bon.itemRow, idx % 2 === 1 && bon.itemRowAlt]}>
+                        <Text style={[bon.tdText, { flex: 2 }]} numberOfLines={2}>{nom}</Text>
+                        <Text style={[bon.tdText, bon.tdRight, { flex: 0.6 }]}>{it.quantite}</Text>
+                        <Text style={[bon.tdText, bon.tdRight, bon.tdMuted, { flex: 1 }]}>{n2(pu)} €</Text>
+                        <Text style={[bon.tdText, bon.tdRight, { flex: 1 }]}>{n2(ligneTotal)} €</Text>
+                      </View>
+                    );
+                  })}
+                  <View style={bon.sousTotalRow}>
+                    <Text style={bon.sousTotalLabel}>Sous-total</Text>
+                    <Text style={bon.sousTotalValue}>{n2(sousTotal)} € HT</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+          <View style={bon.totalGlobal}>
+            <Text style={bon.totalGlobalLabel}>TOTAL DU MOIS</Text>
+            <Text style={bon.totalGlobalValue}>{n2(totalMois)} € HT</Text>
+          </View>
+          <View style={{ height: spacing.xl }} />
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -541,4 +761,163 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.primary,
   },
+
+  // Bouton Voir le détail
+  bonBtn: {
+    marginTop: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+    alignSelf: 'flex-start',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  bonBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
+  // Modal overlay
+  bonOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+    ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
+  },
+  bonBox: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    maxHeight: '94%',
+    ...Platform.select({ web: { borderRadius: borderRadius.xl, width: '92%', maxWidth: 760, maxHeight: '90%' } }),
+  },
+});
+
+// ─── Styles Bon Mensuel ───────────────────────────────────────────────────────
+
+const bon = StyleSheet.create({
+  container: { flex: 1, overflow: 'hidden' },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+  },
+  headerTitle: { fontSize: fontSizes.lg, fontWeight: '800', color: colors.textPrimary },
+  headerSub: { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
+  closeBtn: { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
+  closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
+
+  actionsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.md,
+    flexWrap: 'wrap',
+  },
+  exportBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  exportBtnText: { color: colors.white, fontWeight: '700', fontSize: fontSizes.sm },
+  totalPill: {
+    backgroundColor: colors.secondary,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'flex-end',
+  },
+  totalPillLabel: { fontSize: fontSizes.xs, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  totalPillValue: { fontSize: fontSizes.lg, fontWeight: '800', color: colors.primary, marginTop: 2 },
+
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  loadingText: { marginTop: spacing.md, color: colors.textSecondary },
+  emptyText: { color: colors.textSecondary, fontSize: fontSizes.md },
+
+  body: { flex: 1 },
+  bodyContent: { padding: spacing.lg, gap: spacing.md },
+
+  orderCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadows.sm,
+  },
+  orderCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  orderNum: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
+  orderDate: { fontSize: fontSizes.sm, color: colors.textSecondary },
+
+  itemsTable: { paddingBottom: 4 },
+  itemsTableHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: '#F8F8F8',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  thText: { fontSize: 10, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  thRight: { textAlign: 'right' },
+
+  itemRow: { flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  itemRowAlt: { backgroundColor: '#FAFAFA' },
+  tdText: { fontSize: fontSizes.sm, color: colors.textPrimary },
+  tdRight: { textAlign: 'right' },
+  tdMuted: { color: colors.textSecondary },
+
+  sousTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    backgroundColor: colors.secondary,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  sousTotalLabel: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textSecondary },
+  sousTotalValue: { fontSize: fontSizes.sm, fontWeight: '800', color: colors.primary },
+
+  totalGlobal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary + '12',
+    borderRadius: borderRadius.lg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    marginTop: spacing.sm,
+  },
+  totalGlobalLabel: { fontSize: fontSizes.sm, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 1 },
+  totalGlobalValue: { fontSize: fontSizes.xl, fontWeight: '900', color: colors.primary },
 });
