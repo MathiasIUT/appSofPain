@@ -949,6 +949,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const [step, setStep] = useState('client');
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
+  const [clientPrices, setClientPrices] = useState({});
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState(null);
@@ -961,6 +962,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     if (!visible) return;
     setStep('client');
     setSelectedClient(null);
+    setClientPrices({});
     setQuantities({});
     setSearch('');
     setLoading(true);
@@ -981,7 +983,27 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     }).finally(() => setLoading(false));
   }, [visible]);
 
-  const getPrice = (product) => Number(product.prix_unitaire_ht || 0);
+  const handleSelectClient = async (client) => {
+    setSelectedClient(client);
+    setQuantities({});
+    setStep('products');
+    try {
+      const { data } = await supabase
+        .from('client_prices')
+        .select('product_id, prix_unitaire_ht')
+        .eq('client_id', client.id);
+      const map = {};
+      (data || []).forEach(row => { map[row.product_id] = Number(row.prix_unitaire_ht); });
+      setClientPrices(map);
+    } catch (err) {
+      console.error('Erreur chargement prix client :', err);
+    }
+  };
+
+  const getPrice = (product) =>
+    clientPrices[product.id] !== undefined
+      ? clientPrices[product.id]
+      : Number(product.prix_unitaire_ht || 0);
 
   const q = search.toLowerCase().trim();
   const filteredClients = q
@@ -1138,7 +1160,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   return (
                     <TouchableOpacity
                       style={to.clientRow}
-                      onPress={() => { setSelectedClient(c); setStep('products'); }}
+                      onPress={() => handleSelectClient(c)}
                       activeOpacity={0.75}
                     >
                       <View style={{ flex: 1 }}>

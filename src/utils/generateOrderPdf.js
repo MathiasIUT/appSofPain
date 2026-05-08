@@ -80,7 +80,6 @@ function buildOrderBody(order, items, client) {
     const pu = Number(it.prix_unitaire_ht);
     const stHt = Number(it.sous_total_ht);
     const tva = Number(it.tva_pourcent);
-    const stTtc = stHt * (1 + tva / 100);
     return `
       <tr>
         <td class="product-name">${esc(it.product_nom)}</td>
@@ -88,7 +87,6 @@ function buildOrderBody(order, items, client) {
         <td class="r">${n2(pu)} €</td>
         <td class="c">${n1(tva)} %</td>
         <td class="r">${n2(stHt)} €</td>
-        <td class="r bold">${n2(stTtc)} €</td>
       </tr>`;
   }).join('');
 
@@ -133,7 +131,6 @@ function buildOrderBody(order, items, client) {
         <th class="r">PU HT</th>
         <th class="c">TVA</th>
         <th class="r">ST HT</th>
-        <th class="r">ST TTC</th>
       </tr>
     </thead>
     <tbody>${lignes}</tbody>

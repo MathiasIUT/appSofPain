@@ -79,12 +79,12 @@ create policy "Clients voient leurs commandes"
   to authenticated
   using (client_id = auth.uid() or public.is_admin());
 
--- Un client peut créer une commande pour lui-même
+-- Un client peut créer une commande pour lui-même ; l'admin peut créer pour n'importe quel client
 drop policy if exists "Clients peuvent creer leurs commandes" on public.orders;
 create policy "Clients peuvent creer leurs commandes"
   on public.orders for insert
   to authenticated
-  with check (client_id = auth.uid());
+  with check (client_id = auth.uid() or public.is_admin());
 
 -- Seul l'admin peut modifier les commandes (statut, notes, etc.)
 drop policy if exists "Admin peut modifier les commandes" on public.orders;
@@ -120,12 +120,13 @@ create policy "Clients voient leurs lignes de commande"
     )
   );
 
--- Un client peut créer des lignes dans ses propres commandes
+-- Un client peut créer des lignes dans ses propres commandes ; l'admin peut créer dans n'importe quelle commande
 drop policy if exists "Clients peuvent creer lignes dans leurs commandes" on public.order_items;
 create policy "Clients peuvent creer lignes dans leurs commandes"
   on public.order_items for insert
   to authenticated
   with check (
+    public.is_admin() or
     exists (
       select 1 from public.orders
       where orders.id = order_items.order_id
