@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
+const fmt = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
 const PAGE_SIZE = 20;
 
 export default function MyOrdersScreen({ navigation }) {
@@ -22,13 +24,16 @@ export default function MyOrdersScreen({ navigation }) {
   const [totalCount, setTotalCount] = useState(0);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
+  const ordersLengthRef = useRef(0);
+
+  useEffect(() => { ordersLengthRef.current = orders.length; }, [orders.length]);
 
   const loadOrders = useCallback(async (reset = true) => {
     if (reset) setLoading(true);
     else setLoadingMore(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const from = reset ? 0 : orders.length;
+      const from = reset ? 0 : ordersLengthRef.current;
       const to = from + PAGE_SIZE - 1;
 
       const { data, error, count } = await supabase
@@ -51,9 +56,9 @@ export default function MyOrdersScreen({ navigation }) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [orders.length]);
+  }, []);
 
-  useEffect(() => { loadOrders(true); }, [loadOrders]);
+  useEffect(() => { loadOrders(true); }, []);
 
   const hasMore = orders.length < totalCount;
   const displayed = orders;

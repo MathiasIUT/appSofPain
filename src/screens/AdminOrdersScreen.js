@@ -954,6 +954,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const [search, setSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState(null);
   const [quantities, setQuantities] = useState({});
+  const [manualLines, setManualLines] = useState([]);
+  const [qtyDraft, setQtyDraft] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
@@ -964,6 +966,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     setSelectedClient(null);
     setClientPrices({});
     setQuantities({});
+    setManualLines([]);
+    setQtyDraft({});
     setSearch('');
     setLoading(true);
     Promise.all([
@@ -986,6 +990,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const handleSelectClient = async (client) => {
     setSelectedClient(client);
     setQuantities({});
+    setManualLines([]);
+    setQtyDraft({});
     setStep('products');
     try {
       const { data } = await supabase
@@ -1016,16 +1022,36 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
       )
     : clients;
 
-  const orderLines = products
+  const addManualLine = () => setManualLines(prev => [
+    ...prev,
+    { id: Date.now().toString(), nom: '', quantite: '1', prix: '', tva: '5.5' },
+  ]);
+
+  const updateManualLine = (id, field, value) =>
+    setManualLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
+
+  const removeManualLine = (id) =>
+    setManualLines(prev => prev.filter(l => l.id !== id));
+
+  const catalogueLines = products
     .filter((p) => (quantities[p.id] || 0) > 0)
     .map((p) => ({ product: p, quantite: quantities[p.id], prix: getPrice(p) }));
 
+  const validManualLines = manualLines.filter(
+    l => l.nom.trim() && Number(l.quantite) > 0 && Number(l.prix) > 0
+  );
+
+  const allOrderLines = [...catalogueLines, ...validManualLines.map(l => ({
+    manual: true, nom: l.nom.trim(),
+    quantite: Number(l.quantite), prix: Number(l.prix), tva: Number(l.tva) || 0,
+  }))];
+
   let totalHt = 0;
   let totalTva = 0;
-  orderLines.forEach((l) => {
+  allOrderLines.forEach((l) => {
     const ht = l.prix * l.quantite;
     totalHt += ht;
-    totalTva += ht * (Number(l.product.tva_pourcent) / 100);
+    totalTva += ht * ((l.manual ? l.tva : Number(l.product.tva_pourcent)) / 100);
   });
   totalHt = Math.round(totalHt * 100) / 100;
   totalTva = Math.round(totalTva * 100) / 100;
@@ -1045,16 +1071,13 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   };
 
   const handleSubmit = async () => {
-    if (orderLines.length === 0) {
+    if (allOrderLines.length === 0) {
       showAlert('Attention', 'Veuillez sélectionner au moins un produit.');
       return;
     }
     setSubmitting(true);
     try {
-      const adresse = [
-        selectedClient.ville,
-        selectedClient.telephone ? `Tél : ${selectedClient.telephone}` : '',
-      ].filter(Boolean).join('\n') || 'Commande prise par admin';
+      const adresse = selectedClient.ville || 'Commande prise par admin';
 
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -1073,7 +1096,16 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
       if (orderError) throw orderError;
 
       const { error: itemsError } = await supabase.from('order_items').insert(
-        orderLines.map((l) => ({
+        allOrderLines.map((l) => l.manual ? ({
+          order_id: order.id,
+          product_id: null,
+          product_nom: l.nom,
+          quantite: l.quantite,
+          increment: 1,
+          prix_unitaire_ht: l.prix,
+          tva_pourcent: l.tva,
+          sous_total_ht: Math.round(l.prix * l.quantite * 100) / 100,
+        }) : ({
           order_id: order.id,
           product_id: l.product.id,
           product_nom: l.product.nom,
@@ -1179,7 +1211,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               <FlatList
                 data={products}
                 keyExtractor={(p) => p.id}
-                contentContainerStyle={[to.listContent, { paddingBottom: 100 }]}
+                contentContainerStyle={[to.listContent, { paddingBottom: 90 }]}
                 ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
                 renderItem={({ item: p }) => {
                   const qty = quantities[p.id] || 0;
@@ -1200,7 +1232,29 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                         >
                           <Text style={to.stepBtnText}>−</Text>
                         </TouchableOpacity>
-                        <Text style={[to.stepQty, qty > 0 && to.stepQtyActive]}>{qty}</Text>
+                        <TextInput
+                          style={[to.stepQty, to.stepQtyInput, qty > 0 && to.stepQtyActive]}
+                          value={qtyDraft[p.id] !== undefined ? qtyDraft[p.id] : String(qty)}
+                          onChangeText={(v) => {
+                            const cleaned = v.replace(/[^0-9]/g, '');
+                            setQtyDraft(prev => ({ ...prev, [p.id]: cleaned }));
+                            const n = parseInt(cleaned, 10);
+                            if (!isNaN(n)) setQuantities(prev => n === 0 ? (({ [p.id]: _, ...rest }) => rest)(prev) : { ...prev, [p.id]: n });
+                          }}
+                          onBlur={() => {
+                            const raw = parseInt(qtyDraft[p.id], 10);
+                            if (!isNaN(raw) && raw > 0) {
+                              const rounded = Math.ceil(raw / inc) * inc;
+                              setQuantities(prev => ({ ...prev, [p.id]: rounded }));
+                            } else if (!raw || raw === 0) {
+                              setQuantities(prev => { const { [p.id]: _, ...rest } = prev; return rest; });
+                            }
+                            setQtyDraft(prev => { const { [p.id]: _, ...rest } = prev; return rest; });
+                          }}
+                          keyboardType="numeric"
+                          maxLength={4}
+                          selectTextOnFocus
+                        />
                         <TouchableOpacity
                           style={to.stepBtn}
                           onPress={() => setQty(p.id, inc, '+')}
@@ -1212,20 +1266,71 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                     </View>
                   );
                 }}
+                ListFooterComponent={
+                  /* ── Lignes manuelles ── */
+                  <View style={to.manualSection}>
+                    <View style={to.manualHeader}>
+                      <Text style={to.manualTitle}>Saisie manuelle</Text>
+                      <TouchableOpacity onPress={addManualLine} style={to.addLineBtn} activeOpacity={0.7}>
+                        <Text style={to.addLineBtnText}>+ Ajouter une ligne</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {manualLines.map((l) => (
+                      <View key={l.id} style={to.manualRow}>
+                        <TextInput
+                          style={[to.manualInput, { flex: 1 }]}
+                          placeholder="Libellé"
+                          placeholderTextColor={colors.textLight}
+                          value={l.nom}
+                          onChangeText={v => updateManualLine(l.id, 'nom', v)}
+                        />
+                        <TextInput
+                          style={[to.manualInput, { width: 48 }]}
+                          placeholder="Qté"
+                          placeholderTextColor={colors.textLight}
+                          value={l.quantite}
+                          onChangeText={v => updateManualLine(l.id, 'quantite', v.replace(/[^0-9]/g, ''))}
+                          keyboardType="numeric"
+                          maxLength={4}
+                        />
+                        <TextInput
+                          style={[to.manualInput, { width: 80 }]}
+                          placeholder="Prix HT"
+                          placeholderTextColor={colors.textLight}
+                          value={l.prix}
+                          onChangeText={v => updateManualLine(l.id, 'prix', v.replace(/[^0-9.]/g, ''))}
+                          keyboardType="numeric"
+                        />
+                        <TextInput
+                          style={[to.manualInput, { width: 52 }]}
+                          placeholder="TVA%"
+                          placeholderTextColor={colors.textLight}
+                          value={l.tva}
+                          onChangeText={v => updateManualLine(l.id, 'tva', v.replace(/[^0-9.]/g, ''))}
+                          keyboardType="numeric"
+                        />
+                        <TouchableOpacity onPress={() => removeManualLine(l.id)} style={to.removeLineBtn} activeOpacity={0.7}>
+                          <Text style={to.removeLineBtnText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                }
               />
+
               {/* Footer totaux */}
               <View style={to.footer}>
                 <View style={{ flex: 1 }}>
                   <Text style={to.footerInfo}>
-                    {orderLines.length > 0
-                      ? `${orderLines.length} produit${orderLines.length > 1 ? 's' : ''} · ${n2(totalHt)} € HT`
+                    {allOrderLines.length > 0
+                      ? `${allOrderLines.length} ligne${allOrderLines.length > 1 ? 's' : ''} · ${n2(totalHt)} € HT`
                       : 'Aucun produit sélectionné'}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[to.submitBtn, (orderLines.length === 0 || submitting) && to.submitBtnOff]}
+                  style={[to.submitBtn, (allOrderLines.length === 0 || submitting) && to.submitBtnOff]}
                   onPress={handleSubmit}
-                  disabled={orderLines.length === 0 || submitting}
+                  disabled={allOrderLines.length === 0 || submitting}
                   activeOpacity={0.8}
                 >
                   {submitting
@@ -1342,7 +1447,8 @@ const to = StyleSheet.create({
   },
   stepBtnOff: { backgroundColor: colors.border },
   stepBtnText: { fontSize: fontSizes.lg, color: '#fff', fontWeight: '700', lineHeight: 20 },
-  stepQty: { minWidth: 32, textAlign: 'center', fontSize: fontSizes.md, fontWeight: '600', color: colors.textSecondary },
+  stepQty: { minWidth: 36, textAlign: 'center', fontSize: fontSizes.md, fontWeight: '600', color: colors.textSecondary },
+  stepQtyInput: { ...Platform.select({ web: { outlineStyle: 'none' } }), paddingVertical: 2 },
   stepQtyActive: { color: colors.primary },
   footer: {
     position: 'absolute',
@@ -1372,4 +1478,56 @@ const to = StyleSheet.create({
   },
   submitBtnOff: { opacity: 0.4 },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.md },
+
+  manualSection: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  manualHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  manualTitle: {
+    fontSize: fontSizes.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: colors.textSecondary,
+  },
+  addLineBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  addLineBtnText: { fontSize: fontSizes.xs, fontWeight: '700', color: colors.primary },
+  manualRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  manualInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    fontSize: fontSizes.sm,
+    color: colors.textPrimary,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
+  },
+  removeLineBtn: {
+    padding: 6,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  removeLineBtnText: { fontSize: fontSizes.md, color: colors.error, fontWeight: '700' },
 });
