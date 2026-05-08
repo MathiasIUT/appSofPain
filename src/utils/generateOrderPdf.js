@@ -34,10 +34,46 @@ export async function generateOrderPdf(order, items, client) {
 }
 
 export function buildOrderHtml(order, items, client) {
-  return buildHtml(order, items, client);
+  const body = buildOrderBody(order, items, client);
+  return wrapInHtmlDocument(body, `Bon de commande ${order.numero}`);
 }
 
-function buildHtml(order, items, client) {
+export async function generateMultipleOrdersPdf(ordersList) {
+  // ordersList est un tableau d'objets: { order, items, client }
+  const bodies = ordersList.map(o => `
+    <div style="page-break-after: always;">
+      ${buildOrderBody(o.order, o.items, o.client)}
+    </div>
+  `).join('');
+  
+  const html = wrapInHtmlDocument(bodies, `Export de ${ordersList.length} commandes`);
+
+  if (Platform.OS === 'web') {
+    const printWindow = window.open('', '_blank', 'width=960,height=760');
+    if (!printWindow) {
+      window.alert('Votre navigateur a bloqué la fenêtre d\'impression.');
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => { printWindow.focus(); printWindow.print(); };
+    return;
+  }
+
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  const canShare = await Sharing.isAvailableAsync();
+  if (canShare) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/pdf',
+      dialogTitle: `Export de ${ordersList.length} commandes`,
+      UTI: 'com.adobe.pdf',
+    });
+  }
+  return uri;
+}
+
+function buildOrderBody(order, items, client) {
   const dateCommande  = fmt(order.date_commande ?? new Date());
   const nomClient     = [client?.prenom, client?.nom].filter(Boolean).join(' ');
 
@@ -59,11 +95,12 @@ function buildHtml(order, items, client) {
 
   const adresseHtml = esc(order.adresse_livraison ?? '').replace(/\n/g, '<br>');
 
+function wrapInHtmlDocument(content, title) {
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Bon de commande ${esc(order.numero)}</title>
+<title>${esc(title)}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -255,7 +292,13 @@ function buildHtml(order, items, client) {
 </style>
 </head>
 <body>
+${content}
+</body>
+</html>`;
+}
 
+// Retrait du wrapper body/html dans buildOrderBody
+return `
 <header class="page-header">
   <div class="brand">
     <div class="brand-name">Sof Pain</div>
@@ -320,10 +363,7 @@ ${order.notes_client ? `
 <footer class="page-footer">
   <p>Document généré le ${fmt(new Date())} — Sof Pain · L'artisan des professionnels</p>
   <div class="seal">Document non contractuel</div>
-</footer>
-
-</body>
-</html>`;
+</footer>`;
 }
 
 const n2  = (v) => Number(v ?? 0).toFixed(2);

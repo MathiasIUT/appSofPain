@@ -19,6 +19,7 @@ import Button from '../components/Button';
 import CreateClientModal from '../components/CreateClientModal';
 import useDebounce from '../hooks/useDebounce';
 import ConfirmModal from '../components/ConfirmModal';
+import { exportClientsExcel } from '../utils/exportExcel';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ export default function AdminClientsScreen() {
   const [selectedClient, setSelected] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -139,6 +141,18 @@ export default function AdminClientsScreen() {
     closeModal();
   };
 
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      await exportClientsExcel();
+    } catch (err) {
+      console.error('Erreur export Excel clients :', err);
+      showAlert('Erreur', "Impossible d'exporter les clients.");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
 
@@ -151,6 +165,14 @@ export default function AdminClientsScreen() {
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
           <TouchableOpacity onPress={() => loadClients(true)} style={styles.refreshBtn} activeOpacity={0.7}>
             <Text style={styles.refreshText}>↻ Actualiser</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleExportExcel}
+            disabled={exportingExcel}
+            style={[styles.excelBtn, exportingExcel && { opacity: 0.5 }]}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.excelBtnText}>{exportingExcel ? '...' : 'Excel'}</Text>
           </TouchableOpacity>
           <Button title="+ Créer un client" onPress={() => setCreateVisible(true)} size="sm" />
         </View>
@@ -690,6 +712,14 @@ const styles = StyleSheet.create({
   screenTitle: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
   screenCount: { fontSize: fontSizes.sm, color: colors.textSecondary },
   refreshBtn: { ...Platform.select({ web: { cursor: 'pointer' } }) },
+  excelBtn: {
+    backgroundColor: '#217346',
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  excelBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
   refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
 
   searchWrap: {

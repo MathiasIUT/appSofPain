@@ -12,6 +12,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import { generateMonthlyBonPdf } from '../utils/generateMonthlyBonPdf';
+import { exportComptaExcel } from '../utils/exportExcel';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
@@ -26,6 +27,7 @@ export default function AdminComptaScreen() {
   const [orders, setOrders] = useState([]);
 
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Bon mensuel modal
   const [bonClient, setBonClient] = useState(null);
@@ -87,6 +89,18 @@ export default function AdminComptaScreen() {
   };
 
   const monthLabel = currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      exportComptaExcel(tableData.rows, products, monthLabelCap, livreurs);
+    } catch (err) {
+      console.error('Erreur export Excel compta :', err);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   // Préparer les données pour le tableau
   const tableData = useMemo(() => {
@@ -115,7 +129,7 @@ export default function AdminComptaScreen() {
             productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
           }
           productAgg[item.product_id].qty += item.quantite;
-          productAgg[item.product_id].price = item.prix_unitaire_ht; 
+          productAgg[item.product_id].price = item.prix_unitaire_ht;
         }
       }
 
@@ -182,7 +196,7 @@ export default function AdminComptaScreen() {
   // Récupérer le prix par défaut ou personnalisé pour un produit et un client
   const getDisplayPrice = (productId, clientId, aggregatedPrice) => {
     if (aggregatedPrice !== undefined) return aggregatedPrice;
-    
+
     // Chercher prix personnalisé
     const custom = clientPrices.find(cp => cp.client_id === clientId && cp.product_id === productId);
     if (custom) return custom.prix_unitaire_ht;
@@ -201,16 +215,29 @@ export default function AdminComptaScreen() {
           <Text style={styles.subtitle}>Bilan par livreur et par mois</Text>
         </View>
 
-        <View style={styles.datePicker}>
-          <TouchableOpacity style={styles.dateBtn} onPress={handlePrevMonth}>
-            <Text style={styles.dateBtnText}>◀</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}>
+          <TouchableOpacity
+            style={[styles.excelBtn, (exportingExcel || loading) && { opacity: 0.5 }]}
+            onPress={handleExportExcel}
+            disabled={exportingExcel || loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.excelBtnText}>
+              {exportingExcel ? '...' : 'Excel'}
+            </Text>
           </TouchableOpacity>
-          <View style={styles.dateLabelWrap}>
-            <Text style={styles.dateLabel}>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</Text>
+
+          <View style={styles.datePicker}>
+            <TouchableOpacity style={styles.dateBtn} onPress={handlePrevMonth}>
+              <Text style={styles.dateBtnText}>◀</Text>
+            </TouchableOpacity>
+            <View style={styles.dateLabelWrap}>
+              <Text style={styles.dateLabel}>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</Text>
+            </View>
+            <TouchableOpacity style={styles.dateBtn} onPress={handleNextMonth}>
+              <Text style={styles.dateBtnText}>▶</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.dateBtn} onPress={handleNextMonth}>
-            <Text style={styles.dateBtnText}>▶</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -261,19 +288,19 @@ export default function AdminComptaScreen() {
             <Text style={styles.emptyText}>Aucun client trouvé pour ce livreur.</Text>
           </View>
         ) : (
-          <ScrollView 
-            horizontal 
-            style={styles.horizontalScroll} 
+          <ScrollView
+            horizontal
+            style={styles.horizontalScroll}
             contentContainerStyle={{ flexGrow: 1 }}
             showsHorizontalScrollIndicator={true}
           >
-            <ScrollView 
-              style={styles.verticalScroll} 
+            <ScrollView
+              style={styles.verticalScroll}
               contentContainerStyle={{ flexGrow: 1 }}
               showsVerticalScrollIndicator={true}
             >
               <View style={[styles.table, { flex: 1 }]}>
-                
+
                 {/* Ligne d'en-tête */}
                 <View style={styles.tableHeaderRow}>
                   <View style={[styles.th, styles.colClient]}>
@@ -292,7 +319,7 @@ export default function AdminComptaScreen() {
                 {/* Lignes clients */}
                 {tableData.rows.map((row, idx) => {
                   const clientName = row.client.nom_societe || [row.client.prenom, row.client.nom].filter(Boolean).join(' ') || 'Client sans nom';
-                  
+
                   return (
                     <View key={row.client.id} style={[styles.tableRow, idx % 2 === 1 && styles.rowAlt]}>
                       <View style={[styles.td, styles.colClient]}>
@@ -311,12 +338,12 @@ export default function AdminComptaScreen() {
                           <Text style={styles.bonBtnText}>📋 Voir le détail →</Text>
                         </TouchableOpacity>
                       </View>
-                      
+
                       {products.map(p => {
                         const agg = row.productAgg[p.id];
                         const qty = agg ? agg.qty : 0;
                         const price = getDisplayPrice(p.id, row.client.id, agg ? agg.price : undefined);
-                        
+
                         return (
                           <View key={p.id} style={[styles.td, styles.colProduct]}>
                             {qty > 0 ? (
@@ -330,7 +357,7 @@ export default function AdminComptaScreen() {
                           </View>
                         );
                       })}
-                      
+
                       <View style={[styles.td, styles.colTotal]}>
                         <Text style={styles.tdTotalText}>{`${n2(row.totalHt)} €`}</Text>
                       </View>
@@ -349,7 +376,7 @@ export default function AdminComptaScreen() {
                     tableData.rows.forEach(r => {
                       if (r.productAgg[p.id]) totalQty += r.productAgg[p.id].qty;
                     });
-                    
+
                     return (
                       <View key={p.id} style={[styles.td, styles.colProduct]}>
                         <Text style={[styles.tdQtyText, { color: colors.primary, fontWeight: '700' }]}>
@@ -589,6 +616,18 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  excelBtn: {
+    backgroundColor: '#217346',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  excelBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: fontSizes.sm,
   },
   datePicker: {
     flexDirection: 'row',

@@ -17,6 +17,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
+import { exportOrdersExcel } from '../utils/exportExcel';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -42,34 +43,35 @@ export default function AdminOrdersScreen() {
   const [totalCount, setTotalCount] = useState(0);
   const [selectedOrder, setSelected] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [takeOrderVisible, setTakeOrderVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
 
 
-  // Charger les commandes paginées avec filtre serveur
-  const loadOrders = useCallback(async (reset = true) => {
+  // Charger les commandes paginées
+  const loadOrders = useCallback(async (reset = true, currentLength = 0) => {
     if (reset) setLoading(true);
     else setLoadingMore(true);
     try {
-      const from = reset ? 0 : orders.length;
+      const from = reset ? 0 : currentLength;
       const to = from + PAGE_SIZE - 1;
 
-      let query = supabase
+      const { data, error, count } = await supabase
         .from('orders')
         .select(`
-          id, numero, client_id, client_nom, statut, date_commande, date_livraison_souhaitee,
+          id, numero, client_id, client_nom, statut, date_commande,
           total_ht, total_tva, total_ttc, livreur_id, notes_client, notes_admin,
-          adresse_livraison, date_livraison_reelle,
+          adresse_livraison,
           client:profiles!client_id(
             id, nom, prenom, nom_societe, email, telephone
           )
         `, { count: 'exact' })
         .order('date_commande', { ascending: false })
-        .range(from, to)
-        .eq('statut', 'nouvelle');
+        .range(from, to);
 
-      const { data, error, count } = await query;
       if (error) throw error;
 
       if (reset) {
@@ -85,10 +87,10 @@ export default function AdminOrdersScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [orders.length]);
+  }, []);
 
-  // Recharger au montage
-  useEffect(() => { loadOrders(true); }, [loadOrders]);
+  // Charger au montage uniquement
+  useEffect(() => { loadOrders(true); }, []);
 
   const hasMore = orders.length < totalCount;
 
@@ -109,6 +111,68 @@ export default function AdminOrdersScreen() {
 
   const handleRefresh = () => { loadOrders(true); };
 
+  const toggleSelection = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === orders.length ? new Set() : new Set(orders.map((o) => o.id))
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const msg = `Voulez-vous vraiment retirer ${selectedIds.size} commande(s) ?\nElles n'apparaîtront plus ici mais resteront visibles pour le client.`;
+
+    if (Platform.OS === 'web') {
+      if (!window.confirm(msg)) return;
+    } else {
+      const confirmed = await new Promise((resolve) => {
+        Alert.alert('Retirer', msg, [
+          { text: 'Non', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Oui', onPress: () => resolve(true) },
+        ]);
+      });
+      if (!confirmed) return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ statut: 'archivee' })
+        .in('id', Array.from(selectedIds));
+      if (error) throw error;
+
+      setSelectedIds(new Set());
+      loadOrders(true);
+    } catch (err) {
+      console.error(err);
+      showAlert('Erreur', 'Impossible de retirer les commandes.');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkExportExcel = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkActionLoading(true);
+    try {
+      await exportOrdersExcel(Array.from(selectedIds));
+    } catch (err) {
+      console.error(err);
+      showAlert('Erreur', "Impossible d'exporter les commandes.");
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
 
@@ -118,12 +182,51 @@ export default function AdminOrdersScreen() {
           <Text style={styles.screenTitle}>Commandes</Text>
           <Text style={styles.screenCount}>{`${orders.length} / ${totalCount}`}</Text>
         </View>
-        <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
-          <Text style={styles.refreshText}>↻ Actualiser</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => setTakeOrderVisible(true)}
+            style={styles.takeOrderBtn}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.takeOrderBtnText}>+ Prendre commande</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
+            <Text style={styles.refreshText}>↻ Actualiser</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-
+      {/* ── Barre d'actions en masse ──────────────────────── */}
+      {selectedIds.size > 0 && (
+        <View style={styles.bulkActionBar}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <TouchableOpacity onPress={selectAll} style={styles.selectAllBtn}>
+              <Text style={styles.selectAllBtnText}>
+                {selectedIds.size === orders.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.bulkActionText}>{selectedIds.size} sélectionnée(s)</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <Button
+              title="Exporter Excel"
+              variant="secondary"
+              size="sm"
+              onPress={handleBulkExportExcel}
+              loading={bulkActionLoading}
+              disabled={bulkActionLoading}
+            />
+            <Button
+              title="Supprimer tout"
+              variant="danger"
+              size="sm"
+              onPress={handleBulkDelete}
+              loading={bulkActionLoading}
+              disabled={bulkActionLoading}
+            />
+          </View>
+        </View>
+      )}
 
       {/* ── Liste ───────────────────────────────────────────── */}
       {loading ? (
@@ -145,12 +248,18 @@ export default function AdminOrdersScreen() {
           contentContainerStyle={[styles.list, isDesktop && styles.listDesktop]}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           renderItem={({ item }) => (
-            <OrderRow item={item} onPress={openOrder} isDesktop={isDesktop} />
+            <OrderRow
+              item={item}
+              onPress={openOrder}
+              isDesktop={isDesktop}
+              selected={selectedIds.has(item.id)}
+              onToggle={() => toggleSelection(item.id)}
+            />
           )}
           ListFooterComponent={hasMore ? (
             <TouchableOpacity
               style={styles.loadMoreBtn}
-              onPress={() => loadOrders(false)}
+              onPress={() => loadOrders(false, orders.length)}
               disabled={loadingMore}
               activeOpacity={0.7}
             >
@@ -188,47 +297,61 @@ export default function AdminOrdersScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Modal prise de commande admin ──────────────────── */}
+      <TakeOrderModal
+        visible={takeOrderVisible}
+        onClose={() => setTakeOrderVisible(false)}
+        onOrderCreated={() => loadOrders(true)}
+      />
     </View>
   );
 }
 
 // ─── Ligne commande ──────────────────────────────────────────────────────────
 
-function OrderRow({ item, onPress, isDesktop }) {
+function OrderRow({ item, onPress, isDesktop, selected, onToggle }) {
   const clientName = item.client?.nom_societe
     || [item.client?.prenom, item.client?.nom].filter(Boolean).join(' ')
     || item.client_nom
     || '— Client supprimé —';
 
   return (
-    <TouchableOpacity
-      style={styles.row}
-      onPress={() => onPress(item)}
-      activeOpacity={0.75}
-    >
-      <View style={styles.rowCol}>
-        <Text style={styles.rowNum}>{`N° ${item.numero}`}</Text>
-        <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
-      </View>
+    <View style={styles.rowWrapper}>
+      <TouchableOpacity onPress={onToggle} style={styles.checkboxContainer}>
+        <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+          {selected && <Text style={styles.checkmark}>✓</Text>}
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.row, { flex: 1, marginLeft: 0 }]}
+        onPress={() => onPress(item)}
+        activeOpacity={0.75}
+      >
+        <View style={styles.rowCol}>
+          <Text style={styles.rowNum}>{`N° ${item.numero}`}</Text>
+          <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
+        </View>
 
-      <View style={[styles.rowCol, styles.rowColFlex]}>
-        <Text style={styles.rowClient} numberOfLines={1}>{clientName}</Text>
-        {item.client?.email ? (
-          <Text style={styles.rowEmail} numberOfLines={1}>{item.client.email}</Text>
-        ) : null}
-      </View>
-
-
-
-      <View style={[styles.rowCol, styles.rowColRight]}>
-        <Text style={styles.rowTotal}>{`${n2(item.total_ttc)} €`}</Text>
-        <Text style={styles.rowTotalLabel}>TTC</Text>
-      </View>
-
+        <View style={[styles.rowCol, styles.rowColFlex]}>
+          <Text style={styles.rowClient} numberOfLines={1}>{clientName}</Text>
+          {item.client?.email ? (
+            <Text style={styles.rowEmail} numberOfLines={1}>{item.client.email}</Text>
+          ) : null}
+        </View>
 
 
-      <Text style={styles.arrow}>›</Text>
-    </TouchableOpacity>
+
+        <View style={[styles.rowCol, styles.rowColRight]}>
+          <Text style={styles.rowTotal}>{`${n2(item.total_ttc)} €`}</Text>
+          <Text style={styles.rowTotalLabel}>TTC</Text>
+        </View>
+
+
+
+        <Text style={styles.arrow}>›</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -356,18 +479,6 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           contentContainerStyle={modal.leftColContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Action sur la commande */}
-          <View style={modal.section}>
-            <View style={{ marginTop: spacing.sm }}>
-              <Button
-                title="Retirer la commande (Traitée / Imprimée)"
-                onPress={() => setStatut('archivee')}
-                variant="primary"
-                fullWidth
-              />
-            </View>
-          </View>
-
           {/* Client */}
           <View style={modal.section}>
             <Text style={modal.sectionTitle}>Client</Text>
@@ -434,8 +545,6 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                 ))}
                 <View style={modal.totals}>
                   <TotalLine label="Total HT" value={`${n2(order.total_ht)} €`} />
-                  <TotalLine label="TVA" value={`${n2(order.total_tva)} €`} />
-                  <TotalLine label="Total TTC" value={`${n2(order.total_ttc)} €`} final />
                 </View>
               </>
             )}
@@ -553,6 +662,22 @@ const styles = StyleSheet.create({
   screenCount: { fontSize: fontSizes.sm, color: colors.textSecondary },
   refreshBtn: { ...Platform.select({ web: { cursor: 'pointer' } }) },
   refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
+  excelBtn: {
+    backgroundColor: '#217346',
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  excelBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
+  takeOrderBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  takeOrderBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
 
   filtersScroll: {
     maxHeight: 56,
@@ -634,6 +759,28 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
   arrow: { fontSize: 20, color: colors.border, marginLeft: spacing.xs },
+
+  rowWrapper: { flexDirection: 'row', alignItems: 'center' },
+  checkboxContainer: { paddingHorizontal: spacing.sm, paddingVertical: spacing.md },
+  checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  checkboxSelected: { backgroundColor: colors.primary },
+  checkmark: { color: colors.white, fontSize: 14, fontWeight: 'bold' },
+
+  bulkActionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  selectAllBtn: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  selectAllBtnText: { fontSize: fontSizes.sm, color: colors.textSecondary },
+  bulkActionText: { fontSize: fontSizes.md, fontWeight: '600', color: colors.textPrimary },
 
   modalOverlay: {
     flex: 1,
@@ -794,4 +941,420 @@ const modal = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
   },
+});
+
+// ─── Modal : Prendre une commande (admin) ────────────────────────────────────
+
+function TakeOrderModal({ visible, onClose, onOrderCreated }) {
+  const [step, setStep] = useState('client');
+  const [clients, setClients] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [quantities, setQuantities] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 900;
+
+  useEffect(() => {
+    if (!visible) return;
+    setStep('client');
+    setSelectedClient(null);
+    setQuantities({});
+    setSearch('');
+    setLoading(true);
+    Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, prix_personnalises')
+        .eq('role', 'client')
+        .order('nom_societe', { ascending: true }),
+      supabase
+        .from('products')
+        .select('id, nom, prix_unitaire_ht, increment, tva_pourcent')
+        .eq('actif', true)
+        .order('nom'),
+    ]).then(([cliRes, prodRes]) => {
+      setClients(cliRes.data || []);
+      setProducts(prodRes.data || []);
+    }).finally(() => setLoading(false));
+  }, [visible]);
+
+  const getPrice = (product) => {
+    const custom = selectedClient?.prix_personnalises?.[product.id];
+    return custom != null ? Number(custom) : Number(product.prix_unitaire_ht || 0);
+  };
+
+  const q = search.toLowerCase().trim();
+  const filteredClients = q
+    ? clients.filter((c) =>
+        (c.nom_societe || '').toLowerCase().includes(q) ||
+        (c.nom || '').toLowerCase().includes(q) ||
+        (c.prenom || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        (c.ville || '').toLowerCase().includes(q)
+      )
+    : clients;
+
+  const orderLines = products
+    .filter((p) => (quantities[p.id] || 0) > 0)
+    .map((p) => ({ product: p, quantite: quantities[p.id], prix: getPrice(p) }));
+
+  let totalHt = 0;
+  let totalTva = 0;
+  orderLines.forEach((l) => {
+    const ht = l.prix * l.quantite;
+    totalHt += ht;
+    totalTva += ht * (Number(l.product.tva_pourcent) / 100);
+  });
+  totalHt = Math.round(totalHt * 100) / 100;
+  totalTva = Math.round(totalTva * 100) / 100;
+  const totalTtc = Math.round((totalHt + totalTva) * 100) / 100;
+
+  const setQty = (productId, inc, dir) => {
+    setQuantities((prev) => {
+      const cur = prev[productId] || 0;
+      const next = dir === '+' ? cur + inc : Math.max(0, cur - inc);
+      if (next === 0) {
+        const copy = { ...prev };
+        delete copy[productId];
+        return copy;
+      }
+      return { ...prev, [productId]: next };
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (orderLines.length === 0) {
+      showAlert('Attention', 'Veuillez sélectionner au moins un produit.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const adresse = [
+        selectedClient.ville,
+        selectedClient.telephone ? `Tél : ${selectedClient.telephone}` : '',
+      ].filter(Boolean).join('\n') || 'Commande prise par admin';
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          client_id: selectedClient.id,
+          livreur_id: selectedClient.livreur_id || null,
+          statut: 'nouvelle',
+          adresse_livraison: adresse,
+          total_ht: totalHt,
+          total_tva: totalTva,
+          total_ttc: totalTtc,
+        })
+        .select('*')
+        .single();
+
+      if (orderError) throw orderError;
+
+      const { error: itemsError } = await supabase.from('order_items').insert(
+        orderLines.map((l) => ({
+          order_id: order.id,
+          product_id: l.product.id,
+          product_nom: l.product.nom,
+          quantite: l.quantite,
+          increment: l.product.increment || 1,
+          prix_unitaire_ht: l.prix,
+          tva_pourcent: l.product.tva_pourcent,
+          sous_total_ht: Math.round(l.prix * l.quantite * 100) / 100,
+        }))
+      );
+
+      if (itemsError) throw itemsError;
+
+      showAlert('Commande créée', 'La commande a été créée avec succès.');
+      onOrderCreated();
+      onClose();
+    } catch (err) {
+      console.error('Erreur création commande admin :', err);
+      showAlert('Erreur', 'Impossible de créer la commande.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const clientName = selectedClient
+    ? selectedClient.nom_societe ||
+      [selectedClient.prenom, selectedClient.nom].filter(Boolean).join(' ') ||
+      selectedClient.email
+    : '';
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={to.overlay}>
+        <View style={[to.box, isDesktop && to.boxDesktop]}>
+          {/* Header */}
+          <View style={to.header}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              {step === 'products' && (
+                <TouchableOpacity onPress={() => setStep('client')} style={to.backBtn} activeOpacity={0.7}>
+                  <Text style={to.backText}>←</Text>
+                </TouchableOpacity>
+              )}
+              <View>
+                <Text style={to.headerTitle}>Prendre une commande</Text>
+                {step === 'products' && clientName ? (
+                  <Text style={to.headerSub}>{clientName}</Text>
+                ) : null}
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={to.closeBtn} activeOpacity={0.7}>
+              <Text style={to.closeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading ? (
+            <View style={to.centered}>
+              <ActivityIndicator color={colors.primary} size="large" />
+            </View>
+          ) : step === 'client' ? (
+            /* ── Étape 1 : choix du client ── */
+            <>
+              <View style={to.searchBar}>
+                <TextInput
+                  style={to.searchInput}
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Rechercher un client..."
+                  placeholderTextColor={colors.textLight}
+                />
+              </View>
+              <FlatList
+                data={filteredClients}
+                keyExtractor={(c) => c.id}
+                contentContainerStyle={to.listContent}
+                ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+                ListEmptyComponent={<Text style={to.emptyText}>Aucun client trouvé.</Text>}
+                renderItem={({ item: c }) => {
+                  const name =
+                    c.nom_societe ||
+                    [c.prenom, c.nom].filter(Boolean).join(' ') ||
+                    c.email ||
+                    '—';
+                  const sub = [c.email, c.ville].filter(Boolean).join(' · ');
+                  return (
+                    <TouchableOpacity
+                      style={to.clientRow}
+                      onPress={() => { setSelectedClient(c); setStep('products'); }}
+                      activeOpacity={0.75}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={to.clientName}>{name}</Text>
+                        {sub ? <Text style={to.clientSub} numberOfLines={1}>{sub}</Text> : null}
+                      </View>
+                      <Text style={to.chevron}>›</Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </>
+          ) : (
+            /* ── Étape 2 : sélection produits ── */
+            <>
+              <FlatList
+                data={products}
+                keyExtractor={(p) => p.id}
+                contentContainerStyle={[to.listContent, { paddingBottom: 100 }]}
+                ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+                renderItem={({ item: p }) => {
+                  const qty = quantities[p.id] || 0;
+                  const inc = p.increment || 1;
+                  const prix = getPrice(p);
+                  const isCustom = selectedClient?.prix_personnalises?.[p.id] != null;
+                  return (
+                    <View style={[to.productRow, qty > 0 && to.productRowActive]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={to.productName}>{p.nom}</Text>
+                        <Text style={to.productPrice}>
+                          {`${n2(prix)} €/u HT`}
+                          {isCustom ? <Text style={to.customTag}> (personnalisé)</Text> : null}
+                        </Text>
+                      </View>
+                      <View style={to.stepper}>
+                        <TouchableOpacity
+                          style={[to.stepBtn, qty === 0 && to.stepBtnOff]}
+                          onPress={() => setQty(p.id, inc, '-')}
+                          disabled={qty === 0}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={to.stepBtnText}>−</Text>
+                        </TouchableOpacity>
+                        <Text style={[to.stepQty, qty > 0 && to.stepQtyActive]}>{qty}</Text>
+                        <TouchableOpacity
+                          style={to.stepBtn}
+                          onPress={() => setQty(p.id, inc, '+')}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={to.stepBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+              {/* Footer totaux */}
+              <View style={to.footer}>
+                <View style={{ flex: 1 }}>
+                  <Text style={to.footerInfo}>
+                    {orderLines.length > 0
+                      ? `${orderLines.length} produit${orderLines.length > 1 ? 's' : ''} · ${n2(totalHt)} € HT`
+                      : 'Aucun produit sélectionné'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[to.submitBtn, (orderLines.length === 0 || submitting) && to.submitBtnOff]}
+                  onPress={handleSubmit}
+                  disabled={orderLines.length === 0 || submitting}
+                  activeOpacity={0.8}
+                >
+                  {submitting
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={to.submitBtnText}>Valider la commande</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const to = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+    ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
+  },
+  box: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    maxHeight: '92%',
+    flex: 1,
+  },
+  boxDesktop: {
+    borderRadius: borderRadius.xl,
+    width: '48%',
+    maxWidth: 680,
+    maxHeight: '88%',
+    flex: undefined,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+  },
+  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary },
+  headerSub: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600', marginTop: 2 },
+  backBtn: { padding: spacing.xs, marginRight: 4, ...Platform.select({ web: { cursor: 'pointer' } }) },
+  backText: { fontSize: fontSizes.xl, color: colors.primary, fontWeight: '600' },
+  closeBtn: { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
+  closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl },
+  searchBar: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    fontSize: fontSizes.md,
+    color: colors.textPrimary,
+  },
+  listContent: { padding: spacing.md },
+  emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: spacing.xl, fontSize: fontSizes.md },
+  clientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  clientName: { fontSize: fontSizes.md, fontWeight: '600', color: colors.textPrimary },
+  clientSub: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
+  chevron: { fontSize: 20, color: colors.textLight, marginLeft: spacing.sm },
+  productRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  productRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.secondary,
+  },
+  productName: { fontSize: fontSizes.md, fontWeight: '600', color: colors.textPrimary },
+  productPrice: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
+  customTag: { color: colors.primary, fontStyle: 'italic' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  stepBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  stepBtnOff: { backgroundColor: colors.border },
+  stepBtnText: { fontSize: fontSizes.lg, color: '#fff', fontWeight: '700', lineHeight: 20 },
+  stepQty: { minWidth: 32, textAlign: 'center', fontSize: fontSizes.md, fontWeight: '600', color: colors.textSecondary },
+  stepQtyActive: { color: colors.primary },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    ...shadows.md,
+  },
+  footerInfo: { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
+  submitBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 160,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  submitBtnOff: { opacity: 0.4 },
+  submitBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.md },
 });

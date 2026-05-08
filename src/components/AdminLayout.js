@@ -24,7 +24,6 @@ const SECTIONS = [
   { key: 'clients', label: 'Clients' },
   { key: 'logistique', label: 'Logistique' },
   { key: 'compta', label: 'Comptabilité' },
-  { key: 'stats', label: 'Statistiques' },
 ];
 
 export default function AdminLayout({

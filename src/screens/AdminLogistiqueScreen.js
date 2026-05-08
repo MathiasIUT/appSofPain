@@ -199,9 +199,9 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
         .in('id', ordersToArchive.map(o => o.id));
       if (error) throw error;
       setOrders([]);
-      showAlert('Succès', 'Les commandes ont été archivées.');
+      showAlert('Succès', 'Les commandes ont été retirées de la liste.');
     } catch (e) {
-      showAlert('Erreur', 'Impossible d\'archiver les commandes.');
+      showAlert('Erreur', 'Impossible de retirer les commandes.');
     } finally {
       setLoadingData(false);
     }
@@ -256,11 +256,11 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
                 try { 
                   await generateDriverTourPdf(livreur, orders); 
                   if (Platform.OS === 'web') {
-                    if (window.confirm('La tournée a été générée. Voulez-vous archiver ces commandes ?')) {
+                    if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
                       archiverCommandes(orders);
                     }
                   } else {
-                    Alert.alert('Archivage', 'La tournée a été générée. Voulez-vous archiver ces commandes ?', [
+                    Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
                       { text: 'Non', style: 'cancel' },
                       { text: 'Oui', onPress: () => archiverCommandes(orders) }
                     ]);

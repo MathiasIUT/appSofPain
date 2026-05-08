@@ -25,13 +25,6 @@ const showAlert = (title, message) => {
   }
 };
 
-// Date par défaut : demain, au format YYYY-MM-DD (compatible Postgres)
-const getDefaultDeliveryDate = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-};
-
 // Format pour l'affichage : JJ/MM/AAAA
 const formatDateFr = (isoDate) => {
   if (!isoDate) return '';
@@ -149,7 +142,6 @@ export default function CheckoutScreen({ navigation }) {
           client_id: user.id,
           livreur_id: livreurId,
           statut: 'nouvelle',
-          date_livraison_souhaitee: getDefaultDeliveryDate(),
           adresse_livraison: adresseComplete,
           total_ht: totals.totalHt,
           total_tva: totals.totalTva,
