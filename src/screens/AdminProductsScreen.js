@@ -8,6 +8,7 @@ import {
   Image,
   TouchableOpacity,
   Platform,
+  Alert,
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
@@ -84,9 +85,39 @@ export default function AdminProductsScreen() {
     setModalVisible(true);
   };
 
-  // Callback après enregistrement : on rafraîchit la liste
-  const handleSaved = () => {
-    loadData();
+  const handleSaved = () => { loadData(); };
+
+  const handleDelete = async (product) => {
+    try {
+      const { count, error: checkError } = await supabase
+        .from('order_items').select('id', { count: 'exact', head: true })
+        .eq('product_id', product.id);
+      if (checkError) throw checkError;
+
+      if (count > 0) {
+        const msg = `"${product.nom}" est présent dans ${count} commande${count > 1 ? 's' : ''} existante${count > 1 ? 's' : ''}.\n\nSuppression impossible — désactivez-le à la place pour le retirer du catalogue sans perdre l'historique.`;
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Suppression impossible', msg);
+        return;
+      }
+
+      const confirmed = Platform.OS === 'web'
+        ? window.confirm(`Supprimer "${product.nom}" ? Cette action est irréversible.`)
+        : await new Promise(resolve => Alert.alert(
+            'Supprimer le produit',
+            `Supprimer "${product.nom}" ? Cette action est irréversible.`,
+            [{ text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+             { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) }]
+          ));
+      if (!confirmed) return;
+
+      const { error } = await supabase.from('products').delete().eq('id', product.id);
+      if (error) throw error;
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+    } catch (err) {
+      if (Platform.OS === 'web') window.alert(`Erreur\n\n${err.message || 'Impossible de supprimer le produit.'}`);
+      else Alert.alert('Erreur', err.message || 'Impossible de supprimer le produit.');
+    }
   };
 
   // Filtres appliqués
@@ -177,6 +208,7 @@ export default function AdminProductsScreen() {
                 key={product.id}
                 product={product}
                 onEdit={() => handleEdit(product)}
+                onDelete={() => handleDelete(product)}
               />
             ))}
           </View>
@@ -213,7 +245,7 @@ function FilterChip({ label, active, onPress }) {
   );
 }
 
-function ProductCard({ product, onEdit }) {
+function ProductCard({ product, onEdit, onDelete }) {
   return (
     <View style={[styles.productCard, !product.actif && styles.productCardInactive]}>
       {/* Image ou placeholder */}
@@ -260,10 +292,16 @@ function ProductCard({ product, onEdit }) {
           <Text style={styles.productPriceUnit}>/ unité</Text>
         </View>
 
-        {/* Spacer to push button to bottom */}
         <View style={{ flex: 1 }} />
 
-        <Button title="Modifier" variant="secondary" size="sm" onPress={onEdit} />
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <View style={{ flex: 1 }}>
+            <Button title="Modifier" variant="secondary" size="sm" onPress={onEdit} />
+          </View>
+          <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
+            <Text style={styles.deleteBtnText}>Supprimer</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -504,5 +542,20 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.textSecondary,
     marginLeft: spacing.xs,
+  },
+  deleteBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  deleteBtnText: {
+    fontSize: fontSizes.xs,
+    fontWeight: '600',
+    color: colors.error,
   },
 });

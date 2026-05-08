@@ -44,8 +44,7 @@ export default function AdminLogistiqueScreen() {
   const filtered = livreurs.filter(l => {
     if (!debouncedSearch.trim()) return true;
     const q = debouncedSearch.toLowerCase();
-    return l.nom?.toLowerCase().includes(q) || l.prenom?.toLowerCase().includes(q)
-      || l.telephone?.toLowerCase().includes(q);
+    return l.nom?.toLowerCase().includes(q) || l.prenom?.toLowerCase().includes(q);
   });
 
   return (
@@ -87,7 +86,6 @@ export default function AdminLogistiqueScreen() {
               onPress={() => { setSelected(item); setDetailVisible(true); }}>
               <View style={{ flex: 1 }}>
                 <Text style={s.rowName}>{[item.prenom, item.nom].filter(Boolean).join(' ') || '—'}</Text>
-                <Text style={s.rowMeta}>{item.telephone || '—'}</Text>
               </View>
               <View style={[s.badge, { backgroundColor: item.actif !== false ? colors.success + '22' : colors.error + '22' }]}>
                 <Text style={[s.badgeText, { color: item.actif !== false ? colors.success : colors.error }]}>
@@ -108,7 +106,7 @@ export default function AdminLogistiqueScreen() {
         <View style={s.modalOverlay}>
           <View style={[s.modalBox, isDesktop && s.modalBoxDesktop]}>
             {selected && <LivreurDetail livreur={selected} onClose={() => { setDetailVisible(false); setSelected(null); }}
-              onUpdated={(u) => { setLivreurs(prev => prev.map(l => l.id === u.id ? { ...l, ...u } : l)); setSelected(prev => prev ? { ...prev, ...u } : prev); }} />}
+              onDeleted={(id) => { setLivreurs(prev => prev.filter(l => l.id !== id)); setDetailVisible(false); setSelected(null); }} />}
           </View>
         </View>
       </Modal>
@@ -121,10 +119,10 @@ export default function AdminLogistiqueScreen() {
 function CreateLivreurModal({ visible, onClose, onCreated }) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
-  const [form, setForm] = useState({ nom: '', prenom: '', telephone: '' });
+  const [form, setForm] = useState({ nom: '', prenom: '' });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (visible) setForm({ nom: '', prenom: '', telephone: '' }); }, [visible]);
+  useEffect(() => { if (visible) setForm({ nom: '', prenom: '' }); }, [visible]);
 
   const handleCreate = async () => {
     if (!form.nom.trim() && !form.prenom.trim()) { showAlert('Erreur', 'Nom ou prénom requis.'); return; }
@@ -133,7 +131,6 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
       const { error } = await supabase.from('livreurs').insert({
         nom: form.nom.trim() || null,
         prenom: form.prenom.trim() || null,
-        telephone: form.telephone.trim() || null,
         actif: true,
       });
       if (error) throw error;
@@ -156,7 +153,6 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
           <View style={{ padding: spacing.lg, gap: spacing.md }}>
             <Field label="Prénom" value={form.prenom} onChangeText={v => setForm(p => ({ ...p, prenom: v }))} placeholder="Jean" />
             <Field label="Nom" value={form.nom} onChangeText={v => setForm(p => ({ ...p, nom: v }))} placeholder="Dupont" />
-            <Field label="Téléphone" value={form.telephone} onChangeText={v => setForm(p => ({ ...p, telephone: v }))} placeholder="06 00 00 00 00" keyboardType="phone-pad" />
             <Button title="Créer le livreur" onPress={handleCreate} loading={saving} disabled={saving} fullWidth size="lg" />
           </View>
         </View>
@@ -167,33 +163,54 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
 
 // ─── Livreur Detail ─────────────────────────────────────────────────────────
 
-function LivreurDetail({ livreur, onClose, onUpdated }) {
+function LivreurDetail({ livreur, onClose, onDeleted }) {
   const [clients, setClients] = useState([]);
+  const [clientsOpen, setClientsOpen] = useState(false);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
+  const [loadingClients, setLoadingClients] = useState(false);
   const [orders, setOrders] = useState([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [toggling, setToggling] = useState(false);
-  const isActif = livreur.actif !== false;
+  const [ordersOpen, setOrdersOpen] = useState(false);
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      setLoadingData(true);
+  const handleToggleClients = async () => {
+    const next = !clientsOpen;
+    setClientsOpen(next);
+    if (next && !clientsLoaded) {
+      setLoadingClients(true);
       try {
-        const [cRes, oRes] = await Promise.all([
-          supabase.from('profiles').select('id, nom_societe, nom, prenom').eq('role', 'client').eq('livreur_id', livreur.id),
-          supabase.from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone), order_items(*)')
-            .eq('livreur_id', livreur.id).in('statut', ['nouvelle'])
-            .order('date_commande', { ascending: false }),
-        ]);
-        setClients(cRes.data || []);
-        setOrders(oRes.data || []);
+        const { data } = await supabase
+          .from('profiles').select('id, nom_societe, nom, prenom')
+          .eq('role', 'client').eq('livreur_id', livreur.id)
+          .order('nom_societe', { ascending: true });
+        setClients(data || []);
+        setClientsLoaded(true);
       } catch (err) { console.error(err); }
-      finally { setLoadingData(false); }
-    })();
-  }, [livreur.id]);
+      finally { setLoadingClients(false); }
+    }
+  };
+
+  const handleToggleOrders = async () => {
+    const next = !ordersOpen;
+    setOrdersOpen(next);
+    if (next && !ordersLoaded) {
+      setLoadingOrders(true);
+      try {
+        const { data } = await supabase
+          .from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone), order_items(*)')
+          .eq('livreur_id', livreur.id).in('statut', ['nouvelle'])
+          .order('date_commande', { ascending: false });
+        setOrders(data || []);
+        setOrdersLoaded(true);
+      } catch (err) { console.error(err); }
+      finally { setLoadingOrders(false); }
+    }
+  };
 
   const archiverCommandes = async (ordersToArchive) => {
     try {
-      setLoadingData(true);
       const { error } = await supabase.from('orders')
         .update({ statut: 'archivee' })
         .in('id', ordersToArchive.map(o => o.id));
@@ -202,22 +219,28 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
       showAlert('Succès', 'Les commandes ont été retirées de la liste.');
     } catch (e) {
       showAlert('Erreur', 'Impossible de retirer les commandes.');
-    } finally {
-      setLoadingData(false);
     }
   };
 
-  const handleToggle = async () => {
-    setToggling(true);
+  const handleDelete = async () => {
+    const confirm = Platform.OS === 'web'
+      ? window.confirm(`Supprimer le livreur "${displayName}" ? Cette action est irréversible.`)
+      : await new Promise(resolve => Alert.alert(
+          'Supprimer le livreur',
+          `Supprimer "${displayName}" ? Cette action est irréversible.`,
+          [{ text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+           { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) }]
+        ));
+    if (!confirm) return;
+    setDeleting(true);
     try {
-      const { data, error } = await supabase.from('livreurs')
-        .update({ actif: !isActif }).eq('id', livreur.id).select('*').single();
+      const { error } = await supabase.from('livreurs').delete().eq('id', livreur.id);
       if (error) throw error;
-      onUpdated(data);
-      showAlert('Succès', isActif ? 'Livreur désactivé.' : 'Livreur réactivé.');
+      onDeleted(livreur.id);
+      onClose();
     } catch (err) {
-      showAlert('Erreur', 'Impossible de modifier le statut.');
-    } finally { setToggling(false); }
+      showAlert('Erreur', err.message || 'Impossible de supprimer le livreur.');
+    } finally { setDeleting(false); }
   };
 
   const displayName = [livreur.prenom, livreur.nom].filter(Boolean).join(' ') || '—';
@@ -225,73 +248,80 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
   return (
     <View style={{ flex: 1, overflow: 'hidden' }}>
       <View style={s.modalHeader}>
-        <View>
-          <Text style={s.modalHeaderTitle}>{displayName}</Text>
-          <Text style={{ fontSize: fontSizes.xs, color: isActif ? colors.success : colors.error, fontWeight: '600' }}>
-            {isActif ? 'Actif' : 'Inactif'}
-          </Text>
-        </View>
+        <Text style={s.modalHeaderTitle}>{displayName}</Text>
         <TouchableOpacity onPress={onClose}><Text style={s.closeText}>✕</Text></TouchableOpacity>
       </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
-        <Text style={s.sectionTitle}>Informations</Text>
-        <Text style={s.infoLine}>📱 {livreur.telephone || '—'}</Text>
 
-        <Text style={s.sectionTitle}>Clients assignés ({clients.length})</Text>
-        {loadingData ? <ActivityIndicator color={colors.primary} /> :
-          clients.length === 0 ? <Text style={s.emptyText}>Aucun client assigné.</Text> :
-          clients.map(c => (
-            <View key={c.id} style={s.clientRow}>
-              <Text style={s.clientName}>{c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—'}</Text>
-            </View>
-          ))
-        }
+        <TouchableOpacity onPress={handleToggleClients} style={s.accordionHeader}>
+          <Text style={[s.sectionTitle, { borderBottomWidth: 0, paddingBottom: 0, marginTop: 0 }]}>
+            Clients assignés {clientsLoaded ? `(${clients.length})` : ''}
+          </Text>
+          <Text style={[s.accordionArrow, clientsOpen && s.accordionArrowOpen]}>›</Text>
+        </TouchableOpacity>
+        {clientsOpen && (
+          loadingClients
+            ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
+            : clients.length === 0
+              ? <Text style={s.emptyText}>Aucun client assigné.</Text>
+              : clients.map(c => (
+                  <View key={c.id} style={s.clientRow}>
+                    <Text style={s.clientName}>{c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—'}</Text>
+                  </View>
+                ))
+        )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <Text style={{ fontSize: fontSizes.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, color: colors.primary }}>Commandes en cours ({orders.length})</Text>
-          {orders.length > 0 && (
-            <TouchableOpacity 
-              onPress={async () => {
-                setToggling(true);
-                try { 
-                  await generateDriverTourPdf(livreur, orders); 
-                  if (Platform.OS === 'web') {
-                    if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
-                      archiverCommandes(orders);
-                    }
-                  } else {
-                    Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
-                      { text: 'Non', style: 'cancel' },
-                      { text: 'Oui', onPress: () => archiverCommandes(orders) }
-                    ]);
-                  }
-                }
-                catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
-                finally { setToggling(false); }
-              }}
-              style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 }}
-            >
-              <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>🖨️ Imprimer la tournée</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        {loadingData ? <ActivityIndicator color={colors.primary} /> :
-          orders.length === 0 ? <Text style={s.emptyText}>Aucune commande en cours.</Text> :
-          orders.map(o => (
-            <View key={o.id} style={s.orderLine}>
-              <Text style={s.orderNum}>N° {o.numero}</Text>
-              <Text style={s.orderClient}>{o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}</Text>
-              <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} € HT</Text>
-            </View>
-          ))
-        }
+        <TouchableOpacity onPress={handleToggleOrders} style={s.accordionHeader}>
+          <Text style={[s.sectionTitle, { borderBottomWidth: 0, paddingBottom: 0, marginTop: 0 }]}>
+            Commandes en cours {ordersLoaded ? `(${orders.length})` : ''}
+          </Text>
+          <Text style={[s.accordionArrow, ordersOpen && s.accordionArrowOpen]}>›</Text>
+        </TouchableOpacity>
+        {ordersOpen && (
+          loadingOrders
+            ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
+            : orders.length === 0
+              ? <Text style={s.emptyText}>Aucune commande en cours.</Text>
+              : <>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      setPrinting(true);
+                      try {
+                        await generateDriverTourPdf(livreur, orders);
+                        if (Platform.OS === 'web') {
+                          if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
+                            archiverCommandes(orders);
+                          }
+                        } else {
+                          Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
+                            { text: 'Non', style: 'cancel' },
+                            { text: 'Oui', onPress: () => archiverCommandes(orders) },
+                          ]);
+                        }
+                      } catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
+                      finally { setPrinting(false); }
+                    }}
+                    style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, alignSelf: 'flex-end' }}
+                    disabled={printing}
+                  >
+                    {printing
+                      ? <ActivityIndicator color={colors.white} size="small" />
+                      : <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>🖨️ Imprimer la tournée</Text>}
+                  </TouchableOpacity>
+                  {orders.map(o => (
+                    <View key={o.id} style={s.orderLine}>
+                      <Text style={s.orderNum}>N° {o.numero}</Text>
+                      <Text style={s.orderClient}>{o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}</Text>
+                      <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} € HT</Text>
+                    </View>
+                  ))}
+                </>
+        )}
 
-        <TouchableOpacity
-          style={[s.toggleBtn, isActif ? { backgroundColor: colors.error } : { backgroundColor: colors.success }]}
-          onPress={handleToggle} disabled={toggling}
-        >
-          {toggling ? <ActivityIndicator color={colors.white} size="small" /> :
-            <Text style={s.toggleBtnText}>{isActif ? '🔒 Désactiver' : '✅ Réactiver'}</Text>}
+        <TouchableOpacity style={[s.toggleBtn, { backgroundColor: colors.error, marginTop: spacing.lg }]} onPress={handleDelete} disabled={deleting}>
+          {deleting
+            ? <ActivityIndicator color={colors.white} size="small" />
+            : <Text style={s.toggleBtnText}>Supprimer le livreur</Text>}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -374,6 +404,19 @@ const s = StyleSheet.create({
     paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   infoLine: { fontSize: fontSizes.md, color: colors.textPrimary },
+  accordionHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: spacing.sm, paddingBottom: spacing.xs,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  accordionArrow: {
+    fontSize: 20, color: colors.primary, fontWeight: '700',
+    transform: [{ rotate: '0deg' }],
+  },
+  accordionArrowOpen: {
+    transform: [{ rotate: '90deg' }],
+  },
   clientRow: {
     paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border,
   },

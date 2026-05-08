@@ -48,7 +48,7 @@ declare
 begin
   current_year := to_char(now(), 'YYYY');
   next_num := nextval('public.order_number_seq');
-  new.numero := 'CMD-' || current_year || '-' || lpad(next_num::text, 5, '0');
+  new.numero := 'CMD-' || current_year || '-' || lpad(next_num::text, 6, '0');
   return new;
 end;
 $$;
@@ -107,19 +107,3 @@ drop trigger if exists update_order_totals_on_item_change on public.order_items;
 create trigger update_order_totals_on_item_change
   after insert or update or delete on public.order_items
   for each row execute procedure public.recalculate_order_totals();
-
-
--- ------------------------------------------------------------
--- 4. Vérification du bon setup
--- ------------------------------------------------------------
--- Après avoir exécuté ce bloc, tu peux tester avec :
---
--- select
---   table_name,
---   (select count(*) from information_schema.columns
---    where table_schema = 'public' and table_name = t.table_name) as nb_colonnes
--- from (values ('categories'), ('products'), ('orders'), ('order_items'), ('profiles'))
---   as t(table_name);
---
--- Tu devrais voir les 5 tables avec leurs colonnes.
--- ------------------------------------------------------------
