@@ -3,7 +3,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
 export async function generateOrderPdf(order, items, client) {
-  const html = buildHtml(order, items, client);
+  const html = buildOrderHtml(order, items, client);
 
   if (Platform.OS === 'web') {
     const printWindow = window.open('', '_blank', 'width=960,height=760');
@@ -39,13 +39,12 @@ export function buildOrderHtml(order, items, client) {
 }
 
 export async function generateMultipleOrdersPdf(ordersList) {
-  // ordersList est un tableau d'objets: { order, items, client }
   const bodies = ordersList.map(o => `
     <div style="page-break-after: always;">
       ${buildOrderBody(o.order, o.items, o.client)}
     </div>
   `).join('');
-  
+
   const html = wrapInHtmlDocument(bodies, `Export de ${ordersList.length} commandes`);
 
   if (Platform.OS === 'web') {
@@ -94,6 +93,74 @@ function buildOrderBody(order, items, client) {
   }).join('');
 
   const adresseHtml = esc(order.adresse_livraison ?? '').replace(/\n/g, '<br>');
+
+  return `
+<header class="page-header">
+  <div class="brand">
+    <div class="brand-name">Sof Pain</div>
+    <div class="brand-tagline">L'artisan des professionnels</div>
+  </div>
+  <div class="doc-meta">
+    <h1>Bon de commande</h1>
+    <div class="num">N° ${esc(order.numero)}</div>
+    <div class="date">Émis le ${dateCommande}</div>
+  </div>
+</header>
+
+<div class="info-row">
+  <div class="info-block">
+    <h3>Client</h3>
+    <p class="strong">${esc(client?.nom_societe || nomClient || 'N/A')}</p>
+    ${client?.nom_societe && nomClient ? `<p>${esc(nomClient)}</p>` : ''}
+    <p class="muted">${esc(client?.email ?? '')}</p>
+    ${client?.telephone ? `<p class="muted">Tél : ${esc(client.telephone)}</p>` : ''}
+    ${client?.adresse   ? `<p class="muted">${esc(client.adresse)}</p>` : ''}
+    ${client?.siret     ? `<p class="muted">SIRET : ${esc(client.siret)}</p>` : ''}
+  </div>
+  <div class="info-block">
+    <h3>Livraison</h3>
+    ${adresseHtml ? `<p>${adresseHtml}</p>` : '<p class="muted">Adresse non renseignée</p>'}
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-section-title">Détail de la commande</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:left;min-width:180px">Produit</th>
+        <th class="c">Quantité</th>
+        <th class="r">PU HT</th>
+        <th class="c">TVA</th>
+        <th class="r">ST HT</th>
+        <th class="r">ST TTC</th>
+      </tr>
+    </thead>
+    <tbody>${lignes}</tbody>
+  </table>
+</div>
+
+<div class="totals-wrap">
+  <div class="totals-box">
+    <table>
+      <tr><td class="lbl">Total HT</td><td class="val">${n2(order.total_ht)} €</td></tr>
+      <tr><td class="lbl">TVA</td><td class="val">${n2(order.total_tva)} €</td></tr>
+      <tr class="final"><td>Total TTC</td><td style="text-align:right">${n2(order.total_ttc)} €</td></tr>
+    </table>
+  </div>
+</div>
+
+${order.notes_client ? `
+<div class="notes-block">
+  <strong>Notes du client</strong>
+  ${esc(order.notes_client).replace(/\n/g, '<br>')}
+</div>` : ''}
+
+<footer class="page-footer">
+  <p>Document généré le ${fmt(new Date())} — Sof Pain · L'artisan des professionnels</p>
+  <div class="seal">Document non contractuel</div>
+</footer>`;
+}
 
 function wrapInHtmlDocument(content, title) {
   return `<!DOCTYPE html>
@@ -295,75 +362,6 @@ function wrapInHtmlDocument(content, title) {
 ${content}
 </body>
 </html>`;
-}
-
-// Retrait du wrapper body/html dans buildOrderBody
-return `
-<header class="page-header">
-  <div class="brand">
-    <div class="brand-name">Sof Pain</div>
-    <div class="brand-tagline">L'artisan des professionnels</div>
-  </div>
-  <div class="doc-meta">
-    <h1>Bon de commande</h1>
-    <div class="num">N° ${esc(order.numero)}</div>
-    <div class="date">Émis le ${dateCommande}</div>
-  </div>
-</header>
-
-<div class="info-row">
-  <div class="info-block">
-    <h3>Client</h3>
-    <p class="strong">${esc(client?.nom_societe || nomClient || 'N/A')}</p>
-    ${client?.nom_societe && nomClient ? `<p>${esc(nomClient)}</p>` : ''}
-    <p class="muted">${esc(client?.email ?? '')}</p>
-    ${client?.telephone ? `<p class="muted">Tél : ${esc(client.telephone)}</p>` : ''}
-    ${client?.adresse   ? `<p class="muted">${esc(client.adresse)}</p>` : ''}
-    ${client?.siret     ? `<p class="muted">SIRET : ${esc(client.siret)}</p>` : ''}
-  </div>
-  <div class="info-block">
-    <h3>Livraison</h3>
-    ${adresseHtml ? `<p>${adresseHtml}</p>` : '<p class="muted">Adresse non renseignée</p>'}
-  </div>
-</div>
-
-<div class="table-wrap">
-  <div class="table-section-title">Détail de la commande</div>
-  <table>
-    <thead>
-      <tr>
-        <th style="text-align:left;min-width:180px">Produit</th>
-        <th class="c">Quantité</th>
-        <th class="r">PU HT</th>
-        <th class="c">TVA</th>
-        <th class="r">ST HT</th>
-        <th class="r">ST TTC</th>
-      </tr>
-    </thead>
-    <tbody>${lignes}</tbody>
-  </table>
-</div>
-
-<div class="totals-wrap">
-  <div class="totals-box">
-    <table>
-      <tr><td class="lbl">Total HT</td><td class="val">${n2(order.total_ht)} €</td></tr>
-      <tr><td class="lbl">TVA</td><td class="val">${n2(order.total_tva)} €</td></tr>
-      <tr class="final"><td>Total TTC</td><td style="text-align:right">${n2(order.total_ttc)} €</td></tr>
-    </table>
-  </div>
-</div>
-
-${order.notes_client ? `
-<div class="notes-block">
-  <strong>Notes du client</strong>
-  ${esc(order.notes_client).replace(/\n/g, '<br>')}
-</div>` : ''}
-
-<footer class="page-footer">
-  <p>Document généré le ${fmt(new Date())} — Sof Pain · L'artisan des professionnels</p>
-  <div class="seal">Document non contractuel</div>
-</footer>`;
 }
 
 const n2  = (v) => Number(v ?? 0).toFixed(2);

@@ -343,8 +343,8 @@ function OrderRow({ item, onPress, isDesktop, selected, onToggle }) {
 
 
         <View style={[styles.rowCol, styles.rowColRight]}>
-          <Text style={styles.rowTotal}>{`${n2(item.total_ttc)} €`}</Text>
-          <Text style={styles.rowTotalLabel}>TTC</Text>
+          <Text style={styles.rowTotal}>{`${n2(item.total_ht)} €`}</Text>
+          <Text style={styles.rowTotalLabel}>HT</Text>
         </View>
 
 
@@ -967,7 +967,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     Promise.all([
       supabase
         .from('profiles')
-        .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, prix_personnalises')
+        .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id')
         .eq('role', 'client')
         .order('nom_societe', { ascending: true }),
       supabase
@@ -981,10 +981,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     }).finally(() => setLoading(false));
   }, [visible]);
 
-  const getPrice = (product) => {
-    const custom = selectedClient?.prix_personnalises?.[product.id];
-    return custom != null ? Number(custom) : Number(product.prix_unitaire_ht || 0);
-  };
+  const getPrice = (product) => Number(product.prix_unitaire_ht || 0);
 
   const q = search.toLowerCase().trim();
   const filteredClients = q
@@ -1166,15 +1163,11 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   const qty = quantities[p.id] || 0;
                   const inc = p.increment || 1;
                   const prix = getPrice(p);
-                  const isCustom = selectedClient?.prix_personnalises?.[p.id] != null;
                   return (
                     <View style={[to.productRow, qty > 0 && to.productRowActive]}>
                       <View style={{ flex: 1 }}>
                         <Text style={to.productName}>{p.nom}</Text>
-                        <Text style={to.productPrice}>
-                          {`${n2(prix)} €/u HT`}
-                          {isCustom ? <Text style={to.customTag}> (personnalisé)</Text> : null}
-                        </Text>
+                        <Text style={to.productPrice}>{`${n2(prix)} €/u HT`}</Text>
                       </View>
                       <View style={to.stepper}>
                         <TouchableOpacity
