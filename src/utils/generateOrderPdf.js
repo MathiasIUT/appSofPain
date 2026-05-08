@@ -73,13 +73,13 @@ export async function generateMultipleOrdersPdf(ordersList) {
 }
 
 function buildOrderBody(order, items, client) {
-  const dateCommande  = fmt(order.date_commande ?? new Date());
-  const nomClient     = [client?.prenom, client?.nom].filter(Boolean).join(' ');
+  const dateCommande = fmt(order.date_commande ?? new Date());
+  const nomClient = [client?.prenom, client?.nom].filter(Boolean).join(' ');
 
   const lignes = items.map((it) => {
-    const pu    = Number(it.prix_unitaire_ht);
-    const stHt  = Number(it.sous_total_ht);
-    const tva   = Number(it.tva_pourcent);
+    const pu = Number(it.prix_unitaire_ht);
+    const stHt = Number(it.sous_total_ht);
+    const tva = Number(it.tva_pourcent);
     const stTtc = stHt * (1 + tva / 100);
     return `
       <tr>
@@ -114,8 +114,8 @@ function buildOrderBody(order, items, client) {
     ${client?.nom_societe && nomClient ? `<p>${esc(nomClient)}</p>` : ''}
     <p class="muted">${esc(client?.email ?? '')}</p>
     ${client?.telephone ? `<p class="muted">Tél : ${esc(client.telephone)}</p>` : ''}
-    ${client?.adresse   ? `<p class="muted">${esc(client.adresse)}</p>` : ''}
-    ${client?.siret     ? `<p class="muted">SIRET : ${esc(client.siret)}</p>` : ''}
+    ${client?.adresse ? `<p class="muted">${esc(client.adresse)}</p>` : ''}
+    ${client?.siret ? `<p class="muted">SIRET : ${esc(client.siret)}</p>` : ''}
   </div>
   <div class="info-block">
     <h3>Livraison</h3>
@@ -364,7 +364,7 @@ ${content}
 </html>`;
 }
 
-const n2  = (v) => Number(v ?? 0).toFixed(2);
-const n1  = (v) => Number(v ?? 0).toFixed(1);
-const esc = (t) => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const fmt = (d) => new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+const n2 = (v) => Number(v ?? 0).toFixed(2);
+const n1 = (v) => Number(v ?? 0).toFixed(1);
+const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmt = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
