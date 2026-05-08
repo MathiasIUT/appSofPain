@@ -39,13 +39,6 @@ const formatDateFr = (isoDate) => {
   return `${day}/${month}/${year}`;
 };
 
-/**
- * Écran de validation de commande.
- * - Affiche le résumé du panier
- * - Demande les coordonnées de livraison
- * - Crée la commande + les lignes dans Supabase
- * - Redirige vers l'écran de confirmation
- */
 export default function CheckoutScreen({ navigation }) {
   const { items, totals, clearCart } = useCart();
   const { width } = useWindowDimensions();
@@ -57,7 +50,6 @@ export default function CheckoutScreen({ navigation }) {
     adresse: '',
     code_postal: '',
     ville: '',
-    notes: '',
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -78,7 +70,6 @@ export default function CheckoutScreen({ navigation }) {
 
         if (data) {
           setProfile(data);
-          // Pré-remplir si les champs existent dans le profil
           setForm((prev) => ({
             ...prev,
             telephone: data.telephone || '',
@@ -132,15 +123,11 @@ export default function CheckoutScreen({ navigation }) {
     } else if (form.ville.trim().length > 100) {
       newErrors.ville = 'Ville trop longue (max 100 caractères)';
     }
-    if (form.notes.trim().length > 1000) {
-      newErrors.notes = 'Notes trop longues (max 1000 caractères)';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Validation finale de la commande : création en BDD
   const handleSubmit = async () => {
     if (!validate()) {
       showAlert('Formulaire incomplet', 'Veuillez remplir les champs requis.');
@@ -152,13 +139,10 @@ export default function CheckoutScreen({ navigation }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Utilisateur non connecté');
 
-      // Construction de l'adresse complète (texte libre dans orders.adresse_livraison)
       const adresseComplete = `${form.adresse.trim()}\n${form.code_postal.trim()} ${form.ville.trim()}\nTél : ${form.telephone.trim()}`;
-
-      // Récupérer le livreur assigné au client
       const livreurId = profile?.livreur_id || null;
 
-      // 1. Création de la commande
+      // Création de la commande
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -167,7 +151,6 @@ export default function CheckoutScreen({ navigation }) {
           statut: 'nouvelle',
           date_livraison_souhaitee: getDefaultDeliveryDate(),
           adresse_livraison: adresseComplete,
-          notes_client: form.notes.trim() || null,
           total_ht: totals.totalHt,
           total_tva: totals.totalTva,
           total_ttc: totals.totalTtc,
@@ -199,17 +182,14 @@ export default function CheckoutScreen({ navigation }) {
 
       if (itemsError) throw itemsError;
 
-      // 3. Récupérer la commande à jour (totaux recalculés par le trigger SQL)
       const { data: updatedOrder } = await supabase
         .from('orders')
         .select('*')
         .eq('id', order.id)
         .single();
 
-      // 4. Vider le panier
       clearCart();
 
-      // 5. Naviguer vers la confirmation
       navigation.replace('OrderConfirmation', {
         order: updatedOrder || order,
         items: orderItems,
@@ -241,167 +221,157 @@ export default function CheckoutScreen({ navigation }) {
           <Text style={{ marginTop: spacing.md, color: colors.textSecondary }}>Chargement de vos informations...</Text>
         </View>
       ) : (
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentInner}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>Valider ma commande</Text>
-          <Text style={styles.subtitle}>
-            Renseignez les coordonnées de livraison
-          </Text>
-        </View>
-
-        <View style={[styles.layout, isDesktop && styles.layoutDesktop]}>
-          {/* FORMULAIRE */}
-          <View style={[styles.formColumn, isDesktop && styles.formColumnDesktop]}>
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Coordonnées de livraison</Text>
-
-              <Input
-                label="Téléphone"
-                required
-                value={form.telephone}
-                onChangeText={(v) => updateField('telephone', v)}
-                placeholder="Ex : 06 12 34 56 78"
-                keyboardType="phone-pad"
-                error={errors.telephone}
-                editable={!submitting}
-              />
-
-              <Input
-                label="Adresse"
-                required
-                value={form.adresse}
-                onChangeText={(v) => updateField('adresse', v)}
-                placeholder="Ex : 12 rue de la Boulangerie"
-                error={errors.adresse}
-                editable={!submitting}
-              />
-
-              <View style={styles.row}>
-                <View style={styles.half}>
-                  <Input
-                    label="Code postal"
-                    required
-                    value={form.code_postal}
-                    onChangeText={(v) =>
-                      updateField('code_postal', v.replace(/[^0-9]/g, '').slice(0, 6))
-                    }
-                    placeholder="75001"
-                    keyboardType="numeric"
-                    error={errors.code_postal}
-                    editable={!submitting}
-                  />
-                </View>
-                <View style={styles.half}>
-                  <Input
-                    label="Ville"
-                    required
-                    value={form.ville}
-                    onChangeText={(v) => updateField('ville', v)}
-                    placeholder="Paris"
-                    error={errors.ville}
-                    editable={!submitting}
-                  />
-                </View>
-              </View>
-
-              <Input
-                label="Notes / Instructions spéciales"
-                value={form.notes}
-                onChangeText={(v) => updateField('notes', v)}
-                placeholder="Précisions pour la livraison, horaires préférés..."
-                multiline
-                helperText="Facultatif"
-                editable={!submitting}
-              />
-            </View>
-
-            <View style={[styles.card, { marginTop: spacing.md }]}>
-              <Text style={styles.cardTitle}>Date de livraison</Text>
-              <View style={styles.deliveryDateBox}>
-                <Text style={styles.deliveryDateLabel}>Livraison prévue le</Text>
-                <Text style={styles.deliveryDateValue}>
-                  {formatDateFr(getDefaultDeliveryDate())}
-                </Text>
-                <Text style={styles.deliveryDateHint}>
-                  Dans 7 jours. L'entreprise vous contactera pour ajuster si besoin.
-                </Text>
-              </View>
-            </View>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentInner}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>Valider ma commande</Text>
+            <Text style={styles.subtitle}>
+              Renseignez les coordonnées de livraison
+            </Text>
           </View>
 
-          {/* RÉCAP COMMANDE */}
-          <View style={[styles.summaryColumn, isDesktop && styles.summaryColumnDesktop]}>
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Récapitulatif</Text>
+          <View style={[styles.layout, isDesktop && styles.layoutDesktop]}>
+            {/* FORMULAIRE */}
+            <View style={[styles.formColumn, isDesktop && styles.formColumnDesktop]}>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Coordonnées de livraison</Text>
 
-              <View style={styles.itemsList}>
-                {items.map((item) => {
-                  const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
-                  const sousTotal = prixUnitaire * item.quantite;
-                  return (
-                    <View key={item.product.id} style={styles.itemRow}>
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemName} numberOfLines={1}>
-                          {item.product.nom}
-                        </Text>
-                        <Text style={styles.itemQty}>
-                          {`${item.quantite} unité${item.quantite > 1 ? 's' : ''}`}
-                        </Text>
-                      </View>
-                      <Text style={styles.itemPrice}>{`${sousTotal.toFixed(2)} €`}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.totalLine}>
-                <Text style={styles.totalLabel}>Total HT</Text>
-                <Text style={styles.totalValue}>{`${totals.totalHt.toFixed(2)} €`}</Text>
-              </View>
-              <View style={styles.totalLine}>
-                <Text style={styles.totalLabel}>TVA</Text>
-                <Text style={styles.totalValue}>{`${totals.totalTva.toFixed(2)} €`}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.totalLine}>
-                <Text style={styles.totalLabelFinal}>Total TTC</Text>
-                <Text style={styles.totalValueFinal}>
-                  {`${totals.totalTtc.toFixed(2)} €`}
-                </Text>
-              </View>
-
-              <View style={styles.submitAction}>
-                <Button
-                  title="Confirmer ma commande"
-                  onPress={handleSubmit}
-                  loading={submitting}
-                  disabled={submitting}
-                  fullWidth
-                  size="lg"
+                <Input
+                  label="Téléphone"
+                  required
+                  value={form.telephone}
+                  onChangeText={(v) => updateField('telephone', v)}
+                  placeholder="Ex : 06 12 34 56 78"
+                  keyboardType="phone-pad"
+                  error={errors.telephone}
+                  editable={!submitting}
                 />
+
+                <Input
+                  label="Adresse"
+                  required
+                  value={form.adresse}
+                  onChangeText={(v) => updateField('adresse', v)}
+                  placeholder="Ex : 12 rue de la Boulangerie"
+                  error={errors.adresse}
+                  editable={!submitting}
+                />
+
+                <View style={styles.row}>
+                  <View style={styles.half}>
+                    <Input
+                      label="Code postal"
+                      required
+                      value={form.code_postal}
+                      onChangeText={(v) =>
+                        updateField('code_postal', v.replace(/[^0-9]/g, '').slice(0, 6))
+                      }
+                      placeholder="75001"
+                      keyboardType="numeric"
+                      error={errors.code_postal}
+                      editable={!submitting}
+                    />
+                  </View>
+                  <View style={styles.half}>
+                    <Input
+                      label="Ville"
+                      required
+                      value={form.ville}
+                      onChangeText={(v) => updateField('ville', v)}
+                      placeholder="Paris"
+                      error={errors.ville}
+                      editable={!submitting}
+                    />
+                  </View>
+                </View>
               </View>
 
-              <Text style={styles.submitHint}>
-                En confirmant, un bon de commande sera généré. Aucun paiement n'est
-                effectué à cette étape.
-              </Text>
+              <View style={[styles.card, { marginTop: spacing.md }]}>
+                <Text style={styles.cardTitle}>Date de livraison</Text>
+                <View style={styles.deliveryDateBox}>
+                  <Text style={styles.deliveryDateLabel}>Livraison prévue le</Text>
+                  <Text style={styles.deliveryDateValue}>
+                    {formatDateFr(getDefaultDeliveryDate())}
+                  </Text>
+                  <Text style={styles.deliveryDateHint}>
+                    Dans 7 jours. L'entreprise vous contactera pour ajuster si besoin.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* RÉCAP COMMANDE */}
+            <View style={[styles.summaryColumn, isDesktop && styles.summaryColumnDesktop]}>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Récapitulatif</Text>
+
+                <View style={styles.itemsList}>
+                  {items.map((item) => {
+                    const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
+                    const sousTotal = prixUnitaire * item.quantite;
+                    return (
+                      <View key={item.product.id} style={styles.itemRow}>
+                        <View style={styles.itemInfo}>
+                          <Text style={styles.itemName} numberOfLines={1}>
+                            {item.product.nom}
+                          </Text>
+                          <Text style={styles.itemQty}>
+                            {`${item.quantite} unité${item.quantite > 1 ? 's' : ''}`}
+                          </Text>
+                        </View>
+                        <Text style={styles.itemPrice}>{`${sousTotal.toFixed(2)} €`}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.totalLine}>
+                  <Text style={styles.totalLabel}>Total HT</Text>
+                  <Text style={styles.totalValue}>{`${totals.totalHt.toFixed(2)} €`}</Text>
+                </View>
+                <View style={styles.totalLine}>
+                  <Text style={styles.totalLabel}>TVA</Text>
+                  <Text style={styles.totalValue}>{`${totals.totalTva.toFixed(2)} €`}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.totalLine}>
+                  <Text style={styles.totalLabelFinal}>Total TTC</Text>
+                  <Text style={styles.totalValueFinal}>
+                    {`${totals.totalTtc.toFixed(2)} €`}
+                  </Text>
+                </View>
+
+                <View style={styles.submitAction}>
+                  <Button
+                    title="Confirmer ma commande"
+                    onPress={handleSubmit}
+                    loading={submitting}
+                    disabled={submitting}
+                    fullWidth
+                    size="lg"
+                  />
+                </View>
+
+                <Text style={styles.submitHint}>
+                  En confirmant, un bon de commande sera généré. Aucun paiement n'est
+                  effectué à cette étape.
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {submitting ? (
-          <View style={styles.overlay}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.overlayText}>Création de la commande...</Text>
-          </View>
-        ) : null}
-      </ScrollView>
+          {submitting ? (
+            <View style={styles.overlay}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.overlayText}>Création de la commande...</Text>
+            </View>
+          ) : null}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -449,7 +419,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 
-  // Layout 2 colonnes
   layout: {
     flexDirection: 'column',
     gap: spacing.lg,
@@ -486,7 +455,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  // Ligne code postal + ville
   row: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -495,7 +463,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Date de livraison
   deliveryDateBox: {
     backgroundColor: colors.secondary,
     padding: spacing.md,
@@ -520,7 +487,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
 
-  // Récap items
   itemsList: {
     gap: spacing.sm,
     marginBottom: spacing.md,
@@ -590,7 +556,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  // Overlay loading
   overlay: {
     position: 'absolute',
     top: 0,

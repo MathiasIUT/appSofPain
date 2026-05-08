@@ -59,11 +59,9 @@ function buildHtml(livreur, orders) {
     const clientName = o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || 'Client inconnu';
     const telephone = o.client?.telephone || '';
     const adresse = esc(o.adresse_livraison || '').replace(/\\n/g, '<br>');
-    const notesClient = o.notes_client ? `<b>Client:</b> ${esc(o.notes_client)}<br>` : '';
-    const notesAdmin = o.notes_admin ? `<b>Admin:</b> ${esc(o.notes_admin)}` : '';
 
     const itemsStr = (o.order_items || []).map(it => {
-      return `• <b>${esc(it.product_nom)}</b> : ${esc(String(it.quantite))} u.`;
+      return `• <b>${esc(it.product_nom)}</b> : ${esc(String(it.quantite))} pcs.`;
     }).join('<br>');
 
     return `
@@ -71,11 +69,10 @@ function buildHtml(livreur, orders) {
         <td class="col-num">${esc(o.numero)}</td>
         <td class="col-client">
           <strong>${esc(clientName)}</strong><br>
-          ${telephone ? `📞 ${esc(telephone)}` : ''}
+          ${telephone ? `TEL : ${esc(telephone)}` : ''}
         </td>
         <td class="col-adresse">${adresse || '<i>Non renseignée</i>'}</td>
         <td class="col-produits">${itemsStr}</td>
-        <td class="col-notes">${notesClient}${notesAdmin}</td>
       </tr>
     `;
   }).join('');
@@ -90,7 +87,7 @@ function buildHtml(livreur, orders) {
   :root { --primary: #C4924A; --text: #000; --border: #ccc; }
   
   /* Police plus petite pour tout compacter */
-  html { font-size: 11px; } 
+  html { font-size: 17px; } 
   body { 
     font-family: 'Helvetica Neue', Arial, sans-serif; 
     color: var(--text); 
@@ -120,7 +117,6 @@ function buildHtml(livreur, orders) {
   .col-client { width: 22%; }
   .col-adresse { width: 30%; }
   .col-produits { width: 25%; }
-  .col-notes { width: 15%; font-size: 9.5px; color: #444; }
   
   /* Impressions PDF */
   @media print {
@@ -147,7 +143,6 @@ function buildHtml(livreur, orders) {
         <th class="col-client">Client / Tél.</th>
         <th class="col-adresse">Adresse</th>
         <th class="col-produits">Produits (Qté)</th>
-        <th class="col-notes">Notes</th>
       </tr>
     </thead>
     <tbody>

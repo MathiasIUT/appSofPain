@@ -22,10 +22,10 @@ const showAlert = (title, msg) => {
 };
 
 export default function ClientProfileScreen({ navigation }) {
-  const [profile, setProfile]           = useState(null);
-  const [loading, setLoading]           = useState(true);
-  const [saving, setSaving]             = useState(false);
-  const [deleting, setDeleting]         = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [form, setForm] = useState({
@@ -51,14 +51,14 @@ export default function ClientProfileScreen({ navigation }) {
       if (error) throw error;
       setProfile(data);
       setForm({
-        nom:         data.nom         || '',
-        prenom:      data.prenom      || '',
+        nom: data.nom || '',
+        prenom: data.prenom || '',
         nom_societe: data.nom_societe || '',
-        telephone:   data.telephone   || '',
-        adresse:     data.adresse     || '',
+        telephone: data.telephone || '',
+        adresse: data.adresse || '',
         code_postal: data.code_postal || '',
-        ville:       data.ville       || '',
-        siret:       data.siret       || '',
+        ville: data.ville || '',
+        siret: data.siret || '',
       });
     } catch (err) {
       console.error('Erreur chargement profil :', err);
@@ -70,14 +70,14 @@ export default function ClientProfileScreen({ navigation }) {
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
   const initial = profile ? {
-    nom:         profile.nom         || '',
-    prenom:      profile.prenom      || '',
+    nom: profile.nom || '',
+    prenom: profile.prenom || '',
     nom_societe: profile.nom_societe || '',
-    telephone:   profile.telephone   || '',
-    adresse:     profile.adresse     || '',
+    telephone: profile.telephone || '',
+    adresse: profile.adresse || '',
     code_postal: profile.code_postal || '',
-    ville:       profile.ville       || '',
-    siret:       profile.siret       || '',
+    ville: profile.ville || '',
+    siret: profile.siret || '',
   } : form;
 
   const changed = Object.keys(form).some((k) => form[k] !== initial[k]);
@@ -88,10 +88,10 @@ export default function ClientProfileScreen({ navigation }) {
     const data = {
       profile: profile,
       export_date: new Date().toISOString(),
-      info: "Ceci est l'intégralité de vos données personnelles conservées par SofPain conformément au RGPD."
+      info: "Ceci est l'intégralité de vos données personnelles conservées par SofPain"
     };
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
-    
+
     if (Platform.OS === 'web') {
       const link = document.createElement("a");
       link.href = jsonString;
@@ -109,14 +109,14 @@ export default function ClientProfileScreen({ navigation }) {
       const { error } = await supabase
         .from('profiles')
         .update({
-          nom:         form.nom.trim(),
-          prenom:      form.prenom.trim(),
+          nom: form.nom.trim(),
+          prenom: form.prenom.trim(),
           nom_societe: form.nom_societe.trim(),
-          telephone:   form.telephone.trim(),
-          adresse:     form.adresse.trim(),
+          telephone: form.telephone.trim(),
+          adresse: form.adresse.trim(),
           code_postal: form.code_postal.trim(),
-          ville:       form.ville.trim(),
-          siret:       form.siret.trim(),
+          ville: form.ville.trim(),
+          siret: form.siret.trim(),
         })
         .eq('id', user.id);
       if (error) throw error;
@@ -305,12 +305,12 @@ export default function ClientProfileScreen({ navigation }) {
 
         {/* ── Section : Portabilité ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mes données (RGPD)</Text>
+          <Text style={styles.sectionTitle}>Mes données</Text>
           <Text style={styles.infoText}>
-            Conformément au RGPD, vous pouvez télécharger une copie de toutes vos données personnelles.
+            Vous pouvez télécharger une copie de toutes vos données personnelles.
           </Text>
-          <TouchableOpacity 
-            style={styles.exportBtn} 
+          <TouchableOpacity
+            style={styles.exportBtn}
             onPress={handleExportData}
             activeOpacity={0.7}
           >
