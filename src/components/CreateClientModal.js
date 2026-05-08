@@ -85,6 +85,10 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     setSaving(true);
     try {
       const email = form.email.trim() || generateIdentifier();
+      // Save current admin session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const adminSession = sessionData?.session;
+
       // Create auth user via signUp
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -98,6 +102,15 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
           },
         },
       });
+
+      // Restore admin session immediately so RLS policies pass
+      if (adminSession) {
+        await supabase.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+
       if (authError) throw authError;
       const userId = authData.user?.id;
       if (!userId) throw new Error('Erreur création utilisateur');
@@ -127,7 +140,11 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
           }
         }
         if (rows.length > 0) {
-          await supabase.from('client_prices').insert(rows);
+          const { error: priceError } = await supabase.from('client_prices').insert(rows);
+          if (priceError) {
+            console.error("Erreur insertion prix:", priceError);
+            throw priceError;
+          }
         }
       }
 
