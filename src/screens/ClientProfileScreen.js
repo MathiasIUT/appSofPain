@@ -37,6 +37,7 @@ export default function ClientProfileScreen({ navigation }) {
     code_postal: '',
     ville: '',
     siret: '',
+    note_interne_client: '',
   });
 
   const loadProfile = useCallback(async () => {
@@ -59,6 +60,7 @@ export default function ClientProfileScreen({ navigation }) {
         code_postal: data.code_postal || '',
         ville: data.ville || '',
         siret: data.siret || '',
+        note_interne_client: data.note_interne_client || '',
       });
     } catch (err) {
       console.error('Erreur chargement profil :', err);
@@ -78,6 +80,7 @@ export default function ClientProfileScreen({ navigation }) {
     code_postal: profile.code_postal || '',
     ville: profile.ville || '',
     siret: profile.siret || '',
+    note_interne_client: profile.note_interne_client || '',
   } : form;
 
   const changed = Object.keys(form).some((k) => form[k] !== initial[k]);
@@ -117,6 +120,7 @@ export default function ClientProfileScreen({ navigation }) {
           code_postal: form.code_postal.trim(),
           ville: form.ville.trim(),
           siret: form.siret.trim(),
+          note_interne_client: form.note_interne_client.trim(),
         })
         .eq('id', user.id);
       if (error) throw error;
@@ -274,6 +278,14 @@ export default function ClientProfileScreen({ navigation }) {
             onChangeText={setField('siret')}
             placeholder="000 000 000 00000"
           />
+          <FormField
+            label="Note pour l'administrateur"
+            value={form.note_interne_client}
+            onChangeText={setField('note_interne_client')}
+            placeholder="Écrivez un message ou une consigne pour l'équipe..."
+            multiline
+            style={{ minHeight: 80, textAlignVertical: 'top' }}
+          />
         </View>
 
         {/* ── Section : Adresse ── */}
@@ -370,12 +382,12 @@ export default function ClientProfileScreen({ navigation }) {
 
 // ── Champ formulaire ──────────────────────────────────────────────────────────
 
-function FormField({ label, value, onChangeText, placeholder, ...rest }) {
+function FormField({ label, value, onChangeText, placeholder, style, ...rest }) {
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        style={styles.fieldInput}
+        style={[styles.fieldInput, style]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

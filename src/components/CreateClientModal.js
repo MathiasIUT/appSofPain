@@ -20,7 +20,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
   const [form, setForm] = useState({
     nom_societe: '', siret: '', telephone: '', adresse: '',
     code_postal: '', ville: '', email: '', password: '',
-    nom: '', prenom: '',
+    nom: '', prenom: '', note_interne_admin: '',
   });
   const [livreurId, setLivreurId] = useState(null);
   const [livreurs, setLivreurs] = useState([]);
@@ -44,7 +44,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     setForm({
       nom_societe: '', siret: '', telephone: '', adresse: '',
       code_postal: '', ville: '', email: '', password: '',
-      nom: '', prenom: '',
+      nom: '', prenom: '', note_interne_admin: '',
     });
     setLivreurId(null);
     setUseCustomPrices(false);
@@ -109,6 +109,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         siret: form.siret.trim() || null,
         livreur_id: livreurId || null,
         email: email,
+        note_interne_admin: form.note_interne_admin.trim() || null,
       }).eq('id', userId);
 
       if (updateError) throw updateError;
@@ -207,6 +208,12 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
             {renderField('password', 'Mot de passe', 'Min. 6 caractères', {
               required: true,
               inputProps: { autoCapitalize: 'none' },
+            })}
+
+            {/* Notes */}
+            <Text style={s.sectionTitle}>Notes Internes</Text>
+            {renderField('note_interne_admin', 'Note admin (réservée à l\'équipe)', 'Ajoutez une note interne pour ce client...', {
+              inputProps: { multiline: true, style: { minHeight: 80, textAlignVertical: 'top' } }
             })}
 
             {/* Livreur */}

@@ -308,6 +308,8 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
     code_postal: client.code_postal || '',
     ville: client.ville || '',
     siret: client.siret || '',
+    note_interne_client: client.note_interne_client || '',
+    note_interne_admin: client.note_interne_admin || '',
   };
 
   const [form, setForm] = useState(initial);
@@ -360,6 +362,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           code_postal: form.code_postal.trim(),
           ville: form.ville.trim(),
           siret: form.siret.trim(),
+          note_interne_admin: form.note_interne_admin.trim(),
         })
         .eq('id', client.id).select('*').single();
       if (error) throw error;
@@ -512,6 +515,27 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           </View>
         </View>
 
+        {/* Notes Internes */}
+        <View style={modal.section}>
+          <Text style={modal.sectionTitle}>Notes Internes</Text>
+          <FormField
+            label="Note du client"
+            value={form.note_interne_client}
+            placeholder="Aucune note du client."
+            multiline
+            editable={false}
+            style={{ minHeight: 60, textAlignVertical: 'top', backgroundColor: colors.background + '80' }}
+          />
+          <FormField
+            label="Note admin"
+            value={form.note_interne_admin}
+            onChangeText={setField('note_interne_admin')}
+            placeholder="Ajoutez une note interne pour ce client..."
+            multiline
+            style={{ minHeight: 80, textAlignVertical: 'top' }}
+          />
+        </View>
+
         {changed && (
           <Button title="Enregistrer les modifications" onPress={handleSave}
             loading={saving} disabled={saving} fullWidth size="lg" />
@@ -631,12 +655,12 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
 
 // ─── Champ formulaire ────────────────────────────────────────────────────────
 
-function FormField({ label, value, onChangeText, placeholder, ...rest }) {
+function FormField({ label, value, onChangeText, placeholder, style, ...rest }) {
   return (
     <View style={modal.fieldWrap}>
       <Text style={modal.fieldLabel}>{label}</Text>
       <TextInput
-        style={modal.fieldInput}
+        style={[modal.fieldInput, style]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
