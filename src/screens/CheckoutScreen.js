@@ -25,10 +25,10 @@ const showAlert = (title, message) => {
   }
 };
 
-// Date par défaut : aujourd'hui + 7 jours, au format YYYY-MM-DD (compatible Postgres)
+// Date par défaut : demain, au format YYYY-MM-DD (compatible Postgres)
 const getDefaultDeliveryDate = () => {
   const d = new Date();
-  d.setDate(d.getDate() + 7);
+  d.setDate(d.getDate() + 1);
   return d.toISOString().split('T')[0];
 };
 
@@ -288,21 +288,7 @@ export default function CheckoutScreen({ navigation }) {
                   </View>
                 </View>
               </View>
-
-              <View style={[styles.card, { marginTop: spacing.md }]}>
-                <Text style={styles.cardTitle}>Date de livraison</Text>
-                <View style={styles.deliveryDateBox}>
-                  <Text style={styles.deliveryDateLabel}>Livraison prévue le</Text>
-                  <Text style={styles.deliveryDateValue}>
-                    {formatDateFr(getDefaultDeliveryDate())}
-                  </Text>
-                  <Text style={styles.deliveryDateHint}>
-                    Dans 7 jours. L'entreprise vous contactera pour ajuster si besoin.
-                  </Text>
-                </View>
               </View>
-            </View>
-
             {/* RÉCAP COMMANDE */}
             <View style={[styles.summaryColumn, isDesktop && styles.summaryColumnDesktop]}>
               <View style={styles.card}>

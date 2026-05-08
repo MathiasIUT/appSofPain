@@ -20,30 +20,7 @@ import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const STATUTS = [
-  { key: 'toutes', label: 'Toutes' },
-  { key: 'nouvelle', label: 'Nouvelle' },
-  { key: 'en_preparation', label: 'En préparation' },
-  { key: 'en_livraison', label: 'En livraison' },
-  { key: 'livree', label: 'Livrée' },
-  { key: 'annulee', label: 'Annulée' },
-];
 
-const STATUT_LABELS = {
-  nouvelle: 'Nouvelle',
-  en_preparation: 'En préparation',
-  en_livraison: 'En livraison',
-  livree: 'Livrée',
-  annulee: 'Annulée',
-};
-
-const STATUT_COLORS = {
-  nouvelle: '#2196F3',
-  en_preparation: '#FF9800',
-  en_livraison: '#00BCD4',
-  livree: '#4CAF50',
-  annulee: '#E53935',
-};
 
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -62,26 +39,13 @@ export default function AdminOrdersScreen() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [filter, setFilter] = useState('toutes');
   const [totalCount, setTotalCount] = useState(0);
-  const [statusCounts, setStatusCounts] = useState({});
   const [selectedOrder, setSelected] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  // Charger les compteurs par statut (léger, une seule requête)
-  const loadCounts = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('statut');
-      if (error) throw error;
-      const counts = {};
-      (data || []).forEach((o) => { counts[o.statut] = (counts[o.statut] || 0) + 1; });
-      setStatusCounts(counts);
-    } catch (err) { console.error('Erreur compteurs :', err); }
-  }, []);
+
 
   // Charger les commandes paginées avec filtre serveur
   const loadOrders = useCallback(async (reset = true) => {
@@ -102,11 +66,8 @@ export default function AdminOrdersScreen() {
           )
         `, { count: 'exact' })
         .order('date_commande', { ascending: false })
-        .range(from, to);
-
-      if (filter !== 'toutes') {
-        query = query.eq('statut', filter);
-      }
+        .range(from, to)
+        .eq('statut', 'nouvelle');
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -124,10 +85,10 @@ export default function AdminOrdersScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [filter, orders.length]);
+  }, [orders.length]);
 
-  // Recharger quand le filtre change
-  useEffect(() => { loadOrders(true); loadCounts(); }, [filter]);
+  // Recharger au montage
+  useEffect(() => { loadOrders(true); }, [loadOrders]);
 
   const hasMore = orders.length < totalCount;
 
@@ -146,9 +107,7 @@ export default function AdminOrdersScreen() {
     setSelected((prev) => prev ? { ...prev, ...updated } : prev);
   };
 
-  const handleRefresh = () => { loadOrders(true); loadCounts(); };
-
-  const allTotal = Object.values(statusCounts).reduce((a, b) => a + b, 0);
+  const handleRefresh = () => { loadOrders(true); };
 
   return (
     <View style={styles.container}>
@@ -164,37 +123,7 @@ export default function AdminOrdersScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Filtres ─────────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtersScroll}
-        contentContainerStyle={styles.filtersRow}
-      >
-        {STATUTS.map((s) => {
-          const count = s.key === 'toutes'
-            ? allTotal
-            : (statusCounts[s.key] || 0);
-          const active = filter === s.key;
-          return (
-            <TouchableOpacity
-              key={s.key}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => setFilter(s.key)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>
-                {s.label}
-              </Text>
-              <View style={[styles.filterCount, active && styles.filterCountActive]}>
-                <Text style={[styles.filterCountText, active && styles.filterCountTextActive]}>
-                  {count}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+
 
       {/* ── Liste ───────────────────────────────────────────── */}
       {loading ? (
@@ -206,7 +135,7 @@ export default function AdminOrdersScreen() {
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyText}>
-            Aucune commande{filter !== 'toutes' ? ' pour ce statut' : ''}.
+            Aucune commande.
           </Text>
         </View>
       ) : (
@@ -266,7 +195,6 @@ export default function AdminOrdersScreen() {
 // ─── Ligne commande ──────────────────────────────────────────────────────────
 
 function OrderRow({ item, onPress, isDesktop }) {
-  const sColor = STATUT_COLORS[item.statut] || colors.textSecondary;
   const clientName = item.client?.nom_societe
     || [item.client?.prenom, item.client?.nom].filter(Boolean).join(' ')
     || item.client_nom
@@ -290,23 +218,14 @@ function OrderRow({ item, onPress, isDesktop }) {
         ) : null}
       </View>
 
-      {isDesktop && (
-        <View style={styles.rowCol}>
-          <Text style={styles.rowLabel}>Livraison</Text>
-          <Text style={styles.rowDate}>{fmt(item.date_livraison_souhaitee)}</Text>
-        </View>
-      )}
+
 
       <View style={[styles.rowCol, styles.rowColRight]}>
         <Text style={styles.rowTotal}>{`${n2(item.total_ttc)} €`}</Text>
         <Text style={styles.rowTotalLabel}>TTC</Text>
       </View>
 
-      <View style={[styles.badge, { backgroundColor: sColor + '22' }]}>
-        <Text style={[styles.badgeText, { color: sColor }]}>
-          {STATUT_LABELS[item.statut] || item.statut}
-        </Text>
-      </View>
+
 
       <Text style={styles.arrow}>›</Text>
     </TouchableOpacity>
@@ -437,26 +356,15 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           contentContainerStyle={modal.leftColContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Statut */}
+          {/* Action sur la commande */}
           <View style={modal.section}>
-            <Text style={modal.sectionTitle}>Statut</Text>
-            <View style={modal.statutRow}>
-              {STATUTS.filter((s) => s.key !== 'toutes').map((s) => {
-                const active = statut === s.key;
-                const c = STATUT_COLORS[s.key];
-                return (
-                  <TouchableOpacity
-                    key={s.key}
-                    style={[modal.statutChip, active && { backgroundColor: c, borderColor: c }]}
-                    onPress={() => setStatut(s.key)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[modal.statutChipText, active && modal.statutChipTextActive]}>
-                      {s.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={{ marginTop: spacing.sm }}>
+              <Button
+                title="Retirer la commande (Traitée / Imprimée)"
+                onPress={() => setStatut('archivee')}
+                variant="primary"
+                fullWidth
+              />
             </View>
           </View>
 
@@ -473,13 +381,6 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
 
           {/* Livraison */}
           <View style={modal.section}>
-            <Text style={modal.sectionTitle}>Livraison</Text>
-            <View style={modal.infoGrid}>
-              <InfoItem label="Date souhaitée" value={fmt(order.date_livraison_souhaitee)} />
-              {order.date_livraison_reelle ? (
-                <InfoItem label="Date réelle" value={fmt(order.date_livraison_reelle)} />
-              ) : null}
-            </View>
             {order.adresse_livraison ? (
               <View style={modal.addressBox}>
                 <Text style={modal.addressLabel}>Adresse</Text>

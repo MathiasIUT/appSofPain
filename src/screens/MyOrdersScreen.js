@@ -13,30 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
-const EN_COURS = ['nouvelle', 'en_preparation', 'en_livraison'];
-const EFFECTUEES = ['livree', 'annulee'];
-
-const STATUS_LABELS = {
-  nouvelle: 'Nouvelle',
-  en_preparation: 'En préparation',
-  en_livraison: 'En livraison',
-  livree: 'Livrée',
-  annulee: 'Annulée',
-};
-
-const STATUS_COLORS = {
-  nouvelle: colors.info,
-  en_preparation: colors.warning,
-  en_livraison: colors.info,
-  livree: colors.success,
-  annulee: colors.error,
-};
-
-const fmt = (d) =>
-  new Date(d).toLocaleDateString('fr-FR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  });
-
 const PAGE_SIZE = 20;
 
 export default function MyOrdersScreen({ navigation }) {
@@ -44,7 +20,6 @@ export default function MyOrdersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
-  const [activeTab, setActiveTab] = useState('en_cours');
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
@@ -56,13 +31,10 @@ export default function MyOrdersScreen({ navigation }) {
       const from = reset ? 0 : orders.length;
       const to = from + PAGE_SIZE - 1;
 
-      const statuts = activeTab === 'en_cours' ? EN_COURS : EFFECTUEES;
-
       const { data, error, count } = await supabase
         .from('orders')
         .select('*', { count: 'exact' })
         .eq('client_id', user.id)
-        .in('statut', statuts)
         .order('date_commande', { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -79,9 +51,9 @@ export default function MyOrdersScreen({ navigation }) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [activeTab, orders.length]);
+  }, [orders.length]);
 
-  useEffect(() => { loadOrders(true); }, [activeTab]);
+  useEffect(() => { loadOrders(true); }, [loadOrders]);
 
   const hasMore = orders.length < totalCount;
   const displayed = orders;
@@ -101,37 +73,6 @@ export default function MyOrdersScreen({ navigation }) {
         <Text style={styles.headerTitle}>Mes commandes</Text>
       </View>
 
-      {/* ── Onglets ────────────────────────────────────────── */}
-      <View style={styles.tabs}>
-        {[
-          { key: 'en_cours', label: 'En cours' },
-          { key: 'effectuees', label: 'Effectuées' },
-        ].map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-            onPress={() => setActiveTab(tab.key)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-              {tab.label}
-            </Text>
-            {activeTab === tab.key && (
-              <View style={[
-                styles.tabBadge,
-                styles.tabBadgeActive,
-              ]}>
-                <Text style={[
-                  styles.tabBadgeText,
-                  styles.tabBadgeTextActive,
-                ]}>
-                  {totalCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
 
       {/* ── Contenu ────────────────────────────────────────── */}
       {loading ? (
@@ -141,14 +82,12 @@ export default function MyOrdersScreen({ navigation }) {
         </View>
       ) : displayed.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyIcon}>{activeTab === 'en_cours' ? '📋' : '✅'}</Text>
+          <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyTitle}>
-            {activeTab === 'en_cours' ? 'Aucune commande en cours' : 'Aucune commande effectuée'}
+            Aucune commande
           </Text>
           <Text style={styles.emptySubtitle}>
-            {activeTab === 'en_cours'
-              ? 'Vos commandes actives apparaîtront ici.'
-              : 'Vos commandes livrées ou annulées apparaîtront ici.'}
+            Vos commandes passées apparaîtront ici.
           </Text>
         </View>
       ) : (
@@ -161,21 +100,15 @@ export default function MyOrdersScreen({ navigation }) {
           ]}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           renderItem={({ item }) => {
-            const sColor = STATUS_COLORS[item.statut] || colors.textSecondary;
             return (
               <TouchableOpacity
                 style={styles.card}
                 onPress={() => navigation.navigate('OrderDetail', { order: item })}
                 activeOpacity={0.75}
               >
-                {/* Ligne 1 : numéro + badge statut */}
+                {/* Ligne 1 : numéro */}
                 <View style={styles.cardTop}>
                   <Text style={styles.cardNum}>N° {item.numero}</Text>
-                  <View style={[styles.badge, { backgroundColor: sColor + '22' }]}>
-                    <Text style={[styles.badgeText, { color: sColor }]}>
-                      {STATUS_LABELS[item.statut] || item.statut}
-                    </Text>
-                  </View>
                 </View>
 
                 {/* Ligne 2 : date + total */}
@@ -187,13 +120,6 @@ export default function MyOrdersScreen({ navigation }) {
                     {Number(item.total_ttc ?? 0).toFixed(2)} €
                   </Text>
                 </View>
-
-                {/* Date de livraison souhaitée */}
-                {item.date_livraison_souhaitee ? (
-                  <Text style={styles.cardDelivery}>
-                    Livraison souhaitée : {fmt(item.date_livraison_souhaitee)}
-                  </Text>
-                ) : null}
 
                 <Text style={styles.cardArrow}>›</Text>
               </TouchableOpacity>

@@ -16,21 +16,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
 import { generateOrderPdf } from '../utils/generateOrderPdf';
 
-const STATUS_LABELS = {
-  nouvelle: 'Nouvelle',
-  en_preparation: 'En préparation',
-  en_livraison: 'En livraison',
-  livree: 'Livrée',
-  annulee: 'Annulée',
-};
 
-const STATUS_COLORS = {
-  nouvelle: colors.info,
-  en_preparation: colors.warning,
-  en_livraison: colors.info,
-  livree: colors.success,
-  annulee: colors.error,
-};
 
 const fmt = (d) =>
   new Date(d).toLocaleDateString('fr-FR', {
@@ -123,7 +109,7 @@ export default function OrderDetailScreen({ navigation, route }) {
     );
   }
 
-  const sColor = STATUS_COLORS[order.statut] || colors.textSecondary;
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -143,16 +129,11 @@ export default function OrderDetailScreen({ navigation, route }) {
         contentContainerStyle={[styles.body, isDesktop && styles.bodyDesktop]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Titre + statut ───────────────────────────── */}
+        {/* ── Titre ───────────────────────────── */}
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>N° {order.numero}</Text>
             <Text style={styles.dateText}>Passée le {fmt(order.date_commande)}</Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: sColor + '22' }]}>
-            <Text style={[styles.badgeText, { color: sColor }]}>
-              {STATUS_LABELS[order.statut] || order.statut}
-            </Text>
           </View>
         </View>
 
@@ -160,12 +141,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Livraison</Text>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Date souhaitée</Text>
-            <Text style={styles.infoValue}>
-              {order.date_livraison_souhaitee ? fmt(order.date_livraison_souhaitee) : '—'}
-            </Text>
-          </View>
+
 
           {order.adresse_livraison ? (
             <View style={styles.infoRow}>

@@ -39,7 +39,6 @@ export function buildOrderHtml(order, items, client) {
 
 function buildHtml(order, items, client) {
   const dateCommande  = fmt(order.date_commande ?? new Date());
-  const dateLivraison = order.date_livraison_souhaitee ? fmt(order.date_livraison_souhaitee) : 'À définir';
   const nomClient     = [client?.prenom, client?.nom].filter(Boolean).join(' ');
 
   const lignes = items.map((it) => {
@@ -282,8 +281,6 @@ function buildHtml(order, items, client) {
   <div class="info-block">
     <h3>Livraison</h3>
     ${adresseHtml ? `<p>${adresseHtml}</p>` : '<p class="muted">Adresse non renseignée</p>'}
-    <p class="muted" style="margin-top:12px;">Date souhaitée</p>
-    <p class="delivery-date">${dateLivraison}</p>
   </div>
 </div>
 

@@ -181,7 +181,7 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
         const [cRes, oRes] = await Promise.all([
           supabase.from('profiles').select('id, nom_societe, nom, prenom').eq('role', 'client').eq('livreur_id', livreur.id),
           supabase.from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone), order_items(*)')
-            .eq('livreur_id', livreur.id).in('statut', ['nouvelle', 'en_preparation', 'en_livraison'])
+            .eq('livreur_id', livreur.id).in('statut', ['nouvelle'])
             .order('date_commande', { ascending: false }),
         ]);
         setClients(cRes.data || []);
@@ -190,6 +190,22 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
       finally { setLoadingData(false); }
     })();
   }, [livreur.id]);
+
+  const archiverCommandes = async (ordersToArchive) => {
+    try {
+      setLoadingData(true);
+      const { error } = await supabase.from('orders')
+        .update({ statut: 'archivee' })
+        .in('id', ordersToArchive.map(o => o.id));
+      if (error) throw error;
+      setOrders([]);
+      showAlert('Succès', 'Les commandes ont été archivées.');
+    } catch (e) {
+      showAlert('Erreur', 'Impossible d\'archiver les commandes.');
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const handleToggle = async () => {
     setToggling(true);
@@ -237,7 +253,19 @@ function LivreurDetail({ livreur, onClose, onUpdated }) {
             <TouchableOpacity 
               onPress={async () => {
                 setToggling(true);
-                try { await generateDriverTourPdf(livreur, orders); }
+                try { 
+                  await generateDriverTourPdf(livreur, orders); 
+                  if (Platform.OS === 'web') {
+                    if (window.confirm('La tournée a été générée. Voulez-vous archiver ces commandes ?')) {
+                      archiverCommandes(orders);
+                    }
+                  } else {
+                    Alert.alert('Archivage', 'La tournée a été générée. Voulez-vous archiver ces commandes ?', [
+                      { text: 'Non', style: 'cancel' },
+                      { text: 'Oui', onPress: () => archiverCommandes(orders) }
+                    ]);
+                  }
+                }
                 catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
                 finally { setToggling(false); }
               }}

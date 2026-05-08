@@ -18,14 +18,7 @@ const MONTH_SHORT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jui', 'Jul', 'Aoû', '
 const MONTH_FULL = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const MEDALS = ['①', '②', '③', '④', '⑤'];
 
-const STATUS_LABELS = {
-  nouvelle: 'Nouvelle', en_preparation: 'En préparation',
-  en_livraison: 'En livraison', livree: 'Livrée', annulee: 'Annulée',
-};
-const STATUS_COLORS = {
-  nouvelle: '#2196F3', en_preparation: '#FF9800',
-  en_livraison: '#00BCD4', livree: '#4CAF50', annulee: '#E53935',
-};
+
 
 const fmtEur = (v) =>
   Number(v ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -216,12 +209,7 @@ export default function AdminStatsScreen() {
     });
   }, [orders]);
 
-  // ── Statuts ────────────────────────────────────────────────
-  const statutStats = useMemo(() => {
-    const counts = {};
-    orders.forEach((o) => { counts[o.statut] = (counts[o.statut] || 0) + 1; });
-    return Object.keys(STATUS_LABELS).map((s) => ({ statut: s, count: counts[s] || 0 }));
-  }, [orders]);
+
 
   // ── Top produits ───────────────────────────────────────────
   const topProduits = useMemo(() => {
@@ -402,11 +390,6 @@ export default function AdminStatsScreen() {
             </Section>
           )}
 
-          {/* Statuts */}
-          <Section title="Répartition par statut">
-            <StatusBars data={statutStats} total={orders.length} />
-          </Section>
-
           {/* Top 5 */}
           <View style={[styles.tablesRow, isDesktop && styles.tablesRowDesktop]}>
             {topProduits.length > 0 && (
@@ -483,26 +466,7 @@ function BarChart({ data }) {
   );
 }
 
-function StatusBars({ data, total }) {
-  return (
-    <View style={status.container}>
-      {data.map((d) => {
-        if (d.count === 0) return null;
-        const pct = total > 0 ? (d.count / total) * 100 : 0;
-        const c = STATUS_COLORS[d.statut];
-        return (
-          <View key={d.statut} style={status.row}>
-            <Text style={status.label}>{STATUS_LABELS[d.statut]}</Text>
-            <View style={status.barWrap}>
-              <View style={[status.bar, { width: `${Math.max(pct, 2)}%`, backgroundColor: c }]} />
-            </View>
-            <Text style={[status.count, { color: c }]}>{d.count}</Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
+
 
 function RankTable({ columns, rows, aligns }) {
   return (
@@ -719,14 +683,7 @@ const chart = StyleSheet.create({
   barLabel: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', fontWeight: '500' },
 });
 
-const status = StyleSheet.create({
-  container: { gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label: { width: 120, fontSize: fontSizes.sm, color: colors.textPrimary, fontWeight: '500' },
-  barWrap: { flex: 1, height: 10, backgroundColor: colors.border, borderRadius: borderRadius.round, overflow: 'hidden' },
-  bar: { height: '100%', borderRadius: borderRadius.round },
-  count: { width: 32, fontSize: fontSizes.sm, fontWeight: '700', textAlign: 'right' },
-});
+
 
 const table = StyleSheet.create({
   container: { gap: 2 },
