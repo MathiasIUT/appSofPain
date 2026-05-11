@@ -2,8 +2,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
-export async function generateDriverTourPdf(livreur, orders) {
-  const html = buildHtml(livreur, orders);
+export async function generateDriverTourPdf(livreur, orders, tourDate) {
+  const html = buildHtml(livreur, orders, tourDate);
 
   if (Platform.OS === 'web') {
     const printWindow = window.open('', '_blank', 'width=960,height=760');
@@ -51,7 +51,7 @@ const fmt = (dateObj) => {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-function buildHtml(livreur, orders) {
+function buildHtml(livreur, orders, tourDate) {
   const dateStr = fmt(new Date());
   const livreurName = [livreur.prenom, livreur.nom].filter(Boolean).join(' ') || 'Livreur inconnu';
 
@@ -81,7 +81,7 @@ function buildHtml(livreur, orders) {
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Tournée de ${esc(livreurName)}</title>
+<title>Tournée ${tourDate ? `du ${esc(tourDate)} ` : ''}de ${esc(livreurName)}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --primary: #C4924A; --text: #000; --border: #ccc; }
@@ -129,7 +129,7 @@ function buildHtml(livreur, orders) {
 <body>
   <div class="page-header">
     <div class="header-left">
-      <h1>Tournée : ${esc(livreurName)}</h1>
+      <h1>Tournée ${tourDate ? `du ${esc(tourDate)} ` : ''}: ${esc(livreurName)}</h1>
       <p style="color:#555;">Date d'impression : ${dateStr} &nbsp;|&nbsp; ${orders.length} commande(s)</p>
     </div>
     <div class="header-right">SOF PAIN</div>

@@ -215,7 +215,7 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
         .update({ statut: 'archivee' })
         .in('id', ordersToArchive.map(o => o.id));
       if (error) throw error;
-      setOrders([]);
+      setOrders(prev => prev.filter(o => !ordersToArchive.find(x => x.id === o.id)));
       showAlert('Succès', 'Les commandes ont été retirées de la liste.');
     } catch (e) {
       showAlert('Erreur', 'Impossible de retirer les commandes.');
@@ -282,40 +282,57 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
             ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
             : orders.length === 0
               ? <Text style={s.emptyText}>Aucune commande en cours.</Text>
-              : <>
-                  <TouchableOpacity
-                    onPress={async () => {
-                      setPrinting(true);
-                      try {
-                        await generateDriverTourPdf(livreur, orders);
-                        if (Platform.OS === 'web') {
-                          if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
-                            archiverCommandes(orders);
-                          }
-                        } else {
-                          Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
-                            { text: 'Non', style: 'cancel' },
-                            { text: 'Oui', onPress: () => archiverCommandes(orders) },
-                          ]);
-                        }
-                      } catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
-                      finally { setPrinting(false); }
-                    }}
-                    style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, alignSelf: 'flex-end' }}
-                    disabled={printing}
-                  >
-                    {printing
-                      ? <ActivityIndicator color={colors.white} size="small" />
-                      : <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>🖨️ Imprimer la tournée</Text>}
-                  </TouchableOpacity>
-                  {orders.map(o => (
-                    <View key={o.id} style={s.orderLine}>
-                      <Text style={s.orderNum}>N° {o.numero}</Text>
-                      <Text style={s.orderClient}>{o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}</Text>
-                      <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} € HT</Text>
+              : Object.keys(orders.reduce((acc, o) => {
+                  const isoDate = (o.date_commande || '').split('T')[0];
+                  if (!acc[isoDate]) acc[isoDate] = [];
+                  acc[isoDate].push(o);
+                  return acc;
+                }, {})).sort((a, b) => b.localeCompare(a)).map(isoDate => {
+                  const dayOrders = orders.filter(o => (o.date_commande || '').split('T')[0] === isoDate);
+                  const dateObj = new Date(isoDate);
+                  const dateStr = isNaN(dateObj) ? isoDate : dateObj.toLocaleDateString('fr-FR');
+                  return (
+                    <View key={isoDate} style={{ marginBottom: spacing.md }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.xs }}>
+                        <Text style={{ fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary }}>
+                          Journée du {dateStr}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={async () => {
+                            setPrinting(true);
+                            try {
+                              await generateDriverTourPdf(livreur, dayOrders, dateStr);
+                              if (Platform.OS === 'web') {
+                                if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
+                                  archiverCommandes(dayOrders);
+                                }
+                              } else {
+                                Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
+                                  { text: 'Non', style: 'cancel' },
+                                  { text: 'Oui', onPress: () => archiverCommandes(dayOrders) },
+                                ]);
+                              }
+                            } catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
+                            finally { setPrinting(false); }
+                          }}
+                          style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4 }}
+                          disabled={printing}
+                        >
+                          {printing
+                            ? <ActivityIndicator color={colors.white} size="small" />
+                            : <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>🖨️ Imprimer la tournée</Text>}
+                        </TouchableOpacity>
+                      </View>
+                      {dayOrders.map(o => (
+                        <View key={o.id} style={s.orderLine}>
+                          <Text style={s.orderNum}>N° {o.numero}</Text>
+                          <Text style={s.orderClient}>{o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}</Text>
+                          <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} € HT</Text>
+                        </View>
+                      ))}
                     </View>
-                  ))}
-                </>
+                  );
+                })
         )}
 
         <TouchableOpacity style={[s.toggleBtn, { backgroundColor: colors.error, marginTop: spacing.lg }]} onPress={handleDelete} disabled={deleting}>
