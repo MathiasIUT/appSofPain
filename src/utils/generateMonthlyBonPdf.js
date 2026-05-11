@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { Asset } from 'expo-asset';
 
 /**
  * Génère et ouvre le bon mensuel d'un client pour un mois donné.
@@ -77,6 +78,8 @@ function buildHtml(client, date, orders) {
 
   // Total global du mois
   const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
+  
+  const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
 
   // Construire les lignes du tableau unique (ligne par ligne)
   let tableRows = '';
@@ -279,7 +282,7 @@ function buildHtml(client, date, orders) {
   <!-- En-tête -->
   <div class="page-header">
     <div>
-      <div class="brand">SOF PAIN</div>
+      <div class="brand"><img src="${logoUri}" style="height: 70px; object-fit: contain;" alt="Sof Pain" /></div>
       <div class="brand-sub">Livraison de produits frais</div>
     </div>
     <div class="doc-title">
@@ -294,10 +297,10 @@ function buildHtml(client, date, orders) {
     <div class="client-main">
       <div class="label">Client</div>
       <div class="client-name">${esc(clientName)}</div>
-      ${client.adresse ? `<div class="client-detail">📍 ${esc(client.adresse)}${client.ville ? `, ${esc(client.ville)}` : ''}</div>` : ''}
+      ${client.adresse ? `<div class="client-detail">${esc(client.adresse)}${client.ville ? `, ${esc(client.ville)}` : ''}</div>` : ''}
     </div>
     <div>
-      ${client.telephone ? `<div class="client-detail">📞 ${esc(client.telephone)}</div>` : ''}
+      ${client.telephone ? `<div class="client-detail">Tél : ${esc(client.telephone)}</div>` : ''}
       ${client.siret ? `<div class="client-detail">SIRET : ${esc(client.siret)}</div>` : ''}
     </div>
   </div>

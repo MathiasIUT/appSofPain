@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { Asset } from 'expo-asset';
 
 export async function generateOrderPdf(order, items, client) {
   const html = buildOrderHtml(order, items, client);
@@ -75,6 +76,7 @@ export async function generateMultipleOrdersPdf(ordersList) {
 function buildOrderBody(order, items, client) {
   const dateCommande = fmt(order.date_commande ?? new Date());
   const nomClient = [client?.prenom, client?.nom].filter(Boolean).join(' ');
+  const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
 
   const lignes = items.map((it) => {
     const pu = Number(it.prix_unitaire_ht);
@@ -95,7 +97,7 @@ function buildOrderBody(order, items, client) {
   return `
 <header class="page-header">
   <div class="brand">
-    <div class="brand-name">Sof Pain</div>
+    <img src="${logoUri}" style="height: 80px; object-fit: contain;" alt="Sof Pain" />
     <div class="brand-tagline">L'artisan des professionnels</div>
   </div>
   <div class="doc-meta">

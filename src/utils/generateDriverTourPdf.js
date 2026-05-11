@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { Asset } from 'expo-asset';
 
 export async function generateDriverTourPdf(livreur, orders, tourDate) {
   const html = buildHtml(livreur, orders, tourDate);
@@ -54,6 +55,7 @@ const fmt = (dateObj) => {
 function buildHtml(livreur, orders, tourDate) {
   const dateStr = fmt(new Date());
   const livreurName = [livreur.prenom, livreur.nom].filter(Boolean).join(' ') || 'Livreur inconnu';
+  const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
 
   const commandesHtml = orders.map((o) => {
     const clientName = o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || 'Client inconnu';
@@ -132,7 +134,7 @@ function buildHtml(livreur, orders, tourDate) {
       <h1>Tournée ${tourDate ? `du ${esc(tourDate)} ` : ''}: ${esc(livreurName)}</h1>
       <p style="color:#555;">Date d'impression : ${dateStr} &nbsp;|&nbsp; ${orders.length} commande(s)</p>
     </div>
-    <div class="header-right">SOF PAIN</div>
+    <div class="header-right"><img src="${logoUri}" style="height: 60px; object-fit: contain;" alt="Sof Pain" /></div>
   </div>
   
   ${orders.length > 0 ? `
