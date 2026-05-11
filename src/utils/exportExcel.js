@@ -28,8 +28,10 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
   const headers = ['Client', 'Ville', 'Livreur'];
   const colWidths = [28, 18, 20];
   products.forEach((p) => {
-    headers.push(p.nom);
-    colWidths.push(Math.max(p.nom.length + 4, 12));
+    headers.push(`${p.nom} (Qté)`);
+    headers.push(`${p.nom} (PU €)`);
+    colWidths.push(Math.max(p.nom.length + 6, 12));
+    colWidths.push(Math.max(p.nom.length + 6, 12));
   });
   headers.push('Total HT (€)');
   colWidths.push(14);
@@ -46,7 +48,12 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
     ];
     products.forEach((p) => {
       const agg = row.productAgg[p.id];
-      cells.push(agg ? `${agg.qty} (${n2(agg.price)} €)` : '');
+      if (agg) {
+        cells.push(agg.qty);
+        cells.push(n2(agg.price));
+      } else {
+        cells.push('', '');
+      }
     });
     cells.push(n2(row.totalHt));
     return cells;
@@ -58,6 +65,7 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
     let totalQty = 0;
     rows.forEach((r) => { if (r.productAgg[p.id]) totalQty += r.productAgg[p.id].qty; });
     totalRow.push(totalQty > 0 ? totalQty : '');
+    totalRow.push('');
   });
   totalRow.push(n2(rows.reduce((s, r) => s + Number(r.totalHt || 0), 0)));
 
@@ -153,8 +161,10 @@ export async function exportOrdersExcel(ids = null) {
   const headers = ['N°', 'Date', 'Société', 'Contact', 'Email', 'Téléphone'];
   const widths = [8, 12, 28, 22, 30, 16];
   products.forEach((p) => {
-    headers.push(p.nom);
-    widths.push(Math.max(p.nom.length + 4, 14));
+    headers.push(`${p.nom} (Qté)`);
+    headers.push(`${p.nom} (PU €)`);
+    widths.push(Math.max(p.nom.length + 6, 14));
+    widths.push(Math.max(p.nom.length + 6, 14));
   });
   headers.push('Total HT (€)', 'Livreur');
   widths.push(14, 20);
@@ -174,7 +184,12 @@ export async function exportOrdersExcel(ids = null) {
     const oItems = itemsByOrder[o.id] || {};
     products.forEach((p) => {
       const it = oItems[p.id];
-      cells.push(it ? `${it.quantite} (${n2(it.prix_unitaire_ht)} €)` : '');
+      if (it) {
+        cells.push(it.quantite);
+        cells.push(n2(it.prix_unitaire_ht));
+      } else {
+        cells.push('', '');
+      }
     });
     cells.push(n2(o.total_ht), livreurMap[o.livreur_id] || '');
     return cells;
