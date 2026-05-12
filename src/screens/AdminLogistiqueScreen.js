@@ -47,6 +47,11 @@ export default function AdminLogistiqueScreen() {
     return l.nom?.toLowerCase().includes(q) || l.prenom?.toLowerCase().includes(q);
   });
 
+  const handlePressLivreur = useCallback((livreur) => {
+    setSelected(livreur);
+    setDetailVisible(true);
+  }, []);
+
   return (
     <View style={s.container}>
       {/* Barre du haut */}
@@ -81,19 +86,12 @@ export default function AdminLogistiqueScreen() {
           keyExtractor={i => i.id}
           contentContainerStyle={[s.list, isDesktop && s.listDesktop]}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android' || Platform.OS === 'web'}
           renderItem={({ item }) => (
-            <TouchableOpacity style={[s.row, item.actif === false && s.rowInactive]}
-              onPress={() => { setSelected(item); setDetailVisible(true); }}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowName}>{[item.prenom, item.nom].filter(Boolean).join(' ') || '—'}</Text>
-              </View>
-              <View style={[s.badge, { backgroundColor: item.actif !== false ? colors.success + '22' : colors.error + '22' }]}>
-                <Text style={[s.badgeText, { color: item.actif !== false ? colors.success : colors.error }]}>
-                  {item.actif !== false ? 'Actif' : 'Inactif'}
-                </Text>
-              </View>
-              <Text style={s.arrow}>›</Text>
-            </TouchableOpacity>
+            <LivreurRow item={item} onPress={handlePressLivreur} />
           )}
         />
       )}
@@ -113,6 +111,25 @@ export default function AdminLogistiqueScreen() {
     </View>
   );
 }
+
+// ─── Ligne Livreur ──────────────────────────────────────────────────────────
+
+const LivreurRow = React.memo(({ item, onPress }) => {
+  return (
+    <TouchableOpacity style={[s.row, item.actif === false && s.rowInactive]}
+      onPress={() => onPress(item)}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowName}>{[item.prenom, item.nom].filter(Boolean).join(' ') || '—'}</Text>
+      </View>
+      <View style={[s.badge, { backgroundColor: item.actif !== false ? colors.success + '22' : colors.error + '22' }]}>
+        <Text style={[s.badgeText, { color: item.actif !== false ? colors.success : colors.error }]}>
+          {item.actif !== false ? 'Actif' : 'Inactif'}
+        </Text>
+      </View>
+      <Text style={s.arrow}>›</Text>
+    </TouchableOpacity>
+  );
+});
 
 // ─── Create Livreur Modal ───────────────────────────────────────────────────
 

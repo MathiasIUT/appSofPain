@@ -120,10 +120,10 @@ export default function AdminClientsScreen() {
   const hasMore = clients.length < totalCount;
   const filtered = clients; // Le filtrage est maintenant côté serveur
 
-  const openClient = (client) => {
+  const openClient = useCallback((client) => {
     setSelected(client);
     setModalVisible(true);
-  };
+  }, []);
 
   const closeModal = () => {
     setModalVisible(false);
@@ -231,6 +231,10 @@ export default function AdminClientsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, isDesktop && styles.listDesktop]}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android' || Platform.OS === 'web'}
           renderItem={({ item }) => (
             <ClientRow item={item} onPress={openClient} />
           )}
@@ -286,7 +290,7 @@ export default function AdminClientsScreen() {
 
 // ─── Ligne client ────────────────────────────────────────────────────────────
 
-function ClientRow({ item, onPress }) {
+const ClientRow = React.memo(({ item, onPress }) => {
   const displayName = item.nom_societe
     || [item.prenom, item.nom].filter(Boolean).join(' ')
     || '—';
@@ -317,7 +321,7 @@ function ClientRow({ item, onPress }) {
       <Text style={styles.arrow}>›</Text>
     </TouchableOpacity>
   );
-}
+});
 
 function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const initial = {

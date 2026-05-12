@@ -63,6 +63,10 @@ export default function MyOrdersScreen({ navigation }) {
   const hasMore = orders.length < totalCount;
   const displayed = orders;
 
+  const handlePressOrder = useCallback((order) => {
+    navigation.navigate('OrderDetail', { order });
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container}>
 
@@ -104,32 +108,11 @@ export default function MyOrdersScreen({ navigation }) {
             isDesktop && styles.listDesktop,
           ]}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-          renderItem={({ item }) => {
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => navigation.navigate('OrderDetail', { order: item })}
-                activeOpacity={0.75}
-              >
-                {/* Ligne 1 : numéro */}
-                <View style={styles.cardTop}>
-                  <Text style={styles.cardNum}>N° {item.numero}</Text>
-                </View>
-
-                {/* Ligne 2 : date + total */}
-                <View style={styles.cardBottom}>
-                  <Text style={styles.cardDate}>
-                    {fmt(item.date_commande)}
-                  </Text>
-                  <Text style={styles.cardTotal}>
-                    {Number(item.total_ttc ?? 0).toFixed(2)} €
-                  </Text>
-                </View>
-
-                <Text style={styles.cardArrow}>›</Text>
-              </TouchableOpacity>
-            );
-          }}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android' || Platform.OS === 'web'}
+          renderItem={({ item }) => <OrderCard item={item} onPress={handlePressOrder} />}
           ListFooterComponent={hasMore ? (
             <TouchableOpacity
               style={styles.loadMoreBtn}
@@ -151,6 +134,29 @@ export default function MyOrdersScreen({ navigation }) {
     </SafeAreaView>
   );
 }
+
+const OrderCard = React.memo(({ item, onPress }) => {
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onPress(item)}
+      activeOpacity={0.75}
+    >
+      <View style={styles.cardTop}>
+        <Text style={styles.cardNum}>N° {item.numero}</Text>
+      </View>
+      <View style={styles.cardBottom}>
+        <Text style={styles.cardDate}>
+          {fmt(item.date_commande)}
+        </Text>
+        <Text style={styles.cardTotal}>
+          {Number(item.total_ttc ?? 0).toFixed(2)} €
+        </Text>
+      </View>
+      <Text style={styles.cardArrow}>›</Text>
+    </TouchableOpacity>
+  );
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },

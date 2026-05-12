@@ -94,10 +94,10 @@ export default function AdminOrdersScreen() {
 
   const hasMore = orders.length < totalCount;
 
-  const openOrder = (order) => {
+  const openOrder = useCallback((order) => {
     setSelected(order);
     setModalVisible(true);
-  };
+  }, []);
 
   const closeModal = () => {
     setModalVisible(false);
@@ -111,14 +111,14 @@ export default function AdminOrdersScreen() {
 
   const handleRefresh = () => { loadOrders(true); };
 
-  const toggleSelection = (id) => {
+  const toggleSelection = useCallback((id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const selectAll = () => {
     setSelectedIds((prev) =>
@@ -247,6 +247,10 @@ export default function AdminOrdersScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, isDesktop && styles.listDesktop]}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android' || Platform.OS === 'web'}
           renderItem={({ item }) => (
             <OrderRow
               item={item}
@@ -310,11 +314,16 @@ export default function AdminOrdersScreen() {
 
 // ─── Ligne commande ──────────────────────────────────────────────────────────
 
-function OrderRow({ item, onPress, isDesktop, selected, onToggle }) {
+const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) => {
   const clientName = item.client?.nom_societe
     || [item.client?.prenom, item.client?.nom].filter(Boolean).join(' ')
     || item.client_nom
     || '— Client supprimé —';
+
+  const orderDate = new Date(item.date_commande);
+  const diffDays = Math.floor((new Date() - orderDate) / (1000 * 60 * 60 * 24));
+  const daysLeft = Math.max(0, 45 - diffDays);
+  const warningColor = daysLeft <= 7 ? colors.error : colors.textLight;
 
   return (
     <View style={styles.rowWrapper}>
@@ -331,6 +340,9 @@ function OrderRow({ item, onPress, isDesktop, selected, onToggle }) {
         <View style={styles.rowCol}>
           <Text style={styles.rowNum}>{`N° ${item.numero}`}</Text>
           <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
+          <Text style={[styles.rowDeleteWarning, { color: warningColor }]}>
+            Suppression dans {daysLeft} j
+          </Text>
         </View>
 
         <View style={[styles.rowCol, styles.rowColFlex]}>
@@ -353,7 +365,7 @@ function OrderRow({ item, onPress, isDesktop, selected, onToggle }) {
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 // ─── Modal détail commande ───────────────────────────────────────────────────
 
@@ -745,6 +757,7 @@ const styles = StyleSheet.create({
   rowColRight: { alignItems: 'flex-end' },
   rowNum: { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
   rowDate: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
+  rowDeleteWarning: { fontSize: fontSizes.xs - 1, marginTop: 2, fontWeight: '600' },
   rowLabel: { fontSize: fontSizes.xs, color: colors.textLight },
   rowClient: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.textPrimary },
   rowEmail: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },

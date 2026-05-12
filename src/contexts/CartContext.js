@@ -81,14 +81,14 @@ export function CartProvider({ children }) {
     };
   }, [items]);
 
-  const value = {
+  const value = useMemo(() => ({
     items,
     addToCart,
     setQuantity,
     removeFromCart,
     clearCart,
     totals,
-  };
+  }), [items, addToCart, setQuantity, removeFromCart, clearCart, totals]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
