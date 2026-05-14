@@ -12,7 +12,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import { generateMonthlyBonPdf } from '../utils/generateMonthlyBonPdf';
-import { exportComptaExcel } from '../utils/exportExcel';
+import { exportComptaExcel, exportMonthlyBonExcel } from '../utils/exportExcel';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
@@ -409,6 +409,7 @@ export default function AdminComptaScreen() {
               <BonMensuelModal
                 client={bonClient}
                 currentDate={currentDate}
+                products={products}
                 onClose={closeBon}
               />
             )}
@@ -421,10 +422,11 @@ export default function AdminComptaScreen() {
 
 // ─── Composant Bon Mensuel ───────────────────────────────────────────────────
 
-function BonMensuelModal({ client, currentDate, onClose }) {
+function BonMensuelModal({ client, currentDate, products, onClose }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const isOrphan = String(client.id).startsWith('deleted-');
 
@@ -496,6 +498,17 @@ function BonMensuelModal({ client, currentDate, onClose }) {
     }
   };
 
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      exportMonthlyBonExcel(client, monthLabelCap, orders, products);
+    } catch (err) {
+      console.error('Erreur export Excel:', err);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   return (
     <View style={bon.container}>
       {/* Header */}
@@ -519,7 +532,19 @@ function BonMensuelModal({ client, currentDate, onClose }) {
         >
           {exporting
             ? <ActivityIndicator size="small" color={colors.white} />
-            : <Text style={bon.exportBtnText}>🖨️ Exporter / Imprimer PDF</Text>
+            : <Text style={bon.exportBtnText}>PDF</Text>
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[bon.exportBtn, { backgroundColor: '#217346' }, exportingExcel && { opacity: 0.6 }]}
+          onPress={handleExportExcel}
+          disabled={exportingExcel || loading}
+          activeOpacity={0.8}
+        >
+          {exportingExcel
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={bon.exportBtnText}>Excel</Text>
           }
         </TouchableOpacity>
         <View style={bon.totalPill}>

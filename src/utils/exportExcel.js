@@ -201,3 +201,86 @@ export async function exportOrdersExcel(ids = null) {
   XLSX.utils.book_append_sheet(wb, ws, 'Commandes');
   downloadWb(wb, `commandes_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
+
+// ─── 4. Bon Mensuel Individuel ──────────────────────────────────────────────
+// client: objet profile du client
+// monthLabel: ex. "Mai 2026"
+// orders: liste des commandes du mois avec leurs items
+// products: liste complète des produits actifs (pour les colonnes)
+export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
+  const clientName = client.nom_societe || [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client';
+  
+  const headers = ['Date', 'N° Commande'];
+  const widths = [12, 10];
+  
+  products.forEach(p => {
+    headers.push(`${p.nom} (Qté)`);
+    headers.push(`${p.nom} (PU €)`);
+    widths.push(Math.max(p.nom.length + 6, 12));
+    widths.push(Math.max(p.nom.length + 6, 12));
+  });
+  
+  headers.push('Total HT (€)');
+  widths.push(14);
+
+  const dataRows = orders.map(o => {
+    const cells = [
+      fmt(o.date_commande),
+      o.numero || ''
+    ];
+    
+    // Index items par product_id
+    const itemsMap = {};
+    (o.order_items || []).forEach(it => {
+      itemsMap[it.product_id] = it;
+    });
+
+    products.forEach(p => {
+      const it = itemsMap[p.id];
+      if (it) {
+        cells.push(it.quantite);
+        cells.push(n2(it.prix_unitaire_ht));
+      } else {
+        cells.push('', '');
+      }
+    });
+
+    cells.push(n2(o.total_ht));
+    return cells;
+  });
+
+  // Ligne de total
+  const totalRow = ['TOTAL DU MOIS', ''];
+  products.forEach(p => {
+    let totalQty = 0;
+    orders.forEach(o => {
+      const items = o.order_items || [];
+      const it = items.find(i => i.product_id === p.id);
+      if (it) totalQty += it.quantite;
+    });
+    totalRow.push(totalQty > 0 ? totalQty : '', '');
+  });
+  totalRow.push(n2(orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0)));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    [`Bon Mensuel - ${clientName}`],
+    [`Période : ${monthLabel}`],
+    [],
+    headers,
+    ...dataRows,
+    [],
+    totalRow
+  ]);
+  
+  // Fusionner les titres
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }
+  ];
+
+  setColWidths(ws, widths);
+  XLSX.utils.book_append_sheet(wb, ws, 'Bon Mensuel');
+  downloadWb(wb, `bon_mensuel_${clientName.replace(/\s+/g, '_').toLowerCase()}_${monthLabel.replace(/\s+/g, '_').toLowerCase()}.xlsx`);
+}
+
