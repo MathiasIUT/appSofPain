@@ -15,6 +15,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
 import { generateOrderPdf } from '../utils/generateOrderPdf';
+import { useCart } from '../contexts/CartContext';
 
 
 
@@ -39,6 +40,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const { loadOrderIntoCart } = useCart();
 
   useEffect(() => {
     if (!order?.id) { setLoading(false); return; }
@@ -93,6 +95,31 @@ export default function OrderDetailScreen({ navigation, route }) {
       showAlert('Erreur', 'Impossible de générer le bon de commande.');
     } finally {
       setPdfLoading(false);
+    }
+  };
+
+  const handleEditOrder = () => {
+    const msg = "Attention, en modifiant cette commande, sa date d'enregistrement sera mise à jour.\n\nToute modification après minuit décalera automatiquement la livraison au jour suivant.\n\nSouhaitez-vous continuer ?";
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) {
+        loadOrderIntoCart(order, items);
+        navigation.navigate('Cart');
+      }
+    } else {
+      Alert.alert(
+        'Modifier la commande',
+        msg,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { 
+            text: 'Continuer', 
+            onPress: () => {
+              loadOrderIntoCart(order, items);
+              navigation.navigate('Cart');
+            }
+          }
+        ]
+      );
     }
   };
 
@@ -224,6 +251,20 @@ export default function OrderDetailScreen({ navigation, route }) {
           fullWidth
           size="lg"
         />
+
+        {/* ── Bouton Modifier ──────────────────────────── */}
+        {order.statut === 'nouvelle' && (
+          <View style={{ marginTop: spacing.md }}>
+            <Button
+              title="Modifier ma commande"
+              icon="✏️"
+              onPress={handleEditOrder}
+              disabled={pdfLoading || loading}
+              fullWidth
+              size="lg"
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

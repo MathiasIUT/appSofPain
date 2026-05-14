@@ -33,7 +33,7 @@ const formatDateFr = (isoDate) => {
 };
 
 export default function CheckoutScreen({ navigation }) {
-  const { items, totals, clearCart } = useCart();
+  const { items, totals, clearCart, editingOrder } = useCart();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -135,29 +135,62 @@ export default function CheckoutScreen({ navigation }) {
       const adresseComplete = `${form.adresse.trim()}\n${form.code_postal.trim()} ${form.ville.trim()}\nTél : ${form.telephone.trim()}`;
       const livreurId = profile?.livreur_id || null;
 
-      // Création de la commande
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          client_id: user.id,
-          livreur_id: livreurId,
-          statut: 'nouvelle',
-          adresse_livraison: adresseComplete,
-          total_ht: totals.totalHt,
-          total_tva: totals.totalTva,
-          total_ttc: totals.totalTtc,
-        })
-        .select('*')
-        .single();
+      let orderId;
+      let orderToPass;
 
-      if (orderError) throw orderError;
+      if (editingOrder) {
+        // MISE À JOUR d'une commande existante
+        const { data: updatedOrder, error: updateError } = await supabase
+          .from('orders')
+          .update({
+            adresse_livraison: adresseComplete,
+            total_ht: totals.totalHt,
+            total_tva: totals.totalTva,
+            total_ttc: totals.totalTtc,
+            date_commande: new Date().toISOString(), // Règle de minuit : réinitialise la date
+          })
+          .eq('id', editingOrder.id)
+          .select('*')
+          .single();
+
+        if (updateError) throw updateError;
+        orderId = updatedOrder.id;
+        orderToPass = updatedOrder;
+
+        // Supprimer les anciens items
+        const { error: delError } = await supabase
+          .from('order_items')
+          .delete()
+          .eq('order_id', orderId);
+        if (delError) throw delError;
+
+      } else {
+        // CRÉATION d'une nouvelle commande
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            client_id: user.id,
+            livreur_id: livreurId,
+            statut: 'nouvelle',
+            adresse_livraison: adresseComplete,
+            total_ht: totals.totalHt,
+            total_tva: totals.totalTva,
+            total_ttc: totals.totalTtc,
+          })
+          .select('*')
+          .single();
+
+        if (orderError) throw orderError;
+        orderId = order.id;
+        orderToPass = order;
+      }
 
       const orderItems = items.map((item) => {
         const prixUnitaire = Number(item.product.prix_unitaire_ht || 0);
         const increment = Number(item.product.increment || 10);
         const tva = Number(item.product.tva_pourcent);
         return {
-          order_id: order.id,
+          order_id: orderId,
           product_id: item.product.id,
           product_nom: item.product.nom,
           quantite: item.quantite,
@@ -174,16 +207,16 @@ export default function CheckoutScreen({ navigation }) {
 
       if (itemsError) throw itemsError;
 
-      const { data: updatedOrder } = await supabase
+      const { data: finalOrder } = await supabase
         .from('orders')
         .select('*')
-        .eq('id', order.id)
+        .eq('id', orderId)
         .single();
 
       clearCart();
 
       navigation.replace('OrderConfirmation', {
-        order: updatedOrder || order,
+        order: finalOrder || orderToPass,
         items: orderItems,
         client: profile,
       });
@@ -326,7 +359,7 @@ export default function CheckoutScreen({ navigation }) {
 
                 <View style={styles.submitAction}>
                   <Button
-                    title="Confirmer ma commande"
+                    title={editingOrder ? "Confirmer la modification" : "Confirmer ma commande"}
                     onPress={handleSubmit}
                     loading={submitting}
                     disabled={submitting}
@@ -336,8 +369,9 @@ export default function CheckoutScreen({ navigation }) {
                 </View>
 
                 <Text style={styles.submitHint}>
-                  En confirmant, un bon de commande sera généré. Aucun paiement n'est
-                  effectué à cette étape.
+                  {editingOrder 
+                    ? "En confirmant, votre commande sera mise à jour."
+                    : "En confirmant, un bon de commande sera généré. Aucun paiement n'est effectué à cette étape."}
                 </Text>
               </View>
             </View>
@@ -346,7 +380,9 @@ export default function CheckoutScreen({ navigation }) {
           {submitting ? (
             <View style={styles.overlay}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.overlayText}>Création de la commande...</Text>
+              <Text style={styles.overlayText}>
+                {editingOrder ? "Mise à jour en cours..." : "Création de la commande..."}
+              </Text>
             </View>
           ) : null}
         </ScrollView>

@@ -20,6 +20,9 @@ export function CartProvider({ children }) {
   // Liste des articles dans le panier
   // Clé = product.id pour éviter les doublons
   const [items, setItems] = useState([]);
+  
+  // Commande en cours d'édition (si null, c'est une nouvelle commande)
+  const [editingOrder, setEditingOrder] = useState(null);
 
   // Ajouter un produit au panier (ou incrémenter si déjà présent)
   const addToCart = useCallback((product, quantite = 1) => {
@@ -57,6 +60,24 @@ export function CartProvider({ children }) {
   // Vider entièrement le panier (utile après validation de commande)
   const clearCart = useCallback(() => {
     setItems([]);
+    setEditingOrder(null);
+  }, []);
+
+  // Charger une commande existante dans le panier pour la modifier
+  const loadOrderIntoCart = useCallback((order, orderItems) => {
+    setEditingOrder(order);
+    const loadedItems = orderItems.map(oi => ({
+      product: {
+        id: oi.product_id,
+        nom: oi.product_nom,
+        prix_unitaire_ht: oi.prix_unitaire_ht,
+        tva_pourcent: oi.tva_pourcent,
+        increment: oi.increment || 10,
+        // On n'a pas l'image_url dans order_items, mais ce n'est pas critique pour le panier
+      },
+      quantite: oi.quantite
+    }));
+    setItems(loadedItems);
   }, []);
 
   // Totaux calculés à la volée
@@ -83,12 +104,14 @@ export function CartProvider({ children }) {
 
   const value = useMemo(() => ({
     items,
+    editingOrder,
     addToCart,
     setQuantity,
     removeFromCart,
     clearCart,
+    loadOrderIntoCart,
     totals,
-  }), [items, addToCart, setQuantity, removeFromCart, clearCart, totals]);
+  }), [items, editingOrder, addToCart, setQuantity, removeFromCart, clearCart, loadOrderIntoCart, totals]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
