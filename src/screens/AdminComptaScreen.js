@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
+  Alert,
 } from 'react-native';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
-import { generateMonthlyBonPdf } from '../utils/generateMonthlyBonPdf';
+import { generateMonthlyBonPdf, generateMonthlyBonPdfBase64 } from '../utils/generateMonthlyBonPdf';
 import { exportComptaExcel, exportMonthlyBonExcel } from '../utils/exportExcel';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
@@ -427,6 +428,7 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const isOrphan = String(client.id).startsWith('deleted-');
 
@@ -509,6 +511,49 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!client.email) {
+      if (Platform.OS === 'web') window.alert('Ce client n\'a pas d\'adresse email enregistrée.');
+      else Alert.alert('Erreur', 'Ce client n\'a pas d\'adresse email enregistrée.');
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const enriched = orders.map(o => ({
+        ...o,
+        order_items: (o.order_items || []).map(it => ({
+          ...it,
+          product_nom: it.products?.nom || `Produit #${it.product_id}`,
+        })),
+      }));
+
+      const pdfBase64 = await generateMonthlyBonPdfBase64(client, currentDate, enriched);
+
+      const { data, error } = await supabase.functions.invoke('send-monthly-bill', {
+        body: {
+          email: client.email,
+          clientName: clientName,
+          monthLabel: monthLabelCap,
+          pdfBase64: pdfBase64,
+        }
+      });
+
+      if (error) throw error;
+      
+      const successMsg = `Le bilan mensuel a été envoyé avec succès à ${client.email}`;
+      if (Platform.OS === 'web') window.alert(successMsg);
+      else Alert.alert('Succès', successMsg);
+    } catch (err) {
+      console.error('Erreur envoi email:', err);
+      const errMsg = err.message || 'Impossible d\'envoyer l\'email.';
+      if (Platform.OS === 'web') window.alert(errMsg);
+      else Alert.alert('Erreur', errMsg);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   return (
     <View style={bon.container}>
       {/* Header */}
@@ -545,6 +590,18 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
           {exportingExcel
             ? <ActivityIndicator size="small" color={colors.white} />
             : <Text style={bon.exportBtnText}>Excel</Text>
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[bon.exportBtn, { backgroundColor: colors.primary }, sendingEmail && { opacity: 0.6 }]}
+          onPress={handleSendEmail}
+          disabled={sendingEmail || loading}
+          activeOpacity={0.8}
+        >
+          {sendingEmail
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={bon.exportBtnText}>Envoyer</Text>
           }
         </TouchableOpacity>
         <View style={bon.totalPill}>

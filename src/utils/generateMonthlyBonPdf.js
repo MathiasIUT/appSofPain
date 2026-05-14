@@ -44,6 +44,15 @@ export async function generateMonthlyBonPdf(client, date, orders) {
   return uri;
 }
 
+/**
+ * Génère le PDF du bon mensuel et retourne le contenu en Base64.
+ */
+export async function generateMonthlyBonPdfBase64(client, date, orders) {
+  const html = buildHtml(client, date, orders);
+  const { base64 } = await Print.printToFileAsync({ html, base64: true });
+  return base64;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const esc = (str) => {
