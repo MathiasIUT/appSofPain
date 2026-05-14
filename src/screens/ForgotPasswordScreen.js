@@ -55,7 +55,12 @@ export default function ForgotPasswordScreen({ navigation, route }) {
         if (err.message.includes('FunctionsHttpError') || err.name === 'FunctionsHttpError') {
           try {
             const context = await err.context?.json();
-            if (context?.error) errorMessage = `Erreur Serveur: ${context.error}`;
+            if (context?.error) {
+              errorMessage = `Erreur Serveur: ${context.error}`;
+              if (context.details) {
+                errorMessage += `\nDétails: ${JSON.stringify(context.details)}`;
+              }
+            }
           } catch (e) {
             errorMessage = err.message;
           }
