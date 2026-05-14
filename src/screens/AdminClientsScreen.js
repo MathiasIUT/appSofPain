@@ -433,6 +433,9 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
     });
   };
 
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
       const snapshot = client.nom_societe
         || [client.prenom, client.nom].filter(Boolean).join(' ')
         || 'Client supprimé';

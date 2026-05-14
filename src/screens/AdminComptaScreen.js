@@ -101,6 +101,7 @@ export default function AdminComptaScreen() {
     }
   };
 
+  const tableData = useMemo(() => {
     let filteredClients = clients;
     if (selectedLivreurId === 'unassigned') {
       filteredClients = clients.filter(c => !c.livreur_id);
