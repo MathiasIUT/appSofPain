@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -27,6 +28,8 @@ export default function MyOrdersScreen({ navigation }) {
   const ordersLengthRef = useRef(0);
 
   useEffect(() => { ordersLengthRef.current = orders.length; }, [orders.length]);
+
+  useFocusEffect(useCallback(() => { loadOrders(true); }, []));
 
   const loadOrders = useCallback(async (reset = true) => {
     if (reset) setLoading(true);
@@ -58,7 +61,6 @@ export default function MyOrdersScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => { loadOrders(true); }, []);
 
   const hasMore = orders.length < totalCount;
   const displayed = orders;

@@ -147,7 +147,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         .delete()
         .eq('order_id', order.id);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) throw new Error('Erreur items : ' + itemsError.message);
 
       // Puis supprimer la commande
       const { error: orderError } = await supabase
@@ -155,13 +155,13 @@ export default function OrderDetailScreen({ navigation, route }) {
         .delete()
         .eq('id', order.id);
 
-      if (orderError) throw orderError;
+      if (orderError) throw new Error('Erreur commande : ' + orderError.message);
 
       showAlert('Succès', 'La commande a été supprimée.');
       navigation.goBack();
     } catch (err) {
       console.error('Erreur suppression commande :', err);
-      showAlert('Erreur', 'Impossible de supprimer la commande. Détail : ' + err.message);
+      showAlert('Erreur', err.message);
     } finally {
       setDeleting(false);
     }
