@@ -1,20 +1,24 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors } from '../config/theme';
+import { supabase } from '../config/supabase';
 
-const LoginScreen = React.lazy(() => import('../screens/LoginScreen'));
-const AdminDashboard = React.lazy(() => import('../screens/AdminDashboard'));
-const ClientHome = React.lazy(() => import('../screens/ClientHome'));
-const CartScreen = React.lazy(() => import('../screens/CartScreen'));
-const CheckoutScreen = React.lazy(() => import('../screens/CheckoutScreen'));
+const LoginScreen             = React.lazy(() => import('../screens/LoginScreen'));
+const ForgotPasswordScreen    = React.lazy(() => import('../screens/ForgotPasswordScreen'));
+const ResetPasswordScreen     = React.lazy(() => import('../screens/ResetPasswordScreen'));
+const AdminDashboard          = React.lazy(() => import('../screens/AdminDashboard'));
+const ClientHome              = React.lazy(() => import('../screens/ClientHome'));
+const CartScreen              = React.lazy(() => import('../screens/CartScreen'));
+const CheckoutScreen          = React.lazy(() => import('../screens/CheckoutScreen'));
 const OrderConfirmationScreen = React.lazy(() => import('../screens/OrderConfirmationScreen'));
-const MyOrdersScreen = React.lazy(() => import('../screens/MyOrdersScreen'));
-const OrderDetailScreen = React.lazy(() => import('../screens/OrderDetailScreen'));
-const ClientProfileScreen = React.lazy(() => import('../screens/ClientProfileScreen'));
+const MyOrdersScreen          = React.lazy(() => import('../screens/MyOrdersScreen'));
+const OrderDetailScreen       = React.lazy(() => import('../screens/OrderDetailScreen'));
+const ClientProfileScreen     = React.lazy(() => import('../screens/ClientProfileScreen'));
 
 const Stack = createNativeStackNavigator();
+export const navigationRef = createNavigationContainerRef();
 
 const Fallback = () => (
   <View style={styles.fallbackContainer}>
@@ -29,8 +33,21 @@ const withSuspense = (Component) => (props) => (
 );
 
 export default function AppNavigator() {
+  useEffect(() => {
+    // Quand Supabase détecte un lien de réinitialisation dans l'URL (web),
+    // l'événement PASSWORD_RECOVERY est déclenché → on redirige vers ResetPassword.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        if (navigationRef.isReady()) {
+          navigationRef.reset({ index: 0, routes: [{ name: 'ResetPassword' }] });
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Login"
         screenOptions={{
@@ -39,19 +56,21 @@ export default function AppNavigator() {
         }}
       >
         {/* Authentification */}
-        <Stack.Screen name="Login" component={withSuspense(LoginScreen)} />
+        <Stack.Screen name="Login"           component={withSuspense(LoginScreen)} />
+        <Stack.Screen name="ForgotPassword"  component={withSuspense(ForgotPasswordScreen)} />
+        <Stack.Screen name="ResetPassword"   component={withSuspense(ResetPasswordScreen)} />
 
         {/* Admin */}
-        <Stack.Screen name="AdminDashboard" component={withSuspense(AdminDashboard)} />
+        <Stack.Screen name="AdminDashboard"  component={withSuspense(AdminDashboard)} />
 
         {/* Client */}
-        <Stack.Screen name="ClientHome" component={withSuspense(ClientHome)} />
-        <Stack.Screen name="Cart" component={withSuspense(CartScreen)} />
-        <Stack.Screen name="Checkout" component={withSuspense(CheckoutScreen)} />
-        <Stack.Screen name="OrderConfirmation" component={withSuspense(OrderConfirmationScreen)} />
-        <Stack.Screen name="MyOrders" component={withSuspense(MyOrdersScreen)} />
-        <Stack.Screen name="OrderDetail" component={withSuspense(OrderDetailScreen)} />
-        <Stack.Screen name="ClientProfile" component={withSuspense(ClientProfileScreen)} />
+        <Stack.Screen name="ClientHome"         component={withSuspense(ClientHome)} />
+        <Stack.Screen name="Cart"               component={withSuspense(CartScreen)} />
+        <Stack.Screen name="Checkout"           component={withSuspense(CheckoutScreen)} />
+        <Stack.Screen name="OrderConfirmation"  component={withSuspense(OrderConfirmationScreen)} />
+        <Stack.Screen name="MyOrders"           component={withSuspense(MyOrdersScreen)} />
+        <Stack.Screen name="OrderDetail"        component={withSuspense(OrderDetailScreen)} />
+        <Stack.Screen name="ClientProfile"      component={withSuspense(ClientProfileScreen)} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -62,6 +81,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAFAFA', // ou colors.background
+    backgroundColor: '#FAFAFA',
   },
 });

@@ -193,9 +193,13 @@ export default function LoginScreen({ navigation }) {
                 )}
               </TouchableOpacity>
 
-              <Text style={styles.footerHint}>
-                Vos identifiants vous ont été transmis par Sof Pain.
-              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword')}
+                style={styles.forgotLink}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotText}>Première connexion ou mot de passe oublié ?</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -299,12 +303,16 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: '700',
   },
-  footerHint: {
-    color: colors.textSecondary,
-    fontSize: fontSizes.xs,
-    fontStyle: 'italic',
-    textAlign: 'center',
+  forgotLink: {
     marginTop: spacing.xl,
+    alignItems: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  forgotText: {
+    color: colors.primary,
+    fontSize: fontSizes.sm,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   inputFocused: {
     borderColor: colors.borderFocus,

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Modal, ScrollView, TextInput,
-  TouchableOpacity, ActivityIndicator, Platform, Alert,
+  TouchableOpacity, Platform, Alert,
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
+import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+
+// ⚠️  Remplace cette valeur par ton URL Vercel une fois déployé
+const REDIRECT_URL = 'https://VOTRE_APP.vercel.app';
 import Button from './Button';
 
 const showAlert = (title, msg) => {
@@ -19,7 +22,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
 
   const [form, setForm] = useState({
     nom_societe: '', siret: '', telephone: '', adresse: '',
-    code_postal: '', ville: '', email: '', password: '',
+    code_postal: '', ville: '', email: '',
     nom: '', prenom: '', note_interne_admin: '',
   });
   const [livreurId, setLivreurId] = useState(null);
@@ -30,20 +33,13 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Generate a unique identifier for clients without email
-  const generateIdentifier = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let id = '';
-    for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
-    return `cli_${id}@sofpain.local`;
-  };
 
   useEffect(() => {
     if (!visible) return;
     // Reset form
     setForm({
       nom_societe: '', siret: '', telephone: '', adresse: '',
-      code_postal: '', ville: '', email: '', password: '',
+      code_postal: '', ville: '', email: '',
       nom: '', prenom: '', note_interne_admin: '',
     });
     setLivreurId(null);
@@ -75,7 +71,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     const e = {};
     if (!form.nom_societe.trim()) e.nom_societe = 'Requis';
     if (!form.telephone.trim()) e.telephone = 'Requis';
-    if (!form.password || form.password.length < 6) e.password = 'Min. 6 caractères';
+    if (!form.email.trim()) e.email = 'L\'email est requis pour envoyer le lien de connexion';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -84,15 +80,20 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      const email = form.email.trim() || generateIdentifier();
-      // Save current admin session
+      const email = form.email.trim().toLowerCase();
+      // Mot de passe temporaire aléatoire — jamais communiqué, le client le remplacera via le lien
+      const tempPassword = Array.from(crypto.getRandomValues(new Uint8Array(18)))
+        .map(b => b.toString(36)).join('').slice(0, 18);
+
+      // Sauvegarder la session admin avant signUp (qui change le session courant)
       const { data: sessionData } = await supabase.auth.getSession();
       const adminSession = sessionData?.session;
+      const adminUserId = adminSession?.user?.id;
 
-      // Create auth user via signUp
+      // Créer le compte auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password: form.password,
+        password: tempPassword,
         options: {
           data: {
             nom: form.nom.trim(),
@@ -127,30 +128,37 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
 
       if (updateError) throw updateError;
 
-      // Insert custom prices if enabled
+      // Insert custom prices if enabled — on sauvegarde tous les prix sans filtrage
       if (useCustomPrices) {
         const rows = [];
         for (const [productId, price] of Object.entries(customPrices)) {
-          const p = parseFloat(price);
+          const p = parseFloat(String(price).replace(',', '.'));
           if (!isNaN(p) && p >= 0) {
-            const defaultPrice = products.find(pr => pr.id === productId)?.prix_unitaire_ht;
-            if (defaultPrice !== undefined && Math.abs(p - Number(defaultPrice)) > 0.001) {
-              rows.push({ client_id: userId, product_id: productId, prix_unitaire_ht: p });
-            }
+            rows.push({ client_id: userId, product_id: productId, prix_unitaire_ht: p });
           }
         }
         if (rows.length > 0) {
+          // S'assurer qu'on est bien connecté en tant qu'admin avant l'insert
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          if (!currentSession || currentSession.user.id !== adminUserId) {
+            await supabase.auth.setSession({
+              access_token: adminSession.access_token,
+              refresh_token: adminSession.refresh_token,
+            });
+          }
           const { error: priceError } = await supabase.from('client_prices').insert(rows);
           if (priceError) {
-            console.error("Erreur insertion prix:", priceError);
+            console.error('Erreur insertion prix:', priceError);
             throw priceError;
           }
         }
       }
 
-      const loginId = email.includes('@sofpain.local') ? email.split('@')[0] : email;
+      // Envoyer le lien de création de mot de passe au client
+      await supabase.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT_URL });
+
       showAlert('Client créé ✓',
-        `Identifiant : ${email}\nMot de passe : ${form.password}\n\nTransmettez ces informations au client.`
+        `Un email a été envoyé à ${email}.\n\nLe client recevra un lien pour créer son mot de passe.`
       );
       onCreated?.();
       onClose();
@@ -214,18 +222,12 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
             </View>
 
             {/* Identifiants */}
-            <Text style={s.sectionTitle}>Identifiants de connexion</Text>
+            <Text style={s.sectionTitle}>Connexion</Text>
             <View style={s.infoBox}>
               <Text style={s.infoText}>
-                {form.email.trim()
-                  ? `Le client se connectera avec : ${form.email.trim()}`
-                  : 'Un identifiant sera généré automatiquement (pas d\'email renseigné)'}
+                Un email sera envoyé au client avec un lien pour créer son propre mot de passe.
               </Text>
             </View>
-            {renderField('password', 'Mot de passe', 'Min. 6 caractères', {
-              required: true,
-              inputProps: { autoCapitalize: 'none' },
-            })}
 
             {/* Notes */}
             <Text style={s.sectionTitle}>Notes Internes</Text>
