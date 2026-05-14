@@ -50,8 +50,21 @@ export default function ForgotPasswordScreen({ navigation, route }) {
 
       setSent(true);
     } catch (err) {
-      setError("Impossible d'envoyer l'email. Vérifiez l'adresse saisie.");
-      console.error(err);
+      let errorMessage = "Impossible d'envoyer l'email. Vérifiez l'adresse saisie.";
+      if (err instanceof Error) {
+        if (err.message.includes('FunctionsHttpError') || err.name === 'FunctionsHttpError') {
+          try {
+            const context = await err.context?.json();
+            if (context?.error) errorMessage = `Erreur Serveur: ${context.error}`;
+          } catch (e) {
+            errorMessage = err.message;
+          }
+        } else {
+           errorMessage = err.message;
+        }
+      }
+      setError(errorMessage);
+      console.error('Erreur ForgotPassword:', err);
     } finally {
       setLoading(false);
     }
