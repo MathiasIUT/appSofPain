@@ -8,7 +8,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
 
-export default function ResetPasswordScreen({ navigation }) {
+export default function CreatePasswordScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ export default function ResetPasswordScreen({ navigation }) {
       if (error) throw error;
       setDone(true);
     } catch (err) {
-      setErrors({ password: err.message || 'Impossible de mettre à jour le mot de passe.' });
+      setErrors({ password: err.message || 'Impossible de créer le mot de passe.' });
       console.error(err);
     } finally {
       setLoading(false);
@@ -44,16 +44,20 @@ export default function ResetPasswordScreen({ navigation }) {
         <ScrollView contentContainerStyle={s.scroll}>
           <View style={s.card}>
             <BrandHeader />
-            <View style={s.titleBlock}>
-              <Text style={s.title}>Mot de passe réinitialisé ✓</Text>
-              <Text style={s.subtitle}>Votre mot de passe a été mis à jour avec succès. Vous pouvez maintenant vous connecter.</Text>
+            <View style={s.successBox}>
+              <Text style={s.successIcon}>🎉</Text>
+              <Text style={s.title}>Bienvenue !</Text>
+              <Text style={s.subtitle}>
+                Votre mot de passe a été créé avec succès.{'\n'}
+                Vous pouvez maintenant accéder à votre espace commandes.
+              </Text>
             </View>
             <TouchableOpacity
               style={s.btn}
               onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
               activeOpacity={0.8}
             >
-              <Text style={s.btnText}>Se connecter</Text>
+              <Text style={s.btnText}>Accéder à mon espace →</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -69,13 +73,16 @@ export default function ResetPasswordScreen({ navigation }) {
             <BrandHeader />
 
             <View style={s.titleBlock}>
-              <Text style={s.title}>Nouveau mot de passe</Text>
-              <Text style={s.subtitle}>Choisissez un nouveau mot de passe sécurisé pour votre compte.</Text>
+              <Text style={s.welcomeBadge}>👋 Première connexion</Text>
+              <Text style={s.title}>Bienvenue chez Sof Pain !</Text>
+              <Text style={s.subtitle}>
+                Créez votre mot de passe pour accéder à votre espace commandes.
+              </Text>
             </View>
 
             <View style={s.form}>
               <View style={s.inputGroup}>
-                <Text style={s.label}>Nouveau mot de passe</Text>
+                <Text style={s.label}>Choisissez un mot de passe</Text>
                 <TextInput
                   style={[s.input, errors.password && s.inputError]}
                   value={password}
@@ -90,7 +97,7 @@ export default function ResetPasswordScreen({ navigation }) {
               </View>
 
               <View style={s.inputGroup}>
-                <Text style={s.label}>Confirmer le mot de passe</Text>
+                <Text style={s.label}>Confirmez votre mot de passe</Text>
                 <TextInput
                   style={[s.input, errors.confirm && s.inputError]}
                   value={confirm}
@@ -112,7 +119,7 @@ export default function ResetPasswordScreen({ navigation }) {
               >
                 {loading
                   ? <ActivityIndicator color={colors.textOnPrimary} />
-                  : <Text style={s.btnText}>Réinitialiser mon mot de passe</Text>}
+                  : <Text style={s.btnText}>Créer mon mot de passe</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -127,7 +134,13 @@ const s = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
   card: { width: '100%', maxWidth: 440 },
   titleBlock: { alignItems: 'center', marginBottom: spacing.xl },
-  title: { fontSize: fontSizes.xxl, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
+  welcomeBadge: {
+    fontSize: fontSizes.sm, color: colors.primary, fontWeight: '700',
+    backgroundColor: colors.secondary, paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs, borderRadius: borderRadius.round,
+    marginBottom: spacing.sm, overflow: 'hidden',
+  },
+  title: { fontSize: fontSizes.xxl, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs, textAlign: 'center' },
   subtitle: { fontSize: fontSizes.md, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
   form: { width: '100%' },
   inputGroup: { marginBottom: spacing.lg },
@@ -147,4 +160,6 @@ const s = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: colors.textOnPrimary, fontSize: fontSizes.lg, fontWeight: '700' },
+  successBox: { alignItems: 'center', marginBottom: spacing.xl },
+  successIcon: { fontSize: 48, marginBottom: spacing.md },
 });

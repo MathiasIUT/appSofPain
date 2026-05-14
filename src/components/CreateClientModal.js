@@ -7,8 +7,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 
-// ⚠️  Remplace cette valeur par ton URL Vercel une fois déployé
-const REDIRECT_URL = 'https://VOTRE_APP.vercel.app';
+const REDIRECT_URL = 'https://commande.sofpain.com/create-password';
 import Button from './Button';
 
 const showAlert = (title, msg) => {
@@ -154,11 +153,30 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         }
       }
 
-      // Envoyer le lien de création de mot de passe au client
-      await supabase.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT_URL });
+      // Générer le lien de création de mot de passe via Supabase
+      // Supabase va générer un token de type recovery qu'on embed dans l'email personnalisé Resend
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: REDIRECT_URL,
+      });
+      if (resetErr) throw resetErr;
+
+      // Appeler l'Edge Function send-welcome-email pour envoyer l'email personnalisé via Resend
+      const { data: { session: currentSession2 } } = await supabase.auth.getSession();
+      const { error: fnError } = await supabase.functions.invoke('send-welcome-email', {
+        body: {
+          email,
+          nom: form.nom.trim(),
+          prenom: form.prenom.trim(),
+          nom_societe: form.nom_societe.trim(),
+        },
+      });
+      if (fnError) {
+        console.warn('Edge Function warning:', fnError);
+        // Ne pas bloquer si l\'email échoue, le compte est créé
+      }
 
       showAlert('Client créé ✓',
-        `Un email a été envoyé à ${email}.\n\nLe client recevra un lien pour créer son mot de passe.`
+        `Un email de bienvenue a été envoyé à ${email}.\n\nLe client recevra un lien pour créer son mot de passe.`
       );
       onCreated?.();
       onClose();

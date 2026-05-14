@@ -7,6 +7,7 @@ import { supabase } from '../config/supabase';
 
 const LoginScreen             = React.lazy(() => import('../screens/LoginScreen'));
 const ForgotPasswordScreen    = React.lazy(() => import('../screens/ForgotPasswordScreen'));
+const CreatePasswordScreen    = React.lazy(() => import('../screens/CreatePasswordScreen'));
 const ResetPasswordScreen     = React.lazy(() => import('../screens/ResetPasswordScreen'));
 const AdminDashboard          = React.lazy(() => import('../screens/AdminDashboard'));
 const ClientHome              = React.lazy(() => import('../screens/ClientHome'));
@@ -35,11 +36,14 @@ const withSuspense = (Component) => (props) => (
 export default function AppNavigator() {
   useEffect(() => {
     // Quand Supabase détecte un lien de réinitialisation dans l'URL (web),
-    // l'événement PASSWORD_RECOVERY est déclenché → on redirige vers ResetPassword.
+    // l'événement PASSWORD_RECOVERY est déclenché.
+    // On lit l'URL pour distinguer create-password (première connexion) de reset-password (mot de passe oublié).
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         if (navigationRef.isReady()) {
-          navigationRef.reset({ index: 0, routes: [{ name: 'ResetPassword' }] });
+          const url = typeof window !== 'undefined' ? (window.location?.href || '') : '';
+          const target = url.includes('create-password') ? 'CreatePassword' : 'ResetPassword';
+          navigationRef.reset({ index: 0, routes: [{ name: target }] });
         }
       }
     });
@@ -58,6 +62,7 @@ export default function AppNavigator() {
         {/* Authentification */}
         <Stack.Screen name="Login"           component={withSuspense(LoginScreen)} />
         <Stack.Screen name="ForgotPassword"  component={withSuspense(ForgotPasswordScreen)} />
+        <Stack.Screen name="CreatePassword"  component={withSuspense(CreatePasswordScreen)} />
         <Stack.Screen name="ResetPassword"   component={withSuspense(ResetPasswordScreen)} />
 
         {/* Admin */}

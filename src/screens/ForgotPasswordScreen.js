@@ -8,7 +8,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
 
-const REDIRECT_URL = 'https://VOTRE_APP.vercel.app';
+const REDIRECT_URL = 'https://commande.sofpain.com/reset-password';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -49,11 +49,11 @@ export default function ForgotPasswordScreen({ navigation }) {
             <BrandHeader />
 
             <View style={s.titleBlock}>
-              <Text style={s.title}>Première connexion</Text>
+              <Text style={s.title}>Mot de passe oublié</Text>
               <Text style={s.subtitle}>
                 {sent
-                  ? 'Email envoyé ! Consultez votre boîte mail et cliquez sur le lien pour créer votre mot de passe.'
-                  : 'Saisissez votre email pour recevoir un lien de création de mot de passe.'}
+                  ? 'Email envoyé ! Consultez votre boîte mail et cliquez sur le lien pour réinitialiser votre mot de passe.'
+                  : 'Saisissez votre email pour recevoir un lien de réinitialisation de mot de passe.'}
               </Text>
             </View>
 
