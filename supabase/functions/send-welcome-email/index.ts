@@ -1,13 +1,3 @@
-// Supabase Edge Function: send-welcome-email
-// Envoie un email de bienvenue personnalisé via Resend API
-// lors de la création d'un nouveau client par l'admin.
-//
-// Variables d'environnement requises dans Supabase (Settings > Edge Functions > Secrets) :
-//   RESEND_API_KEY  = re_xxxxxxxxxxxxxxxx
-//   RESEND_FROM     = "Sof Pain <commandes@sofpain.com>"  (une fois le domaine vérifié dans Resend)
-//
-// ⚠️  Pendant que le domaine sofpain.com est en attente de vérification DNS,
-//      laisser RESEND_FROM vide → l'email sera envoyé depuis onboarding@resend.dev (mode test Resend)
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -15,15 +5,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const CREATE_PASSWORD_URL = 'https://commande.sofpain.com/create-password';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 serve(async (req: Request) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
+    });
   }
 
   try {
@@ -32,7 +22,7 @@ serve(async (req: Request) => {
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email requis' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -42,7 +32,7 @@ serve(async (req: Request) => {
     if (!resendApiKey) {
       return new Response(JSON.stringify({ error: 'RESEND_API_KEY non configurée' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -64,7 +54,7 @@ serve(async (req: Request) => {
       console.error('Erreur génération lien:', linkError);
       return new Response(JSON.stringify({ error: linkError?.message || 'Impossible de générer le lien' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -182,20 +172,23 @@ serve(async (req: Request) => {
       console.error('Erreur Resend:', resendData);
       return new Response(JSON.stringify({ error: 'Erreur envoi email', details: resendData }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
     return new Response(JSON.stringify({ success: true, id: resendData.id }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
 
   } catch (err) {
     console.error('Edge Function error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 });
