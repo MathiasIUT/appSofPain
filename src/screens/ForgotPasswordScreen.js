@@ -8,9 +8,14 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
 
-const REDIRECT_URL = 'https://commande.sofpain.com/reset-password';
+const REDIRECT_RESET = 'https://commande.sofpain.com/reset-password';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-export default function ForgotPasswordScreen({ navigation }) {
+export default function ForgotPasswordScreen({ navigation, route }) {
+  const mode = route?.params?.mode || 'reset';
+  const isFirstLogin = mode === 'first_login';
+
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -28,10 +33,21 @@ export default function ForgotPasswordScreen({ navigation }) {
         setError("Cet email n'est pas associé à un compte Sof Pain.");
         return;
       }
-      const { error: err } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: REDIRECT_URL,
-      });
-      if (err) throw err;
+
+      if (isFirstLogin) {
+        // Appelle l'Edge Function pour envoyer l'email de bienvenue personnalisé
+        const { error: fnError } = await supabase.functions.invoke('send-welcome-email', {
+          body: { email: trimmed },
+        });
+        if (fnError) throw fnError;
+      } else {
+        // Mot de passe oublié → email Supabase standard vers /reset-password
+        const { error: err } = await supabase.auth.resetPasswordForEmail(trimmed, {
+          redirectTo: REDIRECT_RESET,
+        });
+        if (err) throw err;
+      }
+
       setSent(true);
     } catch (err) {
       setError("Impossible d'envoyer l'email. Vérifiez l'adresse saisie.");
@@ -41,6 +57,16 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
   };
 
+  const title = isFirstLogin ? 'Première connexion' : 'Mot de passe oublié';
+  const subtitleSent = isFirstLogin
+    ? 'Email envoyé ! Consultez votre boîte mail et cliquez sur le lien pour créer votre mot de passe.'
+    : 'Email envoyé ! Consultez votre boîte mail et cliquez sur le lien pour réinitialiser votre mot de passe.';
+  const subtitleDefault = isFirstLogin
+    ? 'Saisissez votre email pour recevoir votre lien de première connexion.'
+    : 'Saisissez votre email pour recevoir un lien de réinitialisation de mot de passe.';
+  const btnLabel = isFirstLogin ? 'Recevoir mon lien de connexion' : 'Envoyer le lien';
+
+
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -49,11 +75,9 @@ export default function ForgotPasswordScreen({ navigation }) {
             <BrandHeader />
 
             <View style={s.titleBlock}>
-              <Text style={s.title}>Mot de passe oublié</Text>
+              <Text style={s.title}>{title}</Text>
               <Text style={s.subtitle}>
-                {sent
-                  ? 'Email envoyé ! Consultez votre boîte mail et cliquez sur le lien pour réinitialiser votre mot de passe.'
-                  : 'Saisissez votre email pour recevoir un lien de réinitialisation de mot de passe.'}
+                {sent ? subtitleSent : subtitleDefault}
               </Text>
             </View>
 
@@ -83,7 +107,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                 >
                   {loading
                     ? <ActivityIndicator color={colors.textOnPrimary} />
-                    : <Text style={s.btnText}>Envoyer le lien</Text>}
+                    : <Text style={s.btnText}>{btnLabel}</Text>}
                 </TouchableOpacity>
               </View>
             )}

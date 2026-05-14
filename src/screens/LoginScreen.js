@@ -193,13 +193,23 @@ export default function LoginScreen({ navigation }) {
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => navigation.navigate('ForgotPassword')}
-                style={styles.forgotLink}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.forgotText}>Première connexion ou mot de passe oublié ?</Text>
-              </TouchableOpacity>
+              <View style={styles.linksRow}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ForgotPassword', { mode: 'reset' })}
+                  style={styles.linkBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.linkText}>🔑 Mot de passe oublié</Text>
+                </TouchableOpacity>
+                <Text style={styles.linkSeparator}>·</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ForgotPassword', { mode: 'first_login' })}
+                  style={styles.linkBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.linkTextSecondary}>Première connexion ?</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -303,16 +313,32 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: '700',
   },
-  forgotLink: {
+  linksRow: {
     marginTop: spacing.xl,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  linkBtn: {
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  forgotText: {
+  linkText: {
     color: colors.primary,
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  linkTextSecondary: {
+    color: colors.textSecondary,
     fontSize: fontSizes.sm,
     fontWeight: '500',
     textDecorationLine: 'underline',
+  },
+  linkSeparator: {
+    color: colors.textLight,
+    fontSize: fontSizes.sm,
   },
   inputFocused: {
     borderColor: colors.borderFocus,
