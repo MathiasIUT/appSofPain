@@ -229,7 +229,7 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
   const archiverCommandes = async (ordersToArchive) => {
     try {
       const { error } = await supabase.from('orders')
-        .update({ statut: 'archivee' })
+        .update({ statut: 'livree' })
         .in('id', ordersToArchive.map(o => o.id));
       if (error) throw error;
       setOrders(prev => prev.filter(o => !ordersToArchive.find(x => x.id === o.id)));
@@ -243,11 +243,11 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
     const confirm = Platform.OS === 'web'
       ? window.confirm(`Supprimer le livreur "${displayName}" ? Cette action est irréversible.`)
       : await new Promise(resolve => Alert.alert(
-          'Supprimer le livreur',
-          `Supprimer "${displayName}" ? Cette action est irréversible.`,
-          [{ text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-           { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) }]
-        ));
+        'Supprimer le livreur',
+        `Supprimer "${displayName}" ? Cette action est irréversible.`,
+        [{ text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) }]
+      ));
     if (!confirm) return;
     setDeleting(true);
     try {
@@ -282,10 +282,10 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
             : clients.length === 0
               ? <Text style={s.emptyText}>Aucun client assigné.</Text>
               : clients.map(c => (
-                  <View key={c.id} style={s.clientRow}>
-                    <Text style={s.clientName}>{c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—'}</Text>
-                  </View>
-                ))
+                <View key={c.id} style={s.clientRow}>
+                  <Text style={s.clientName}>{c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—'}</Text>
+                </View>
+              ))
         )}
 
         <TouchableOpacity onPress={handleToggleOrders} style={s.accordionHeader}>
@@ -300,20 +300,21 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
             : orders.length === 0
               ? <Text style={s.emptyText}>Aucune commande en cours.</Text>
               : Object.keys(orders.reduce((acc, o) => {
-                  const isoDate = (o.date_commande || '').split('T')[0];
-                  if (!acc[isoDate]) acc[isoDate] = [];
-                  acc[isoDate].push(o);
-                  return acc;
-                }, {})).sort((a, b) => b.localeCompare(a)).map(isoDate => {
-                  const dayOrders = orders.filter(o => (o.date_commande || '').split('T')[0] === isoDate);
-                  const dateObj = new Date(isoDate);
-                  const dateStr = isNaN(dateObj) ? isoDate : dateObj.toLocaleDateString('fr-FR');
-                  return (
-                    <View key={isoDate} style={{ marginBottom: spacing.md }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.xs }}>
-                        <Text style={{ fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary }}>
-                          Journée du {dateStr}
-                        </Text>
+                const isoDate = (o.date_commande || '').split('T')[0];
+                if (!acc[isoDate]) acc[isoDate] = [];
+                acc[isoDate].push(o);
+                return acc;
+              }, {})).sort((a, b) => b.localeCompare(a)).map(isoDate => {
+                const dayOrders = orders.filter(o => (o.date_commande || '').split('T')[0] === isoDate);
+                const dateObj = new Date(isoDate);
+                const dateStr = isNaN(dateObj) ? isoDate : dateObj.toLocaleDateString('fr-FR');
+                return (
+                  <View key={isoDate} style={{ marginBottom: spacing.md }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.xs }}>
+                      <Text style={{ fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary }}>
+                        Journée du {dateStr}
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                         <TouchableOpacity
                           onPress={async () => {
                             setPrinting(true);
@@ -337,19 +338,38 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                         >
                           {printing
                             ? <ActivityIndicator color={colors.white} size="small" />
-                            : <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>🖨️ Imprimer la tournée</Text>}
+                            : <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Imprimer la tournée</Text>}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => {
+                            const confirmText = `Voulez-vous retirer la tournée du ${dateStr} de la liste ?`;
+                            if (Platform.OS === 'web') {
+                              if (window.confirm(confirmText)) archiverCommandes(dayOrders);
+                            } else {
+                              Alert.alert('Confirmation', confirmText, [
+                                { text: 'Annuler', style: 'cancel' },
+                                { text: 'Retirer', style: 'destructive', onPress: () => archiverCommandes(dayOrders) },
+                              ]);
+                            }
+                          }}
+                          style={{ backgroundColor: colors.error, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4 }}
+                          disabled={printing}
+                        >
+                          <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Retirer la tournée</Text>
                         </TouchableOpacity>
                       </View>
-                      {dayOrders.map(o => (
-                        <View key={o.id} style={s.orderLine}>
-                          <Text style={s.orderNum}>N° {o.numero}</Text>
-                          <Text style={s.orderClient}>{o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}</Text>
-                          <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} € HT</Text>
-                        </View>
-                      ))}
                     </View>
-                  );
-                })
+                    {dayOrders.map(o => (
+                      <View key={o.id} style={s.orderLine}>
+                        <Text style={s.orderNum}>N° {o.numero}</Text>
+                        <Text style={s.orderClient}>{o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}</Text>
+                        <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} € HT</Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })
         )}
 
         <TouchableOpacity style={[s.toggleBtn, { backgroundColor: colors.error, marginTop: spacing.lg }]} onPress={handleDelete} disabled={deleting}>

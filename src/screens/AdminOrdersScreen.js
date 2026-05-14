@@ -146,7 +146,7 @@ export default function AdminOrdersScreen() {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ statut: 'archivee' })
+        .update({ statut: 'livree' })
         .in('id', Array.from(selectedIds));
       if (error) throw error;
 
