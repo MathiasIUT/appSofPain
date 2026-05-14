@@ -625,8 +625,9 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
             <Text style={modal.toggleBtnText}>🗑 Supprimer le compte</Text>
           </TouchableOpacity>
         </View>
+      </ScrollView>
 
-        <ConfirmModal
+      <ConfirmModal
         visible={confirmDelete}
         title="Supprimer DÉFINITIVEMENT"
         message={`ATTENTION : Vous allez supprimer toutes les données de ${displayName}.\n\nCette action est irréversible et supprimera le profil de la base de données.`}
