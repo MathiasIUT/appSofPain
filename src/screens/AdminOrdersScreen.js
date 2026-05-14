@@ -469,7 +469,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         </View>
         <View style={modal.headerRight}>
           <Button
-            title="📄 Imprimer PDF"
+            title="Imprimer PDF"
             variant="secondary"
             size="sm"
             onPress={handlePdf}
@@ -1027,12 +1027,12 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const q = search.toLowerCase().trim();
   const filteredClients = q
     ? clients.filter((c) =>
-        (c.nom_societe || '').toLowerCase().includes(q) ||
-        (c.nom || '').toLowerCase().includes(q) ||
-        (c.prenom || '').toLowerCase().includes(q) ||
-        (c.email || '').toLowerCase().includes(q) ||
-        (c.ville || '').toLowerCase().includes(q)
-      )
+      (c.nom_societe || '').toLowerCase().includes(q) ||
+      (c.nom || '').toLowerCase().includes(q) ||
+      (c.prenom || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.ville || '').toLowerCase().includes(q)
+    )
     : clients;
 
   const addManualLine = () => setManualLines(prev => [
@@ -1145,8 +1145,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
 
   const clientName = selectedClient
     ? selectedClient.nom_societe ||
-      [selectedClient.prenom, selectedClient.nom].filter(Boolean).join(' ') ||
-      selectedClient.email
+    [selectedClient.prenom, selectedClient.nom].filter(Boolean).join(' ') ||
+    selectedClient.email
     : '';
 
   return (
