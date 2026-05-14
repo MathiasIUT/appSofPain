@@ -108,8 +108,8 @@ export default function OrderConfirmationScreen({ navigation, route }) {
             <InfoLine label="Numéro de commande" value={order.numero} highlight />
             <InfoLine label="Date de commande" value={formatDate(order.date_commande)} />
             <InfoLine
-              label="Total TTC"
-              value={`${Number(order.total_ttc).toFixed(2)} €`}
+              label="Total HT"
+              value={`${Number(order.total_ht).toFixed(2)} €`}
               highlight
             />
           </View>

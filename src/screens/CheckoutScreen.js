@@ -341,20 +341,10 @@ export default function CheckoutScreen({ navigation }) {
 
                 <View style={styles.divider} />
 
-                <View style={styles.totalLine}>
-                  <Text style={styles.totalLabel}>Total HT</Text>
-                  <Text style={styles.totalValue}>{`${totals.totalHt.toFixed(2)} €`}</Text>
-                </View>
-                <View style={styles.totalLine}>
-                  <Text style={styles.totalLabel}>TVA</Text>
-                  <Text style={styles.totalValue}>{`${totals.totalTva.toFixed(2)} €`}</Text>
-                </View>
                 <View style={styles.divider} />
                 <View style={styles.totalLine}>
-                  <Text style={styles.totalLabelFinal}>Total TTC</Text>
-                  <Text style={styles.totalValueFinal}>
-                    {`${totals.totalTtc.toFixed(2)} €`}
-                  </Text>
+                  <Text style={styles.totalLabelFinal}>Total HT</Text>
+                  <Text style={styles.totalValueFinal}>{`${totals.totalHt.toFixed(2)} €`}</Text>
                 </View>
 
                 <View style={styles.submitAction}>

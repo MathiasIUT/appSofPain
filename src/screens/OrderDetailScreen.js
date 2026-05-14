@@ -249,17 +249,9 @@ export default function OrderDetailScreen({ navigation, route }) {
               ))}
 
               <View style={styles.totalsWrap}>
-                <View style={styles.totalLine}>
-                  <Text style={styles.totalLabel}>Total HT</Text>
-                  <Text style={styles.totalValue}>{`${n2(order.total_ht)} €`}</Text>
-                </View>
-                <View style={styles.totalLine}>
-                  <Text style={styles.totalLabel}>TVA</Text>
-                  <Text style={styles.totalValue}>{`${n2(order.total_tva)} €`}</Text>
-                </View>
                 <View style={[styles.totalLine, styles.totalFinal]}>
-                  <Text style={styles.totalLabelFinal}>Total TTC</Text>
-                  <Text style={styles.totalValueFinal}>{`${n2(order.total_ttc)} €`}</Text>
+                  <Text style={styles.totalLabelFinal}>Total HT</Text>
+                  <Text style={styles.totalValueFinal}>{`${n2(order.total_ht)} €`}</Text>
                 </View>
               </View>
             </>

@@ -150,7 +150,7 @@ const OrderCard = React.memo(({ item, onPress }) => {
           {fmt(item.date_commande)}
         </Text>
         <Text style={styles.cardTotal}>
-          {Number(item.total_ttc ?? 0).toFixed(2)} €
+          {Number(item.total_ht ?? 0).toFixed(2)} € HT
         </Text>
       </View>
       <Text style={styles.cardArrow}>›</Text>
