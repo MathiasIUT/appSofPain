@@ -329,7 +329,7 @@ export default function AdminComptaScreen() {
                         <Text style={styles.tdClientSub} numberOfLines={1}>{row.client.ville || ''}</Text>
                         {!row.client.livreur_id && !String(row.client.id).startsWith('deleted-') && (
                           <View style={{ backgroundColor: '#FFEBEE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, alignSelf: 'flex-start' }}>
-                            <Text style={{ color: '#D32F2F', fontSize: 10, fontWeight: '700' }}>⚠️ SANS LIVREUR</Text>
+                            <Text style={{ color: '#D32F2F', fontSize: 10, fontWeight: '700' }}>SANS LIVREUR</Text>
                           </View>
                         )}
                         <TouchableOpacity
@@ -337,7 +337,7 @@ export default function AdminComptaScreen() {
                           style={styles.bonBtn}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.bonBtnText}>📋 Voir le détail →</Text>
+                          <Text style={styles.bonBtnText}>Voir le détail →</Text>
                         </TouchableOpacity>
                       </View>
 

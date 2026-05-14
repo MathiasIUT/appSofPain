@@ -44,11 +44,6 @@ export default function ConfirmModal({
     >
       <View style={styles.overlay}>
         <View style={styles.box}>
-          {/* Icône */}
-          <View style={[styles.iconWrap, danger && styles.iconWrapDanger]}>
-            <Text style={styles.icon}>{danger ? '⚠️' : '❓'}</Text>
-          </View>
-
           {/* Textes */}
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}

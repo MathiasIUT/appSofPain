@@ -77,7 +77,6 @@ export default function AdminLogistiqueScreen() {
         <View style={s.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : filtered.length === 0 ? (
         <View style={s.centered}>
-          <Text style={s.emptyIcon}>🚚</Text>
           <Text style={s.emptyText}>{search ? 'Aucun résultat.' : 'Aucun livreur.'}</Text>
         </View>
       ) : (

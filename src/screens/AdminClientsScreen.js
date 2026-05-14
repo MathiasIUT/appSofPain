@@ -220,7 +220,6 @@ export default function AdminClientsScreen() {
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyIcon}>👥</Text>
           <Text style={styles.emptyText}>
             {search.trim() ? 'Aucun résultat pour cette recherche.' : 'Aucun client.'}
           </Text>
