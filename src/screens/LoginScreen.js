@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const passwordRef = useRef(null);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
@@ -156,6 +157,9 @@ export default function LoginScreen({ navigation }) {
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!loading}
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
                 {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
@@ -163,6 +167,7 @@ export default function LoginScreen({ navigation }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Mot de passe</Text>
                 <TextInput
+                  ref={passwordRef}
                   style={[styles.input, errors.password && styles.inputError]}
                   placeholder="••••••••"
                   placeholderTextColor={colors.textLight}
@@ -174,6 +179,8 @@ export default function LoginScreen({ navigation }) {
                   secureTextEntry
                   autoCapitalize="none"
                   editable={!loading}
+                  returnKeyType="go"
+                  onSubmitEditing={handleLogin}
                 />
                 {errors.password && (
                   <Text style={styles.errorText}>{errors.password}</Text>
