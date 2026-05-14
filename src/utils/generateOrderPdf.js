@@ -142,9 +142,7 @@ function buildOrderBody(order, items, client) {
 <div class="totals-wrap">
   <div class="totals-box">
     <table>
-      <tr><td class="lbl">Total HT</td><td class="val">${n2(order.total_ht)} €</td></tr>
-      <tr><td class="lbl">TVA</td><td class="val">${n2(order.total_tva)} €</td></tr>
-      <tr class="final"><td>Total TTC</td><td style="text-align:right">${n2(order.total_ttc)} €</td></tr>
+      <tr class="final"><td class="lbl">Total HT</td><td style="text-align:right">${n2(order.total_ht)} €</td></tr>
     </table>
   </div>
 </div>
