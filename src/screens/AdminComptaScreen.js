@@ -14,6 +14,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import { generateMonthlyBonPdf, generateMonthlyBonPdfBase64 } from '../utils/generateMonthlyBonPdf';
 import { exportComptaExcel, exportMonthlyBonExcel } from '../utils/exportExcel';
+import ConfirmModal from '../components/ConfirmModal';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
@@ -429,6 +430,7 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
   const [exporting, setExporting] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
   const isOrphan = String(client.id).startsWith('deleted-');
 
@@ -512,12 +514,7 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
   };
 
   const handleSendEmail = async () => {
-    if (!client.email) {
-      if (Platform.OS === 'web') window.alert('Ce client n\'a pas d\'adresse email enregistrée.');
-      else Alert.alert('Erreur', 'Ce client n\'a pas d\'adresse email enregistrée.');
-      return;
-    }
-
+    setConfirmVisible(false);
     setSendingEmail(true);
     try {
       const enriched = orders.map(o => ({
@@ -594,8 +591,15 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[bon.exportBtn, { backgroundColor: colors.primary }, sendingEmail && { opacity: 0.6 }]}
-          onPress={handleSendEmail}
+          style={[bon.exportBtn, { backgroundColor: colors.primary }, (sendingEmail || loading) && { opacity: 0.6 }]}
+          onPress={() => {
+            if (!client.email) {
+              if (Platform.OS === 'web') window.alert('Ce client n\'a pas d\'adresse email enregistrée.');
+              else Alert.alert('Erreur', 'Ce client n\'a pas d\'adresse email enregistrée.');
+              return;
+            }
+            setConfirmVisible(true);
+          }}
           disabled={sendingEmail || loading}
           activeOpacity={0.8}
         >
@@ -666,6 +670,17 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
           <View style={{ height: spacing.xl }} />
         </ScrollView>
       )}
+
+      <ConfirmModal
+        visible={confirmVisible}
+        title="Envoyer le bilan ?"
+        message={`Voulez-vous envoyer le bon de commande mensuel par email à ${client.email} ?\n\nLe document PDF sera joint à l'envoi.`}
+        confirmLabel="Oui, envoyer"
+        cancelLabel="Annuler"
+        loading={sendingEmail}
+        onConfirm={handleSendEmail}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 }
