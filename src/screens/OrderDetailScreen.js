@@ -40,6 +40,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { loadOrderIntoCart } = useCart();
 
   useEffect(() => {
@@ -120,6 +121,40 @@ export default function OrderDetailScreen({ navigation, route }) {
           }
         ]
       );
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    const msg = `Êtes-vous sûr de vouloir supprimer la commande N° ${order.numero} ?\n\nCette action est irréversible.`;
+    const proceed = Platform.OS === 'web' ? window.confirm(msg) : await new Promise(resolve => {
+      Alert.alert(
+        'Supprimer la commande',
+        msg,
+        [
+          { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) }
+        ]
+      );
+    });
+
+    if (!proceed) return;
+
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      showAlert('Succès', 'La commande a été supprimée.');
+      navigation.goBack();
+    } catch (err) {
+      console.error('Erreur suppression commande :', err);
+      showAlert('Erreur', 'Impossible de supprimer la commande.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -241,16 +276,28 @@ export default function OrderDetailScreen({ navigation, route }) {
           size="lg"
         />
 
-        {/* ── Bouton Modifier ──────────────────────────── */}
+        {/* ── Boutons Modifier/Supprimer ──────────────── */}
         {order.statut === 'nouvelle' && (
-          <View style={{ marginTop: spacing.md }}>
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
             <Button
               title="Modifier ma commande"
               onPress={handleEditOrder}
-              disabled={pdfLoading || loading}
+              disabled={pdfLoading || loading || deleting}
               fullWidth
               size="lg"
             />
+            <TouchableOpacity
+              style={[styles.deleteBtn, (pdfLoading || loading || deleting) && { opacity: 0.5 }]}
+              onPress={handleDeleteOrder}
+              disabled={pdfLoading || loading || deleting}
+              activeOpacity={0.8}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.deleteBtnText}>Supprimer ma commande</Text>
+              )}
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -398,4 +445,18 @@ const styles = StyleSheet.create({
   totalValueFinal: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
 
   emptyText: { color: colors.textSecondary, fontSize: fontSizes.sm, fontStyle: 'italic' },
+
+  deleteBtn: {
+    backgroundColor: '#D32F2F',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: fontSizes.md,
+  },
 });
