@@ -15,15 +15,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const CREATE_PASSWORD_URL = 'https://commande.sofpain.com/create-password';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req: Request) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -32,7 +32,7 @@ serve(async (req: Request) => {
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email requis' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -42,7 +42,7 @@ serve(async (req: Request) => {
     if (!resendApiKey) {
       return new Response(JSON.stringify({ error: 'RESEND_API_KEY non configurée' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -64,7 +64,7 @@ serve(async (req: Request) => {
       console.error('Erreur génération lien:', linkError);
       return new Response(JSON.stringify({ error: linkError?.message || 'Impossible de générer le lien' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -182,23 +182,20 @@ serve(async (req: Request) => {
       console.error('Erreur Resend:', resendData);
       return new Response(JSON.stringify({ error: 'Erreur envoi email', details: resendData }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     return new Response(JSON.stringify({ success: true, id: resendData.id }), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (err) {
     console.error('Edge Function error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
