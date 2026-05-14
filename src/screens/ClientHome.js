@@ -162,7 +162,7 @@ export default function ClientHome({ navigation }) {
             onPress={() => navigation.navigate('ClientProfile')}
             activeOpacity={0.7}
           >
-            <Text style={styles.profileButtonText}>👤 Mon profil</Text>
+            <Text style={styles.profileButtonText}>Mon profil</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>

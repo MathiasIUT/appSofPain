@@ -21,8 +21,6 @@ import useDebounce from '../hooks/useDebounce';
 import ConfirmModal from '../components/ConfirmModal';
 import { exportClientsExcel } from '../utils/exportExcel';
 
-// ─── Constantes ──────────────────────────────────────────────────────────────
-
 const FILTERS = [
   { key: 'tous', label: 'Tous' },
   { key: 'actifs', label: 'Actifs' },
@@ -53,8 +51,6 @@ const confirmAction = (msg, onConfirm) => {
 };
 
 const PAGE_SIZE = 30;
-
-// ─── Écran principal ─────────────────────────────────────────────────────────
 
 export default function AdminClientsScreen() {
   const [clients, setClients] = useState([]);
@@ -114,7 +110,6 @@ export default function AdminClientsScreen() {
     }
   }, [filter, debouncedSearch, clients.length]);
 
-  // Recharger quand le filtre ou la recherche change
   useEffect(() => { loadClients(true); }, [filter, debouncedSearch]);
 
   const hasMore = clients.length < totalCount;
@@ -155,8 +150,6 @@ export default function AdminClientsScreen() {
 
   return (
     <View style={styles.container}>
-
-      {/* ── Barre du haut ──────────────────────────────────── */}
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.screenTitle}>Clients</Text>
@@ -178,7 +171,6 @@ export default function AdminClientsScreen() {
         </View>
       </View>
 
-      {/* ── Recherche ───────────────────────────────────────── */}
       <View style={styles.searchWrap}>
         <TextInput
           style={styles.searchInput}
@@ -190,7 +182,6 @@ export default function AdminClientsScreen() {
         />
       </View>
 
-      {/* ── Filtres ─────────────────────────────────────────── */}
       <View style={styles.filtersRow}>
         {FILTERS.map((f) => {
           const active = filter === f.key;
@@ -212,7 +203,6 @@ export default function AdminClientsScreen() {
         })}
       </View>
 
-      {/* ── Liste ───────────────────────────────────────────── */}
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -256,7 +246,6 @@ export default function AdminClientsScreen() {
         />
       )}
 
-      {/* ── Modal détail ────────────────────────────────────── */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -277,7 +266,6 @@ export default function AdminClientsScreen() {
         </View>
       </Modal>
 
-      {/* ── Modal création ────────────────────────────────── */}
       <CreateClientModal
         visible={createVisible}
         onClose={() => setCreateVisible(false)}
@@ -286,8 +274,6 @@ export default function AdminClientsScreen() {
     </View>
   );
 }
-
-// ─── Ligne client ────────────────────────────────────────────────────────────
 
 const ClientRow = React.memo(({ item, onPress }) => {
   const displayName = item.nom_societe
@@ -375,27 +361,23 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          nom: form.nom.trim(),
-          prenom: form.prenom.trim(),
-          nom_societe: form.nom_societe.trim(),
-          email: form.email.trim(),
-          telephone: form.telephone.trim(),
-          adresse: form.adresse.trim(),
-          code_postal: form.code_postal.trim(),
-          ville: form.ville.trim(),
-          siret: form.siret.trim(),
-          note_interne_admin: form.note_interne_admin.trim(),
-        })
-        .eq('id', client.id).select('*').single();
+      const { data, error } = await supabase.from('profiles').update({
+        nom: form.nom.trim(),
+        prenom: form.prenom.trim(),
+        nom_societe: form.nom_societe.trim(),
+        email: form.email.trim(),
+        telephone: form.telephone.trim(),
+        adresse: form.adresse.trim(),
+        code_postal: form.code_postal.trim(),
+        ville: form.ville.trim(),
+        siret: form.siret.trim(),
+        note_interne_admin: form.note_interne_admin.trim(),
+      }).eq('id', client.id).select('*').single();
       if (error) throw error;
       onUpdated(data);
-      showAlert('Succès', 'Profil client mis à jour.');
+      showAlert('Succès', 'Profil mis à jour.');
     } catch (err) {
-      console.error('Erreur MAJ client:', err);
-      showAlert('Erreur', 'Détail : ' + (err.message || JSON.stringify(err)));
+      showAlert('Erreur', err.message);
     } finally { setSaving(false); }
   };
 
@@ -408,7 +390,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         .eq('id', client.id).select('*').single();
       if (error) throw error;
       onUpdated(data);
-      // Optional: showAlert('Succès', 'Livreur assigné mis à jour.');
     } catch (err) {
       showAlert('Erreur', 'Impossible de changer le livreur.');
     } finally { setSavingLivreur(false); }
@@ -417,9 +398,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const handleSavePrices = async () => {
     setSavingPrices(true);
     try {
-      // Delete existing custom prices
       await supabase.from('client_prices').delete().eq('client_id', client.id);
-      // Insert new custom prices that differ from defaults
       const rows = [];
       for (const [productId, price] of Object.entries(clientPrices)) {
         const p = parseFloat(price);
@@ -429,9 +408,9 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         }
       }
       if (rows.length > 0) await supabase.from('client_prices').insert(rows);
-      showAlert('Succès', `${rows.length} prix personnalisé(s) enregistré(s).`);
+      showAlert('Succès', 'Prix enregistrés.');
     } catch (err) {
-      showAlert('Erreur', 'Impossible de sauvegarder les prix.');
+      showAlert('Erreur', 'Erreur sauvegarde prix.');
     } finally { setSavingPrices(false); }
   };
 
@@ -454,15 +433,10 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
     });
   };
 
-  const handleDeleteAccount = async () => {
-    setDeleting(true);
-    try {
-      // Nom à conserver dans les commandes pour la comptabilité
       const snapshot = client.nom_societe
         || [client.prenom, client.nom].filter(Boolean).join(' ')
         || 'Client supprimé';
 
-      // 1. Sauvegarder le nom ET l'UUID dans les commandes, puis détacher le profil
       await supabase.from('orders')
         .update({
           client_nom: snapshot,
@@ -471,10 +445,8 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         })
         .eq('client_id', client.id);
 
-      // 2. Supprimer les prix personnalisés
       await supabase.from('client_prices').delete().eq('client_id', client.id);
 
-      // 3. Supprimer physiquement le profil
       const { error } = await supabase.from('profiles')
         .delete()
         .eq('id', client.id);
@@ -500,7 +472,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
 
   return (
     <View style={modal.container}>
-      {/* Header */}
       <View style={modal.header}>
         <View style={{ flex: 1 }}>
           <Text style={modal.headerName} numberOfLines={1}>{displayName}</Text>
@@ -516,8 +487,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
       </View>
 
       <ScrollView style={modal.body} contentContainerStyle={modal.bodyContent} showsVerticalScrollIndicator={false}>
-
-        {/* Informations */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Informations</Text>
           <View style={modal.row2}>
@@ -530,7 +499,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           <FormField label="SIRET" value={form.siret} onChangeText={setField('siret')} placeholder="000 000 000 00000" />
         </View>
 
-        {/* Adresse */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Adresse</Text>
           <FormField label="Adresse" value={form.adresse} onChangeText={setField('adresse')} placeholder="1 rue de la Boulangerie" />
@@ -540,7 +508,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           </View>
         </View>
 
-        {/* Notes Internes */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Notes Internes</Text>
           <FormField
@@ -599,7 +566,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           )}
         </View>
 
-        {/* Prix personnalisés */}
         <View style={modal.section}>
           <TouchableOpacity onPress={() => setShowPrices(!showPrices)} style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={modal.sectionTitle}>{`Prix personnalisés ${showPrices ? '▾' : '▸'}`}</Text>
@@ -634,7 +600,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           )}
         </View>
 
-        {/* Statut du compte */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Statut du compte</Text>
           <TouchableOpacity
@@ -649,7 +614,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
             }
           </TouchableOpacity>
 
-          {/* Supprimer définitivement */}
           <TouchableOpacity
             style={[modal.toggleBtn, modal.toggleBtnDelete]}
             onPress={() => setConfirmDelete(true)}
@@ -659,11 +623,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: spacing.xl }} />
-      </ScrollView>
-
-      {/* Modal confirmation suppression */}
-      <ConfirmModal
+        <ConfirmModal
         visible={confirmDelete}
         title="Supprimer DÉFINITIVEMENT"
         message={`ATTENTION : Vous allez supprimer toutes les données de ${displayName}.\n\nCette action est irréversible et supprimera le profil de la base de données.`}
@@ -677,8 +637,6 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
     </View>
   );
 }
-
-// ─── Champ formulaire ────────────────────────────────────────────────────────
 
 function FormField({ label, value, onChangeText, placeholder, style, ...rest }) {
   return (
@@ -695,8 +653,6 @@ function FormField({ label, value, onChangeText, placeholder, style, ...rest }) 
     </View>
   );
 }
-
-// ─── Styles liste ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },

@@ -1,30 +1,11 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 
-/**
- * Contexte du panier.
- *
- * Fournit un panier accessible depuis n'importe quel écran de l'app.
- * Le panier est stocké en mémoire uniquement (si le client relance l'app, il perd son panier).
- * Plus tard, on pourra persister dans AsyncStorage si besoin.
- *
- * Structure d'un item du panier :
- *   {
- *     product: { id, nom, prix_unitaire_ht, increment, tva_pourcent, image_url, ... },
- *     quantite: number
- *   }
- */
-
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
-  // Liste des articles dans le panier
-  // Clé = product.id pour éviter les doublons
   const [items, setItems] = useState([]);
-  
-  // Commande en cours d'édition (si null, c'est une nouvelle commande)
   const [editingOrder, setEditingOrder] = useState(null);
 
-  // Ajouter un produit au panier (ou incrémenter si déjà présent)
   const addToCart = useCallback((product, quantite = 1) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.product.id === product.id);
@@ -39,7 +20,6 @@ export function CartProvider({ children }) {
     });
   }, []);
 
-  // Modifier directement la quantité d'un produit
   const setQuantity = useCallback((productId, quantite) => {
     setItems((prev) => {
       if (quantite <= 0) {
@@ -52,18 +32,15 @@ export function CartProvider({ children }) {
     });
   }, []);
 
-  // Retirer un produit du panier
   const removeFromCart = useCallback((productId) => {
     setItems((prev) => prev.filter((i) => i.product.id !== productId));
   }, []);
 
-  // Vider entièrement le panier (utile après validation de commande)
   const clearCart = useCallback(() => {
     setItems([]);
     setEditingOrder(null);
   }, []);
 
-  // Charger une commande existante dans le panier pour la modifier
   const loadOrderIntoCart = useCallback((order, orderItems) => {
     setEditingOrder(order);
     const loadedItems = orderItems.map(oi => ({
@@ -73,14 +50,12 @@ export function CartProvider({ children }) {
         prix_unitaire_ht: oi.prix_unitaire_ht,
         tva_pourcent: oi.tva_pourcent,
         increment: oi.increment || 10,
-        // On n'a pas l'image_url dans order_items, mais ce n'est pas critique pour le panier
       },
       quantite: oi.quantite
     }));
     setItems(loadedItems);
   }, []);
 
-  // Totaux calculés à la volée
   const totals = useMemo(() => {
     let totalHt = 0;
     let totalTva = 0;
@@ -116,12 +91,6 @@ export function CartProvider({ children }) {
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
-/**
- * Hook pour utiliser le panier dans un composant.
- *
- * Usage :
- *   const { items, addToCart, totals } = useCart();
- */
 export function useCart() {
   const context = useContext(CartContext);
   if (!context) {

@@ -10,20 +10,6 @@ import {
 } from 'react-native';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 
-/**
- * Modal de confirmation réutilisable.
- *
- * Props :
- *   visible       {boolean}   — affiche ou non le modal
- *   title         {string}    — titre du modal
- *   message       {string}    — message explicatif
- *   confirmLabel  {string}    — libellé bouton de confirmation (défaut : « Confirmer »)
- *   cancelLabel   {string}    — libellé bouton annuler (défaut : « Annuler »)
- *   danger        {boolean}   — variante rouge pour actions destructives
- *   loading       {boolean}   — affiche spinner sur le bouton de confirmation
- *   onConfirm     {function}  — callback de confirmation
- *   onCancel      {function}  — callback d'annulation / fermeture
- */
 export default function ConfirmModal({
   visible,
   title = 'Confirmation',

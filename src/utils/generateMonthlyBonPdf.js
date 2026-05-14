@@ -3,12 +3,6 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { Asset } from 'expo-asset';
 
-/**
- * Génère et ouvre le bon mensuel d'un client pour un mois donné.
- * @param {object} client  - profil client (nom_societe, prenom, nom, adresse, siret…)
- * @param {Date}   date    - n'importe quelle date du mois concerné
- * @param {Array}  orders  - commandes avec order_items enrichis
- */
 export async function generateMonthlyBonPdf(client, date, orders) {
   const html = buildHtml(client, date, orders);
 
@@ -44,16 +38,11 @@ export async function generateMonthlyBonPdf(client, date, orders) {
   return uri;
 }
 
-/**
- * Génère le PDF du bon mensuel et retourne le contenu en Base64.
- */
 export async function generateMonthlyBonPdfBase64(client, date, orders) {
   const html = buildHtml(client, date, orders);
   const { base64 } = await Print.printToFileAsync({ html, base64: true });
   return base64;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const esc = (str) => {
   if (!str) return '';
@@ -74,8 +63,6 @@ const fmtDate = (d) => {
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
-// ─── Construction HTML ────────────────────────────────────────────────────────
-
 function buildHtml(client, date, orders) {
   const clientName = client.nom_societe
     || [client.prenom, client.nom].filter(Boolean).join(' ')
@@ -85,12 +72,9 @@ function buildHtml(client, date, orders) {
   const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
   const printDate = fmtDate(new Date());
 
-  // Total global du mois
   const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
-  
   const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
 
-  // Construire les lignes du tableau unique (ligne par ligne)
   let tableRows = '';
   orders.forEach((o, orderIndex) => {
     const items = o.order_items || [];
@@ -98,7 +82,6 @@ function buildHtml(client, date, orders) {
     const rowClass = orderIndex % 2 === 0 ? 'order-even' : 'order-odd';
 
     if (items.length === 0) {
-      // Commande vide : une seule ligne
       tableRows += `
         <tr class="data-row ${rowClass}">
           <td>${fmtDate(o.date_commande)}</td>
@@ -112,7 +95,6 @@ function buildHtml(client, date, orders) {
         const pu = Number(it.prix_unitaire_ht || 0);
         const ligneTotal = n2(pu * qty);
 
-        // La date et le N° de commande n'apparaissent que sur la 1ère ligne du groupe
         const dateCell = itIndex === 0
           ? `<td class="col-date" rowspan="${items.length}">${fmtDate(o.date_commande)}</td><td class="col-num" rowspan="${items.length}">${esc(o.numero)}</td>`
           : '';
@@ -128,7 +110,6 @@ function buildHtml(client, date, orders) {
       });
     }
 
-    // Ligne sous-total par commande (optionnelle si 1 seul article)
     if (items.length > 1) {
       tableRows += `
         <tr class="subtotal-row">
@@ -155,7 +136,7 @@ function buildHtml(client, date, orders) {
     line-height: 1.35;
   }
 
-  /* ── En-tête ── */
+  /* En-tête */
   .page-header {
     display: flex;
     justify-content: space-between;
@@ -171,7 +152,7 @@ function buildHtml(client, date, orders) {
   .doc-title .doc-period { font-size: 12px; font-weight: 700; color: var(--primary); margin-top: 2px; }
   .doc-title .doc-print { font-size: 8px; color: var(--muted); margin-top: 3px; }
 
-  /* ── Bloc client ── */
+  /* Bloc client */
   .client-block {
     background: var(--primary-light);
     border-left: 4px solid var(--primary);
@@ -188,7 +169,7 @@ function buildHtml(client, date, orders) {
   .client-name { font-size: 14px; font-weight: 800; color: var(--text); }
   .client-detail { font-size: 9px; color: var(--muted); margin-top: 2px; }
 
-  /* ── Résumé ── */
+  /* Résumé */
   .summary-bar {
     display: flex;
     gap: 10px;
@@ -205,7 +186,7 @@ function buildHtml(client, date, orders) {
   }
   .summary-pill strong { color: var(--text); }
 
-  /* ── Tableau principal ── */
+  /* Tableau principal */
   .main-table {
     width: 100%;
     border-collapse: collapse;
@@ -253,7 +234,7 @@ function buildHtml(client, date, orders) {
     font-size: 9px;
   }
 
-  /* ── Total global ── */
+  /* Total global */
   .total-global {
     margin-top: 14px;
     border-top: 2px solid var(--primary);
@@ -267,7 +248,7 @@ function buildHtml(client, date, orders) {
   .total-amount { font-size: 20px; font-weight: 900; color: var(--primary); }
   .total-ht-tag { font-size: 9px; color: var(--muted); }
 
-  /* ── Pied de page ── */
+  /* Pied de page */
   .page-footer {
     margin-top: 16px;
     border-top: 1px solid var(--border);
@@ -277,7 +258,7 @@ function buildHtml(client, date, orders) {
     text-align: center;
   }
 
-  /* ── Impression ── */
+  /* Impression */
   @media print {
     @page { margin: 8mm 10mm; size: A4; }
     body { padding: 0; font-size: 9px; }

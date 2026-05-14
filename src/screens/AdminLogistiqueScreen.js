@@ -54,7 +54,6 @@ export default function AdminLogistiqueScreen() {
 
   return (
     <View style={s.container}>
-      {/* Barre du haut */}
       <View style={s.topBar}>
         <View style={s.topBarLeft}>
           <Text style={s.title}>Logistique — Livreurs</Text>
@@ -66,13 +65,11 @@ export default function AdminLogistiqueScreen() {
         </View>
       </View>
 
-      {/* Recherche */}
       <View style={s.searchWrap}>
         <TextInput style={s.searchInput} placeholder="Rechercher un livreur..."
           placeholderTextColor={colors.textLight} value={search} onChangeText={setSearch} />
       </View>
 
-      {/* Liste */}
       {loading ? (
         <View style={s.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : filtered.length === 0 ? (
@@ -95,10 +92,8 @@ export default function AdminLogistiqueScreen() {
         />
       )}
 
-      {/* Create Modal */}
       <CreateLivreurModal visible={createVisible} onClose={() => setCreateVisible(false)} onCreated={load} />
 
-      {/* Detail Modal */}
       <Modal visible={detailVisible} animationType="slide" transparent onRequestClose={() => setDetailVisible(false)}>
         <View style={s.modalOverlay}>
           <View style={[s.modalBox, isDesktop && s.modalBoxDesktop]}>
@@ -110,8 +105,6 @@ export default function AdminLogistiqueScreen() {
     </View>
   );
 }
-
-// ─── Ligne Livreur ──────────────────────────────────────────────────────────
 
 const LivreurRow = React.memo(({ item, onPress }) => {
   return (
@@ -129,8 +122,6 @@ const LivreurRow = React.memo(({ item, onPress }) => {
     </TouchableOpacity>
   );
 });
-
-// ─── Create Livreur Modal ───────────────────────────────────────────────────
 
 function CreateLivreurModal({ visible, onClose, onCreated }) {
   const { width } = useWindowDimensions();
@@ -176,8 +167,6 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
     </Modal>
   );
 }
-
-// ─── Livreur Detail ─────────────────────────────────────────────────────────
 
 function LivreurDetail({ livreur, onClose, onDeleted }) {
   const [clients, setClients] = useState([]);

@@ -111,8 +111,8 @@ export default function OrderDetailScreen({ navigation, route }) {
         msg,
         [
           { text: 'Annuler', style: 'cancel' },
-          { 
-            text: 'Continuer', 
+          {
+            text: 'Continuer',
             onPress: () => {
               loadOrderIntoCart(order, items);
               navigation.navigate('Cart');
@@ -140,8 +140,6 @@ export default function OrderDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-
-      {/* ── Header ───────────────────────────────────────── */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -156,7 +154,6 @@ export default function OrderDetailScreen({ navigation, route }) {
         contentContainerStyle={[styles.body, isDesktop && styles.bodyDesktop]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Titre ───────────────────────────── */}
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>N° {order.numero}</Text>
@@ -164,11 +161,8 @@ export default function OrderDetailScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* ── Infos livraison ──────────────────────────── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Livraison</Text>
-
-
 
           {order.adresse_livraison ? (
             <View style={styles.infoRow}>
@@ -187,7 +181,6 @@ export default function OrderDetailScreen({ navigation, route }) {
           ) : null}
         </View>
 
-        {/* ── Produits ─────────────────────────────────── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Produits commandés</Text>
 
@@ -197,14 +190,12 @@ export default function OrderDetailScreen({ navigation, route }) {
             <Text style={styles.emptyText}>Aucun article trouvé.</Text>
           ) : (
             <>
-              {/* En-tête du tableau */}
               <View style={styles.tableHead}>
                 <Text style={[styles.thCell, { flex: 3 }]}>Produit</Text>
                 <Text style={[styles.thCell, styles.right, { flex: 1.5 }]}>Quantité</Text>
                 <Text style={[styles.thCell, styles.right, { flex: 2 }]}>ST HT</Text>
               </View>
 
-              {/* Lignes */}
               {items.map((it, idx) => (
                 <View
                   key={it.id}
@@ -222,7 +213,6 @@ export default function OrderDetailScreen({ navigation, route }) {
                 </View>
               ))}
 
-              {/* Totaux */}
               <View style={styles.totalsWrap}>
                 <View style={styles.totalLine}>
                   <Text style={styles.totalLabel}>Total HT</Text>
@@ -244,7 +234,6 @@ export default function OrderDetailScreen({ navigation, route }) {
         {/* ── Bouton PDF ───────────────────────────────── */}
         <Button
           title="Télécharger le bon de commande"
-          icon="📄"
           onPress={handlePdf}
           loading={pdfLoading}
           disabled={pdfLoading || loading}
@@ -257,7 +246,6 @@ export default function OrderDetailScreen({ navigation, route }) {
           <View style={{ marginTop: spacing.md }}>
             <Button
               title="Modifier ma commande"
-              icon="✏️"
               onPress={handleEditOrder}
               disabled={pdfLoading || loading}
               fullWidth

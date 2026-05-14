@@ -15,11 +15,7 @@ function downloadWb(wb, filename) {
   XLSX.writeFile(wb, filename);
 }
 
-// ─── 1. Comptabilité ────────────────────────────────────────────────────────
-// rows: tableData.rows depuis AdminComptaScreen
-// products: liste complète des produits actifs
-// monthLabel: ex. "Mai 2026"
-// livreurs: liste des livreurs
+// 1. Comptabilité
 export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
   const livreurMap = Object.fromEntries(
     livreurs.map((l) => [l.id, [l.prenom, l.nom].filter(Boolean).join(' ')])
@@ -59,7 +55,6 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
     return cells;
   });
 
-  // Ligne total global
   const totalRow = ['TOTAL GLOBAL', '', ''];
   products.forEach((p) => {
     let totalQty = 0;
@@ -76,8 +71,7 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
   downloadWb(wb, `comptabilite_${monthLabel.replace(/\s+/g, '_').toLowerCase()}.xlsx`);
 }
 
-// ─── 2. Liste Clients ────────────────────────────────────────────────────────
-// Fait sa propre requête pour récupérer TOUS les clients (pas seulement la page courante)
+// 2. Liste Clients
 export async function exportClientsExcel() {
   const [cliRes, livRes] = await Promise.all([
     supabase
@@ -85,9 +79,6 @@ export async function exportClientsExcel() {
       .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, actif, created_at')
       .eq('role', 'client')
       .order('nom_societe', { ascending: true }),
-    supabase.from('livreurs').select('id, nom, prenom'),
-  ]);
-
   if (cliRes.error) throw cliRes.error;
 
   const livreurMap = Object.fromEntries(
@@ -116,8 +107,7 @@ export async function exportClientsExcel() {
   downloadWb(wb, `clients_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-// ─── 3. Liste Commandes ──────────────────────────────────────────────────────
-// Fait ses propres requêtes pour récupérer TOUTES les commandes + leurs items
+// 3. Liste Commandes
 export async function exportOrdersExcel(ids = null) {
   let ordersQ = supabase
     .from('orders')
@@ -150,8 +140,6 @@ export async function exportOrdersExcel(ids = null) {
   );
 
   const products = prodRes.data || [];
-
-  // Index items par order_id
   const itemsByOrder = {};
   for (const it of (itemsRes.data || [])) {
     if (!itemsByOrder[it.order_id]) itemsByOrder[it.order_id] = {};
@@ -202,11 +190,7 @@ export async function exportOrdersExcel(ids = null) {
   downloadWb(wb, `commandes_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-// ─── 4. Bon Mensuel Individuel ──────────────────────────────────────────────
-// client: objet profile du client
-// monthLabel: ex. "Mai 2026"
-// orders: liste des commandes du mois avec leurs items
-// products: liste complète des produits actifs (pour les colonnes)
+// 4. Bon Mensuel Individuel
 export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
   const clientName = client.nom_societe || [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client';
   
@@ -229,7 +213,6 @@ export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
       o.numero || ''
     ];
     
-    // Index items par product_id
     const itemsMap = {};
     (o.order_items || []).forEach(it => {
       itemsMap[it.product_id] = it;
@@ -249,7 +232,6 @@ export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
     return cells;
   });
 
-  // Ligne de total
   const totalRow = ['TOTAL DU MOIS', ''];
   products.forEach(p => {
     let totalQty = 0;
@@ -273,7 +255,6 @@ export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
     totalRow
   ]);
   
-  // Fusionner les titres
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }

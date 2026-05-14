@@ -31,7 +31,6 @@ export default function AdminComptaScreen() {
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
   const [exportingExcel, setExportingExcel] = useState(false);
 
-  // Bon mensuel modal
   const [bonClient, setBonClient] = useState(null);
   const [bonVisible, setBonVisible] = useState(false);
 
@@ -45,11 +44,9 @@ export default function AdminComptaScreen() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // 1. Définir la plage de dates (mois entier)
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
 
-      // 2. Charger les données de référence
       const [livRes, prodRes, cliRes, pricesRes, ordRes] = await Promise.all([
         supabase.from('livreurs').select('*').eq('actif', true),
         supabase.from('products').select('*').eq('actif', true).order('nom'),
@@ -104,9 +101,6 @@ export default function AdminComptaScreen() {
     }
   };
 
-  // Préparer les données pour le tableau
-  const tableData = useMemo(() => {
-    // 1. Filtrer les clients par livreur
     let filteredClients = clients;
     if (selectedLivreurId === 'unassigned') {
       filteredClients = clients.filter(c => !c.livreur_id);
@@ -114,7 +108,6 @@ export default function AdminComptaScreen() {
       filteredClients = clients.filter(c => c.livreur_id === selectedLivreurId);
     }
 
-    // 2. Agréger les commandes des clients existants
     const result = [];
     let globalTotalHt = 0;
 
@@ -144,13 +137,10 @@ export default function AdminComptaScreen() {
       });
     }
 
-    // 3. Ajouter les commandes orphelines (clients supprimés)
-    // Groupées par client_uuid_snapshot si dispo, sinon par client_nom (rcompat.)
     if (selectedLivreurId === 'all') {
       const orphanOrders = orders.filter(o => !o.client_id && o.client_nom);
       const orphanByKey = {};
       for (const order of orphanOrders) {
-        // Clé unique : UUID snapshot si dispo, sinon préfixe 'name-' + nom
         const key = order.client_uuid_snapshot || `name-${order.client_nom}`;
         if (!orphanByKey[key]) {
           orphanByKey[key] = {
@@ -185,7 +175,6 @@ export default function AdminComptaScreen() {
       }
     }
 
-    // Trier par nom de société ou nom du client
     result.sort((a, b) => {
       const nameA = a.client.nom_societe || a.client.nom || '';
       const nameB = b.client.nom_societe || b.client.nom || '';
@@ -195,22 +184,18 @@ export default function AdminComptaScreen() {
     return { rows: result, globalTotalHt };
   }, [clients, orders, selectedLivreurId]);
 
-  // Récupérer le prix par défaut ou personnalisé pour un produit et un client
   const getDisplayPrice = (productId, clientId, aggregatedPrice) => {
     if (aggregatedPrice !== undefined) return aggregatedPrice;
 
-    // Chercher prix personnalisé
     const custom = clientPrices.find(cp => cp.client_id === clientId && cp.product_id === productId);
     if (custom) return custom.prix_unitaire_ht;
 
-    // Chercher prix de base
     const base = products.find(p => p.id === productId);
     return base ? base.prix_unitaire_ht : 0;
   };
 
   return (
     <View style={styles.container}>
-      {/* ── EN-TÊTE & FILTRES DATE ── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Comptabilité</Text>
@@ -243,7 +228,6 @@ export default function AdminComptaScreen() {
         </View>
       </View>
 
-      {/* ── ONGLETS LIVREURS ── */}
       <View style={styles.tabsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
           <TouchableOpacity
@@ -278,7 +262,6 @@ export default function AdminComptaScreen() {
         </ScrollView>
       </View>
 
-      {/* ── TABLEAU ── */}
       <View style={styles.tableWrapper}>
         {loading ? (
           <View style={styles.loadingBox}>
@@ -398,7 +381,6 @@ export default function AdminComptaScreen() {
         )}
       </View>
 
-      {/* ── Modal bon mensuel ── */}
       <Modal
         visible={bonVisible}
         animationType="slide"
@@ -422,8 +404,6 @@ export default function AdminComptaScreen() {
   );
 }
 
-// ─── Composant Bon Mensuel ───────────────────────────────────────────────────
-
 function BonMensuelModal({ client, currentDate, products, onClose }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -434,7 +414,6 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
 
   const isOrphan = String(client.id).startsWith('deleted-');
 
-  // Nom propre sans le suffixe "(supprimé)"
   const clientName = isOrphan
     ? (client._orphan_name || 'Client supprimé')
     : (client.nom_societe || [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client');
@@ -463,10 +442,8 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
 
         if (isOrphan) {
           if (client._orphan_uuid) {
-            // Nouveau système : requête fiable par UUID même si deux clients ont le même nom
             query = query.is('client_id', null).eq('client_uuid_snapshot', client._orphan_uuid);
           } else {
-            // Fallback pour les vieilles commandes orphelines sans UUID snapshot
             query = query.is('client_id', null).eq('client_nom', client._orphan_name);
           }
         } else {
@@ -553,7 +530,6 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
 
   return (
     <View style={bon.container}>
-      {/* Header */}
       <View style={bon.header}>
         <View style={{ flex: 1 }}>
           <Text style={bon.headerTitle}>Bon mensuel</Text>
@@ -564,7 +540,6 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
         </TouchableOpacity>
       </View>
 
-      {/* Barre actions */}
       <View style={bon.actionsBar}>
         <TouchableOpacity
           style={[bon.exportBtn, exporting && { opacity: 0.6 }]}
@@ -614,7 +589,6 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
         </View>
       </View>
 
-      {/* Corps */}
       {loading ? (
         <View style={bon.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -684,8 +658,6 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
     </View>
   );
 }
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
