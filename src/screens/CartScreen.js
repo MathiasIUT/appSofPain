@@ -111,6 +111,15 @@ export default function CartScreen({ navigation }) {
               <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
                 <Text style={styles.clearBtnText}>Vider le panier</Text>
               </TouchableOpacity>
+
+              <View style={{ marginTop: spacing.lg }}>
+                <Button
+                  title="Ajouter d'autres produits"
+                  variant="outline"
+                  onPress={() => navigation.navigate('ClientHome')}
+                  fullWidth
+                />
+              </View>
             </View>
 
             {/* Colonne récap */}

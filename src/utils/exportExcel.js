@@ -79,6 +79,9 @@ export async function exportClientsExcel() {
       .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, actif, created_at')
       .eq('role', 'client')
       .order('nom_societe', { ascending: true }),
+    supabase.from('livreurs').select('id, nom, prenom'),
+  ]);
+
   if (cliRes.error) throw cliRes.error;
 
   const livreurMap = Object.fromEntries(
