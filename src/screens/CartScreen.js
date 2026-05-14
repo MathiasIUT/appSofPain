@@ -130,17 +130,6 @@ export default function CartScreen({ navigation }) {
                 <SummaryLine
                   label="Total HT"
                   value={`${totals.totalHt.toFixed(2)} €`}
-                />
-                <SummaryLine
-                  label="TVA"
-                  value={`${totals.totalTva.toFixed(2)} €`}
-                />
-
-                <View style={styles.summaryDivider} />
-
-                <SummaryLine
-                  label="Total TTC"
-                  value={`${totals.totalTtc.toFixed(2)} €`}
                   highlight
                 />
 
@@ -206,7 +195,7 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
       <View style={styles.cartItemBody}>
         <Text style={styles.cartItemName}>{product.nom}</Text>
         <Text style={styles.cartItemPriceUnit}>
-          {`${prixUnitaireHt.toFixed(2)} € HT / unité · TVA ${TVA}%`}
+          {`${prixUnitaireHt.toFixed(2)} € HT / unité`}
         </Text>
 
         <View style={styles.cartItemControls}>

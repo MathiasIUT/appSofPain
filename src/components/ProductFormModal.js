@@ -476,11 +476,9 @@ function PricingSummary({ prixUnitaire, increment, tva }) {
 
   return (
     <View>
-      <SummaryRow label={`Prix HT / lot (${increment} u.)`} value={`${prixLotHt.toFixed(2)} €`} />
-      <SummaryRow label={`TVA (${tva}%)`} value={`${tvaAmount.toFixed(2)} €`} />
       <SummaryRow
-        label={`Prix TTC / lot`}
-        value={`${prixLotTtc.toFixed(2)} €`}
+        label={`Prix HT / lot (${increment} u.)`}
+        value={`${prixLotHt.toFixed(2)} €`}
         bold
       />
     </View>

@@ -543,7 +543,6 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                   <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
                   <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Qté</Text>
                   <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>
-                  <Text style={[modal.th, modal.right, { flex: 1 }]}>TVA</Text>
                   <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
                 </View>
                 {items.map((it, idx) => (
@@ -551,7 +550,6 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                     <Text style={[modal.td, { flex: 3 }]} numberOfLines={2}>{it.product_nom}</Text>
                     <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite}</Text>
                     <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} €`}</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1 }]}>{`${n2(it.tva_pourcent)} %`}</Text>
                     <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }]}>{`${n2(it.sous_total_ht)} €`}</Text>
                   </View>
                 ))}
@@ -1312,14 +1310,6 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                           placeholderTextColor={colors.textLight}
                           value={l.prix}
                           onChangeText={v => updateManualLine(l.id, 'prix', v.replace(/[^0-9.]/g, ''))}
-                          keyboardType="numeric"
-                        />
-                        <TextInput
-                          style={[to.manualInput, { width: 52 }]}
-                          placeholder="TVA%"
-                          placeholderTextColor={colors.textLight}
-                          value={l.tva}
-                          onChangeText={v => updateManualLine(l.id, 'tva', v.replace(/[^0-9.]/g, ''))}
                           keyboardType="numeric"
                         />
                         <TouchableOpacity onPress={() => removeManualLine(l.id)} style={to.removeLineBtn} activeOpacity={0.7}>

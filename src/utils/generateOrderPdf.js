@@ -81,13 +81,11 @@ function buildOrderBody(order, items, client) {
   const lignes = items.map((it) => {
     const pu = Number(it.prix_unitaire_ht);
     const stHt = Number(it.sous_total_ht);
-    const tva = Number(it.tva_pourcent);
     return `
       <tr>
         <td class="product-name">${esc(it.product_nom)}</td>
         <td class="c">${esc(String(it.quantite))}</td>
         <td class="r">${n2(pu)} €</td>
-        <td class="c">${n1(tva)} %</td>
         <td class="r">${n2(stHt)} €</td>
       </tr>`;
   }).join('');
@@ -131,7 +129,6 @@ function buildOrderBody(order, items, client) {
         <th style="text-align:left;min-width:180px">Produit</th>
         <th class="c">Quantité</th>
         <th class="r">PU HT</th>
-        <th class="c">TVA</th>
         <th class="r">ST HT</th>
       </tr>
     </thead>
@@ -362,6 +359,5 @@ ${content}
 }
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
-const n1 = (v) => Number(v ?? 0).toFixed(1);
 const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const fmt = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
