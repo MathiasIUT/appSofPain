@@ -88,8 +88,11 @@ export default function ClientProfileScreen({ navigation }) {
   const setField = (key) => (v) => setForm((prev) => ({ ...prev, [key]: v }));
 
   const handleExportData = () => {
+    // Création d'une copie du profil sans les informations confidentielles
+    const { notes_admin, ...sanitizedProfile } = profile || {};
+
     const data = {
-      profile: profile,
+      profile: sanitizedProfile,
       export_date: new Date().toISOString(),
       info: "Ceci est l'intégralité de vos données personnelles conservées par SofPain"
     };
@@ -326,7 +329,7 @@ export default function ClientProfileScreen({ navigation }) {
             onPress={handleExportData}
             activeOpacity={0.7}
           >
-            <Text style={styles.exportBtnText}>📥 Exporter mes données (.json)</Text>
+            <Text style={styles.exportBtnText}>Exporter mes données (.json)</Text>
           </TouchableOpacity>
         </View>
 
