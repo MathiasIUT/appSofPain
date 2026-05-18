@@ -344,7 +344,7 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                           style={{ backgroundColor: colors.error, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4 }}
                           disabled={printing}
                         >
-                          <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Retirer la tournée</Text>
+                          <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Retirer/Valider la tournée</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
