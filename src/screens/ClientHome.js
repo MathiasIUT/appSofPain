@@ -220,7 +220,7 @@ export default function ClientHome({ navigation }) {
         ) : (
           <View style={[styles.productsGrid, isDesktop && styles.productsGridDesktop]}>
             {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} isDesktop={isDesktop} />
             ))}
           </View>
         )}
@@ -251,7 +251,7 @@ export default function ClientHome({ navigation }) {
 // Composant ProductCard avec boutons +/-
 // ---------------------------------------------------------
 
-function ProductCard({ product }) {
+function ProductCard({ product, isDesktop }) {
   const { items, addToCart, setQuantity } = useCart();
   const TVA = Number(product.tva_pourcent);
   const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
@@ -276,7 +276,7 @@ function ProductCard({ product }) {
   };
 
   return (
-    <View style={styles.productCard}>
+    <View style={[styles.productCard, isDesktop && styles.productCardDesktop]}>
       {/* Image */}
       <View style={styles.productImage}>
         {product.image_url ? (
@@ -590,6 +590,12 @@ const styles = StyleSheet.create({
     minWidth: 280,
     maxWidth: 360,
     ...shadows.sm,
+  },
+  productCardDesktop: {
+    flex: 0,
+    width: '48%',
+    minWidth: 280,
+    maxWidth: 360,
   },
   productImage: {
     width: '100%',
