@@ -217,13 +217,13 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
   const archiverCommandes = async (ordersToArchive) => {
     try {
       const { error } = await supabase.from('orders')
-        .update({ statut: 'livree' })
+        .update({ statut: 'traite' })
         .in('id', ordersToArchive.map(o => o.id));
       if (error) throw error;
       setOrders(prev => prev.filter(o => !ordersToArchive.find(x => x.id === o.id)));
-      showAlert('Succès', 'Les commandes ont été retirées de la liste.');
+      showAlert('Succès', 'Les commandes ont été marquées comme traitées.');
     } catch (e) {
-      showAlert('Erreur', 'Impossible de retirer les commandes.');
+      showAlert('Erreur', 'Impossible de traiter les commandes.');
     }
   };
 

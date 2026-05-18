@@ -141,33 +141,61 @@ export default function AdminOrdersScreen() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    const msg = `Voulez-vous vraiment retirer ${selectedIds.size} commande(s) ?\nElles n'apparaîtront plus ici mais resteront visibles pour le client.`;
-
-    if (Platform.OS === 'web') {
-      if (!window.confirm(msg)) return;
-    } else {
-      const confirmed = await new Promise((resolve) => {
-        Alert.alert('Retirer', msg, [
-          { text: 'Non', style: 'cancel', onPress: () => resolve(false) },
-          { text: 'Oui', onPress: () => resolve(true) },
-        ]);
-      });
-      if (!confirmed) return;
-    }
+    const ids = Array.from(selectedIds);
 
     setBulkActionLoading(true);
     try {
-      const { error } = await supabase
+      // Vérifier si certaines commandes ne sont pas encore traitées
+      const { data: nonTraite } = await supabase
         .from('orders')
-        .update({ statut: 'livree' })
-        .in('id', Array.from(selectedIds));
-      if (error) throw error;
+        .select('numero, livreur_id, livreur:livreurs(nom, prenom)')
+        .in('id', ids)
+        .neq('statut', 'traite');
+
+      let msg = `Vous allez supprimer définitivement ${ids.length} commande(s).\nCette action est irréversible et les données seront perdues.`;
+
+      if (nonTraite?.length > 0) {
+        const list = nonTraite.map((o) => {
+          const livreurName = o.livreur
+            ? `tournée de ${[o.livreur.prenom, o.livreur.nom].filter(Boolean).join(' ')}`
+            : 'non assignée à un livreur';
+          return `• N° ${o.numero} (${livreurName})`;
+        }).join('\n');
+        msg += `\n\n⚠️ ${nonTraite.length} commande(s) pas encore traitée(s) :\n${list}\n\nSupprimez quand même ?`;
+      }
+
+      const confirmed = await new Promise((resolve) => {
+        if (Platform.OS === 'web') {
+          resolve(window.confirm(msg));
+        } else {
+          Alert.alert('Supprimer définitivement', msg, [
+            { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        }
+      });
+
+      if (!confirmed) return;
+
+      // Supprimer les items d'abord (contrainte FK)
+      const { error: itemsErr } = await supabase
+        .from('order_items')
+        .delete()
+        .in('order_id', ids);
+      if (itemsErr) throw itemsErr;
+
+      // Supprimer les commandes
+      const { error: ordersErr } = await supabase
+        .from('orders')
+        .delete()
+        .in('id', ids);
+      if (ordersErr) throw ordersErr;
 
       setSelectedIds(new Set());
       loadOrders(true);
     } catch (err) {
       console.error(err);
-      showAlert('Erreur', 'Impossible de retirer les commandes.');
+      showAlert('Erreur', 'Impossible de supprimer les commandes.');
     } finally {
       setBulkActionLoading(false);
     }
@@ -230,7 +258,7 @@ export default function AdminOrdersScreen() {
               disabled={bulkActionLoading}
             />
             <Button
-              title="Supprimer tout"
+              title="Supprimer définitivement"
               variant="danger"
               size="sm"
               onPress={handleBulkDelete}
