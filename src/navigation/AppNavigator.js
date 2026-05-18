@@ -34,7 +34,7 @@ const withSuspense = (Component) => (props) => (
 );
 
 const linking = {
-  prefixes: ['https://commande.sofpain.com', 'sofpain://'],
+  prefixes: ['https://app.sofpain.com', 'sofpain://'],
   config: {
     screens: {
       Login: '',

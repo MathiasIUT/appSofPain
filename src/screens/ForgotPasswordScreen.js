@@ -8,9 +8,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
 
-const REDIRECT_RESET = 'https://commande.sofpain.com/reset-password';
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const REDIRECT_RESET = 'https://app.sofpain.com/reset-password';
 
 export default function ForgotPasswordScreen({ navigation, route }) {
   const mode = route?.params?.mode || 'reset';

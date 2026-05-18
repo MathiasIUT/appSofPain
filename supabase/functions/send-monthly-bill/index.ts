@@ -81,7 +81,7 @@ serve(async (req: Request) => {
           <tr>
             <td style="background:#F9FAFB;padding:20px;text-align:center;border-top:1px solid #E5E7EB;">
               <p style="margin:0;color:#9CA3AF;font-size:12px;">
-                © ${new Date().getFullYear()} Sof Pain · <a href="https://commande.sofpain.com" style="color:#C9411A;text-decoration:none;">commande.sofpain.com</a>
+                © ${new Date().getFullYear()} Sof Pain · <a href="https://app.sofpain.com" style="color:#C9411A;text-decoration:none;">app.sofpain.com</a>
               </p>
             </td>
           </tr>
