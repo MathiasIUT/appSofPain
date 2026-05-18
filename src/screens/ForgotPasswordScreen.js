@@ -35,9 +35,20 @@ export default function ForgotPasswordScreen({ navigation, route }) {
       }
 
       if (isFirstLogin) {
-        // Appelle l'Edge Function pour envoyer l'email de bienvenue personnalisé
+        // Récupérer le profil pour personnaliser l'email
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nom, prenom, nom_societe')
+          .eq('email', trimmed)
+          .single();
+
         const { error: fnError } = await supabase.functions.invoke('send-welcome-email', {
-          body: { email: trimmed },
+          body: {
+            email: trimmed,
+            nom: profile?.nom || '',
+            prenom: profile?.prenom || '',
+            nom_societe: profile?.nom_societe || '',
+          },
         });
         if (fnError) throw fnError;
       } else {

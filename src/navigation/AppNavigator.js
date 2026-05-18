@@ -33,6 +33,26 @@ const withSuspense = (Component) => (props) => (
   </Suspense>
 );
 
+const linking = {
+  prefixes: ['https://commande.sofpain.com', 'sofpain://'],
+  config: {
+    screens: {
+      Login: '',
+      ForgotPassword: 'forgot-password',
+      CreatePassword: 'create-password',
+      ResetPassword: 'reset-password',
+      AdminDashboard: 'admin',
+      ClientHome: 'home',
+      Cart: 'cart',
+      Checkout: 'checkout',
+      OrderConfirmation: 'order-confirmation',
+      MyOrders: 'my-orders',
+      OrderDetail: 'order/:id',
+      ClientProfile: 'profile',
+    },
+  },
+};
+
 export default function AppNavigator() {
   useEffect(() => {
     // Quand Supabase détecte un lien de réinitialisation dans l'URL (web),
@@ -51,7 +71,7 @@ export default function AppNavigator() {
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator
         initialRouteName="Login"
         screenOptions={{
