@@ -3,7 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
 serve(async (req: Request) => {
-  // CORS preflight
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
@@ -19,7 +19,7 @@ serve(async (req: Request) => {
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email du destinataire requis' }), {
         status: 400,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
         },
@@ -32,7 +32,7 @@ serve(async (req: Request) => {
     if (!resendApiKey) {
       return new Response(JSON.stringify({ error: 'RESEND_API_KEY non configurée sur le serveur' }), {
         status: 500,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
         },
@@ -103,8 +103,8 @@ serve(async (req: Request) => {
 
     // Ajout de la pièce jointe si fournie
     if (pdfBase64) {
-      const cleanBase64 = pdfBase64.includes('base64,') 
-        ? pdfBase64.split('base64,')[1] 
+      const cleanBase64 = pdfBase64.includes('base64,')
+        ? pdfBase64.split('base64,')[1]
         : pdfBase64;
 
       resendPayload.attachments = [
@@ -130,7 +130,7 @@ serve(async (req: Request) => {
       console.error('Erreur Resend:', resendData);
       return new Response(JSON.stringify({ error: 'Erreur Resend', details: resendData }), {
         status: 500,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
         },
@@ -139,7 +139,7 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ success: true, id: resendData.id }), {
       status: 200,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
@@ -149,7 +149,7 @@ serve(async (req: Request) => {
     console.error('Edge Function error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
