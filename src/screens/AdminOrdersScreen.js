@@ -45,6 +45,7 @@ export default function AdminOrdersScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [selectingAll, setSelectingAll] = useState(false);
   const [takeOrderVisible, setTakeOrderVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
@@ -120,10 +121,22 @@ export default function AdminOrdersScreen() {
     });
   }, []);
 
-  const selectAll = () => {
-    setSelectedIds((prev) =>
-      prev.size === orders.length ? new Set() : new Set(orders.map((o) => o.id))
-    );
+  const selectAll = async () => {
+    if (selectedIds.size === totalCount) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectingAll(true);
+    try {
+      const { data } = await supabase
+        .from('orders')
+        .select('id');
+      if (data) setSelectedIds(new Set(data.map((o) => o.id)));
+    } catch (err) {
+      console.error('Erreur sélection totale :', err);
+    } finally {
+      setSelectingAll(false);
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -200,9 +213,9 @@ export default function AdminOrdersScreen() {
       {selectedIds.size > 0 && (
         <View style={styles.bulkActionBar}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <TouchableOpacity onPress={selectAll} style={styles.selectAllBtn}>
+            <TouchableOpacity onPress={selectAll} style={styles.selectAllBtn} disabled={selectingAll}>
               <Text style={styles.selectAllBtnText}>
-                {selectedIds.size === orders.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                {selectingAll ? 'Chargement...' : selectedIds.size === totalCount ? 'Tout désélectionner' : `Tout sélectionner (${totalCount})`}
               </Text>
             </TouchableOpacity>
             <Text style={styles.bulkActionText}>{selectedIds.size} sélectionnée(s)</Text>
