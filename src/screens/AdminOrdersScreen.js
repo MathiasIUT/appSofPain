@@ -152,7 +152,7 @@ export default function AdminOrdersScreen() {
         .in('id', ids)
         .neq('statut', 'traite');
 
-      let msg = `Vous allez supprimer définitivement ${ids.length} commande(s).\nCette action est irréversible et les données seront perdues.`;
+      let msg = `Vous allez supprimer définitivement ${ids.length} commande(s).\nCette action est irréversible et les données seront perdues, faites un export au préalable si vous souhaitez garder ces données.`;
 
       if (nonTraite?.length > 0) {
         const list = nonTraite.map((o) => {
@@ -269,7 +269,7 @@ export default function AdminOrdersScreen() {
         </View>
       )}
 
-      {/* ── Liste ───────────────────────────────────────────── */}
+      {/*  Liste des commandes */}
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
