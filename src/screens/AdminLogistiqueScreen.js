@@ -174,11 +174,39 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
   const [clientsLoaded, setClientsLoaded] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
   const [orders, setOrders] = useState([]);
+  // ordersOrderMap : { [isoDate]: [orderId, orderId, ...] } — ordre de livraison par jour
+  const [ordersOrderMap, setOrdersOrderMap] = useState({});
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [printing, setPrinting] = useState(false);
+
+  // Retourne les commandes d'un jour dans l'ordre de la tournée
+  const getDayOrdersSorted = (isoDate, allOrders) => {
+    const dayOrders = allOrders.filter(o => (o.date_commande || '').split('T')[0] === isoDate);
+    const orderIds = ordersOrderMap[isoDate];
+    if (!orderIds) return dayOrders;
+    return [...dayOrders].sort((a, b) => {
+      const ia = orderIds.indexOf(a.id);
+      const ib = orderIds.indexOf(b.id);
+      if (ia === -1 && ib === -1) return 0;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  };
+
+  // Déplace une commande d'une position dans la tournée
+  const moveOrder = (isoDate, fromIdx, toIdx) => {
+    setOrdersOrderMap(prev => {
+      const current = getDayOrdersSorted(isoDate, orders).map(o => o.id);
+      const next = [...current];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return { ...prev, [isoDate]: next };
+    });
+  };
 
   const handleToggleClients = async () => {
     const next = !clientsOpen;
@@ -206,8 +234,18 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
         const { data } = await supabase
           .from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone), order_items(*)')
           .eq('livreur_id', livreur.id).in('statut', ['nouvelle'])
-          .order('date_commande', { ascending: false });
-        setOrders(data || []);
+          .order('numero', { ascending: true });
+        const fetched = data || [];
+        setOrders(fetched);
+        // Initialiser l'ordre par défaut (par numéro de commande croissant)
+        const newOrderMap = {};
+        const dates = [...new Set(fetched.map(o => (o.date_commande || '').split('T')[0]))];
+        dates.forEach(isoDate => {
+          newOrderMap[isoDate] = fetched
+            .filter(o => (o.date_commande || '').split('T')[0] === isoDate)
+            .map(o => o.id);
+        });
+        setOrdersOrderMap(newOrderMap);
         setOrdersLoaded(true);
       } catch (err) { console.error(err); }
       finally { setLoadingOrders(false); }
@@ -287,77 +325,118 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
             ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
             : orders.length === 0
               ? <Text style={s.emptyText}>Aucune commande en cours.</Text>
-              : Object.keys(orders.reduce((acc, o) => {
-                const isoDate = (o.date_commande || '').split('T')[0];
-                if (!acc[isoDate]) acc[isoDate] = [];
-                acc[isoDate].push(o);
-                return acc;
-              }, {})).sort((a, b) => b.localeCompare(a)).map(isoDate => {
-                const dayOrders = orders.filter(o => (o.date_commande || '').split('T')[0] === isoDate);
-                const dateObj = new Date(isoDate);
-                const dateStr = isNaN(dateObj) ? isoDate : dateObj.toLocaleDateString('fr-FR');
-                return (
-                  <View key={isoDate} style={{ marginBottom: spacing.md }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.xs }}>
-                      <Text style={{ fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary }}>
-                        Journée du {dateStr}
-                      </Text>
-                      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                        <TouchableOpacity
-                          onPress={async () => {
-                            setPrinting(true);
-                            try {
-                              await generateDriverTourPdf(livreur, dayOrders, dateStr);
-                              if (Platform.OS === 'web') {
-                                if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
-                                  archiverCommandes(dayOrders);
-                                }
-                              } else {
-                                Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
-                                  { text: 'Non', style: 'cancel' },
-                                  { text: 'Oui', onPress: () => archiverCommandes(dayOrders) },
-                                ]);
-                              }
-                            } catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
-                            finally { setPrinting(false); }
-                          }}
-                          style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4 }}
-                          disabled={printing}
-                        >
-                          {printing
-                            ? <ActivityIndicator color={colors.white} size="small" />
-                            : <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Imprimer la tournée</Text>}
-                        </TouchableOpacity>
+              : [...new Set(orders.map(o => (o.date_commande || '').split('T')[0]))]
+                  .sort((a, b) => b.localeCompare(a))
+                  .map(isoDate => {
+                    const dayOrders = getDayOrdersSorted(isoDate, orders);
+                    const dateObj = new Date(isoDate);
+                    const dateStr = isNaN(dateObj) ? isoDate : dateObj.toLocaleDateString('fr-FR');
+                    return (
+                      <View key={isoDate} style={{ marginBottom: spacing.md }}>
+                        {/* ── En-tête du jour ── */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.xs }}>
+                          <View>
+                            <Text style={{ fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary }}>
+                              Journée du {dateStr}
+                            </Text>
+                            <Text style={{ fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                              {dayOrders.length} livraison{dayOrders.length > 1 ? 's' : ''} · Glissez ↑↓ pour réordonner
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            <TouchableOpacity
+                              onPress={async () => {
+                                setPrinting(true);
+                                try {
+                                  await generateDriverTourPdf(livreur, dayOrders, dateStr);
+                                  if (Platform.OS === 'web') {
+                                    if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
+                                      archiverCommandes(dayOrders);
+                                    }
+                                  } else {
+                                    Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
+                                      { text: 'Non', style: 'cancel' },
+                                      { text: 'Oui', onPress: () => archiverCommandes(dayOrders) },
+                                    ]);
+                                  }
+                                } catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
+                                finally { setPrinting(false); }
+                              }}
+                              style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, ...Platform.select({ web: { cursor: 'pointer' } }) }}
+                              disabled={printing}
+                            >
+                              {printing
+                                ? <ActivityIndicator color={colors.white} size="small" />
+                                : <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Imprimer la tournée</Text>}
+                            </TouchableOpacity>
 
-                        <TouchableOpacity
-                          onPress={() => {
-                            const confirmText = `Voulez-vous retirer la tournée du ${dateStr} de la liste ?`;
-                            if (Platform.OS === 'web') {
-                              if (window.confirm(confirmText)) archiverCommandes(dayOrders);
-                            } else {
-                              Alert.alert('Confirmation', confirmText, [
-                                { text: 'Annuler', style: 'cancel' },
-                                { text: 'Retirer', style: 'destructive', onPress: () => archiverCommandes(dayOrders) },
-                              ]);
-                            }
-                          }}
-                          style={{ backgroundColor: colors.error, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4 }}
-                          disabled={printing}
-                        >
-                          <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Retirer/Valider la tournée</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => {
+                                const confirmText = `Voulez-vous retirer la tournée du ${dateStr} de la liste ?`;
+                                if (Platform.OS === 'web') {
+                                  if (window.confirm(confirmText)) archiverCommandes(dayOrders);
+                                } else {
+                                  Alert.alert('Confirmation', confirmText, [
+                                    { text: 'Annuler', style: 'cancel' },
+                                    { text: 'Retirer', style: 'destructive', onPress: () => archiverCommandes(dayOrders) },
+                                  ]);
+                                }
+                              }}
+                              style={{ backgroundColor: colors.error, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, ...Platform.select({ web: { cursor: 'pointer' } }) }}
+                              disabled={printing}
+                            >
+                              <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold' }}>Retirer/Valider</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        {/* ── Liste des commandes réordonnables ── */}
+                        {dayOrders.map((o, idx) => (
+                          <View key={o.id} style={s.orderLine}>
+                            {/* Badge de position dans la tournée */}
+                            <View style={[s.tourBadge, { backgroundColor: idx === 0 ? colors.primary : idx === dayOrders.length - 1 ? '#888' : colors.secondary }]}>
+                              <Text style={[s.tourBadgeText, { color: idx === 0 ? '#fff' : idx === dayOrders.length - 1 ? '#fff' : colors.primary }]}>
+                                {idx + 1}
+                              </Text>
+                            </View>
+
+                            {/* Infos commande */}
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text style={s.orderNum}>N° {o.numero}</Text>
+                              <Text style={s.orderClient} numberOfLines={1}>
+                                {o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}
+                              </Text>
+                              {o.adresse_livraison ? (
+                                <Text style={s.orderAddress} numberOfLines={1}>{o.adresse_livraison.split('\n')[0]}</Text>
+                              ) : null}
+                            </View>
+
+                            <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} €</Text>
+
+                            {/* Boutons de réordonnancement */}
+                            <View style={s.reorderBtns}>
+                              <TouchableOpacity
+                                style={[s.reorderBtn, idx === 0 && s.reorderBtnDisabled]}
+                                onPress={() => moveOrder(isoDate, idx, idx - 1)}
+                                disabled={idx === 0}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[s.reorderBtnText, idx === 0 && s.reorderBtnTextDisabled]}>▲</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[s.reorderBtn, idx === dayOrders.length - 1 && s.reorderBtnDisabled]}
+                                onPress={() => moveOrder(isoDate, idx, idx + 1)}
+                                disabled={idx === dayOrders.length - 1}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[s.reorderBtnText, idx === dayOrders.length - 1 && s.reorderBtnTextDisabled]}>▼</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ))}
                       </View>
-                    </View>
-                    {dayOrders.map(o => (
-                      <View key={o.id} style={s.orderLine}>
-                        <Text style={s.orderNum}>N° {o.numero}</Text>
-                        <Text style={s.orderClient}>{o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}</Text>
-                        <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} € HT</Text>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })
+                    );
+                  })
         )}
 
         <TouchableOpacity style={[s.toggleBtn, { backgroundColor: colors.error, marginTop: spacing.lg }]} onPress={handleDelete} disabled={deleting}>
@@ -468,8 +547,28 @@ const s = StyleSheet.create({
     paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   orderNum: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
-  orderClient: { flex: 1, fontSize: fontSizes.xs, color: colors.textSecondary },
-  orderAmount: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary },
+  orderClient: { fontSize: fontSizes.xs, color: colors.textSecondary },
+  orderAddress: { fontSize: fontSizes.xs, color: colors.textLight, fontStyle: 'italic' },
+  orderAmount: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary, minWidth: 60, textAlign: 'right' },
+  // Badge de position dans la tournée
+  tourBadge: {
+    width: 26, height: 26, borderRadius: 13,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  tourBadgeText: { fontSize: fontSizes.xs, fontWeight: '800' },
+  // Boutons réordonnancement
+  reorderBtns: { flexDirection: 'column', gap: 2, flexShrink: 0 },
+  reorderBtn: {
+    width: 28, height: 22, borderRadius: 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  reorderBtnDisabled: { opacity: 0.25, backgroundColor: colors.background },
+  reorderBtnText: { fontSize: 11, fontWeight: '700', color: colors.primary, lineHeight: 13 },
+  reorderBtnTextDisabled: { color: colors.textLight },
   toggleBtn: {
     borderRadius: borderRadius.md, paddingVertical: spacing.md,
     alignItems: 'center', marginTop: spacing.md,

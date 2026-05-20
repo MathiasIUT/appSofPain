@@ -420,6 +420,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const [previewHtml, setPreviewHtml] = useState('');
   const [livreurs, setLivreurs] = useState([]);
   const [selectedLivreur, setSelectedLivreur] = useState(order.livreur_id || null);
+  // ── Édition des quantités
+  const [editingQty, setEditingQty] = useState(false);
+  const [draftQty, setDraftQty] = useState({});
+  const [savingItems, setSavingItems] = useState(false);
+  // Totaux calculés localement (recalculés après sauvegarde)
+  const [localTotalHt, setLocalTotalHt] = useState(Number(order.total_ht || 0));
 
   const { width, height } = useWindowDimensions();
   const isDesktop = width >= 900;
@@ -447,6 +453,116 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       }
     })();
   }, [order.id]);
+
+  // Ouvrir le mode édition quantités
+  const startEditQty = () => {
+    const init = {};
+    items.forEach(it => { init[it.id] = it.quantite; });
+    setDraftQty(init);
+    setEditingQty(true);
+  };
+
+  const cancelEditQty = () => {
+    setDraftQty({});
+    setEditingQty(false);
+  };
+
+  const changeQty = (itemId, delta) => {
+    setDraftQty(prev => ({
+      ...prev,
+      [itemId]: Math.max(0, (prev[itemId] ?? 0) + delta),
+    }));
+  };
+
+  const setQtyDirect = (itemId, value) => {
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      setDraftQty(prev => ({ ...prev, [itemId]: parsed }));
+    }
+  };
+
+  // Sauvegarder les quantités : met à jour order_items + recalcule total_ht dans orders
+  const handleSaveItems = async () => {
+    // Vérifier qu'au moins un article reste
+    const remaining = items.filter(it => (draftQty[it.id] ?? it.quantite) > 0);
+    if (remaining.length === 0) {
+      showAlert('Erreur', 'La commande doit contenir au moins un article.');
+      return;
+    }
+
+    const toDelete = items.filter(it => (draftQty[it.id] ?? it.quantite) === 0);
+    const toUpdate = items.filter(it => {
+      const newQty = draftQty[it.id] ?? it.quantite;
+      return newQty > 0 && newQty !== it.quantite;
+    });
+
+    if (toDelete.length === 0 && toUpdate.length === 0) {
+      setEditingQty(false);
+      return;
+    }
+
+    setSavingItems(true);
+    try {
+      // 1. Supprimer les articles mis à 0
+      if (toDelete.length > 0) {
+        const { error: delErr } = await supabase
+          .from('order_items')
+          .delete()
+          .in('id', toDelete.map(it => it.id));
+        if (delErr) throw delErr;
+      }
+
+      // 2. Mettre à jour les quantités modifiées
+      for (const it of toUpdate) {
+        const newQty = draftQty[it.id];
+        const newSousTotal = Number((newQty * Number(it.prix_unitaire_ht)).toFixed(2));
+        const { error: updErr } = await supabase
+          .from('order_items')
+          .update({ quantite: newQty, sous_total_ht: newSousTotal })
+          .eq('id', it.id);
+        if (updErr) throw updErr;
+      }
+
+      // 3. Recalculer le total_ht de la commande
+      const updatedItems = items
+        .filter(it => (draftQty[it.id] ?? it.quantite) > 0)
+        .map(it => ({
+          ...it,
+          quantite: draftQty[it.id] ?? it.quantite,
+          sous_total_ht: Number(((draftQty[it.id] ?? it.quantite) * Number(it.prix_unitaire_ht)).toFixed(2)),
+        }));
+
+      const newTotalHt = updatedItems.reduce((sum, it) => sum + it.sous_total_ht, 0);
+      const newTotalHtRounded = Number(newTotalHt.toFixed(2));
+
+      const { data: updatedOrder, error: orderErr } = await supabase
+        .from('orders')
+        .update({ total_ht: newTotalHtRounded })
+        .eq('id', order.id)
+        .select('*')
+        .single();
+      if (orderErr) throw orderErr;
+
+      // 4. Mettre à jour l'état local
+      setItems(updatedItems);
+      setLocalTotalHt(newTotalHtRounded);
+      onUpdated({ ...updatedOrder });
+
+      // Regénérer l'aperçu PDF
+      if (order.client) {
+        setPreviewHtml(buildOrderHtml({ ...order, total_ht: newTotalHtRounded }, updatedItems, order.client));
+      }
+
+      setEditingQty(false);
+      setDraftQty({});
+      showAlert('Succès', 'Les quantités ont été mises à jour.');
+    } catch (err) {
+      console.error('Erreur mise à jour quantités :', err);
+      showAlert('Erreur', 'Impossible de modifier les quantités.');
+    } finally {
+      setSavingItems(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -575,28 +691,112 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
 
           {/* Produits */}
           <View style={modal.section}>
-            <Text style={modal.sectionTitle}>Produits commandés</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={[modal.sectionTitle, { marginBottom: 0, paddingBottom: 0, borderBottomWidth: 0 }]}>Produits commandés</Text>
+              {!loadingItems && !editingQty && (
+                <TouchableOpacity
+                  onPress={startEditQty}
+                  style={modal.editQtyBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={modal.editQtyBtnText}>Modifier les quantités</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             {loadingItems ? (
               <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
             ) : (
               <>
                 <View style={modal.tableHead}>
                   <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
-                  <Text style={[modal.th, modal.right, { flex: 1.2 }]}>Qté</Text>
-                  <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>
+                  <Text style={[modal.th, modal.right, { flex: editingQty ? 2 : 1.2 }]}>Qté</Text>
+                  {!editingQty && <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>}
                   <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
                 </View>
-                {items.map((it, idx) => (
-                  <View key={it.id} style={[modal.tableRow, idx % 2 === 1 && modal.rowAlt]}>
-                    <Text style={[modal.td, { flex: 3 }]} numberOfLines={2}>{it.product_nom}</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite}</Text>
-                    <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} €`}</Text>
-                    <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }]}>{`${n2(it.sous_total_ht)} €`}</Text>
-                  </View>
-                ))}
+                {items.map((it, idx) => {
+                  const currentQty = editingQty ? (draftQty[it.id] ?? it.quantite) : it.quantite;
+                  const isDeleted = editingQty && currentQty === 0;
+                  const subTotal = editingQty
+                    ? Number((currentQty * Number(it.prix_unitaire_ht)).toFixed(2))
+                    : it.sous_total_ht;
+                  return (
+                    <View
+                      key={it.id}
+                      style={[
+                        modal.tableRow,
+                        idx % 2 === 1 && modal.rowAlt,
+                        isDeleted && modal.rowDeleted,
+                      ]}
+                    >
+                      <Text
+                        style={[modal.td, { flex: 3 }, isDeleted && modal.tdStrike]}
+                        numberOfLines={2}
+                      >
+                        {it.product_nom}
+                      </Text>
+                      {editingQty ? (
+                        <View style={[modal.qtyControl, { flex: 2 }]}>
+                          <TouchableOpacity
+                            onPress={() => changeQty(it.id, -1)}
+                            style={modal.qtyBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={modal.qtyBtnText}>−</Text>
+                          </TouchableOpacity>
+                          <TextInput
+                            style={modal.qtyInput}
+                            value={String(currentQty)}
+                            onChangeText={(v) => setQtyDirect(it.id, v)}
+                            keyboardType="numeric"
+                            selectTextOnFocus
+                          />
+                          <TouchableOpacity
+                            onPress={() => changeQty(it.id, 1)}
+                            style={modal.qtyBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={modal.qtyBtnText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite}</Text>
+                      )}
+                      {!editingQty && (
+                        <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} €`}</Text>
+                      )}
+                      <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }, isDeleted && modal.tdStrike]}>
+                        {isDeleted ? '—' : `${n2(subTotal)} €`}
+                      </Text>
+                    </View>
+                  );
+                })}
                 <View style={modal.totals}>
-                  <TotalLine label="Total HT" value={`${n2(order.total_ht)} €`} />
+                  <TotalLine label="Total HT" value={`${n2(localTotalHt)} €`} />
                 </View>
+
+                {/* Boutons confirmation édition */}
+                {editingQty && (
+                  <View style={modal.editQtyActions}>
+                    <TouchableOpacity
+                      onPress={cancelEditQty}
+                      style={modal.editQtyCancelBtn}
+                      disabled={savingItems}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={modal.editQtyCancelText}>Annuler</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleSaveItems}
+                      style={[modal.editQtySaveBtn, savingItems && { opacity: 0.6 }]}
+                      disabled={savingItems}
+                      activeOpacity={0.8}
+                    >
+                      {savingItems
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={modal.editQtySaveText}>✓ Valider les quantités</Text>}
+                    </TouchableOpacity>
+                  </View>
+                )}
               </>
             )}
           </View>
@@ -977,6 +1177,59 @@ const modal = StyleSheet.create({
   totalValue: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
   totalLabelFinal: { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
   totalValueFinal: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
+
+  // Ligne supprimée (quantité = 0)
+  rowDeleted: { opacity: 0.45, backgroundColor: '#FFE5E5' },
+  tdStrike: { textDecorationLine: 'line-through', color: colors.textLight },
+
+  // Contrôles édition quantités
+  editQtyBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.secondary,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  editQtyBtnText: { fontSize: fontSizes.xs, color: colors.primary, fontWeight: '600' },
+  qtyControl: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  qtyBtn: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  qtyBtnText: { color: '#fff', fontWeight: '700', fontSize: 16, lineHeight: 18 },
+  qtyInput: {
+    width: 38, height: 26,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: borderRadius.sm,
+    textAlign: 'center',
+    fontSize: fontSizes.sm, fontWeight: '600',
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
+  },
+  editQtyActions: {
+    flexDirection: 'row', gap: spacing.sm,
+    marginTop: spacing.md, justifyContent: 'flex-end',
+  },
+  editQtyCancelBtn: {
+    paddingHorizontal: spacing.md, paddingVertical: 8,
+    borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.background,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  editQtyCancelText: { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '600' },
+  editQtySaveBtn: {
+    flex: 1, paddingVertical: 10,
+    borderRadius: borderRadius.md,
+    backgroundColor: '#2E7D32',
+    alignItems: 'center', justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  editQtySaveText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
 
   // Notes
   notesClientBox: { backgroundColor: colors.secondary, borderRadius: borderRadius.md, padding: spacing.md, borderLeftWidth: 3, borderLeftColor: colors.primary },

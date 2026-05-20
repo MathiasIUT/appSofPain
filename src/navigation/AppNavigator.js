@@ -55,16 +55,62 @@ const linking = {
 
 export default function AppNavigator() {
   useEffect(() => {
-    // Quand Supabase détecte un lien de réinitialisation dans l'URL (web),
-    // l'événement PASSWORD_RECOVERY est déclenché.
-    // On lit l'URL pour distinguer create-password (première connexion) de reset-password (mot de passe oublié).
+    // Helper : attendre que navigationRef soit prêt puis naviguer
+    const navigateWhenReady = (target) => {
+      if (navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: target }] });
+      } else {
+        // Retry toutes les 50ms jusqu'à ce que le NavigationContainer soit monté
+        const timer = setInterval(() => {
+          if (navigationRef.isReady()) {
+            clearInterval(timer);
+            navigationRef.reset({ index: 0, routes: [{ name: target }] });
+          }
+        }, 50);
+        // Sécurité : arrêter après 5s
+        setTimeout(() => clearInterval(timer), 5000);
+      }
+    };
+
+    // Sur le web (Expo Web / Vercel), Supabase envoie les tokens dans le hash de l'URL
+    // sous la forme : #access_token=...&refresh_token=...&type=recovery
+    // On doit les extraire manuellement et appeler setSession() pour établir la session
+    // AVANT que l'utilisateur tente de soumettre son nouveau mot de passe.
+    if (typeof window !== 'undefined' && window.location?.hash) {
+      const hash = window.location.hash.substring(1); // enlève le '#'
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const type = params.get('type'); // 'recovery' ou 'signup'
+
+      if (accessToken && refreshToken && (type === 'recovery' || type === 'signup')) {
+        // Sauvegarder le path AVANT de nettoyer le hash (car replaceState change location)
+        const currentPath = window.location.pathname || '';
+
+        // Établir la session Supabase avec les tokens du lien email
+        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(({ error }) => {
+            if (error) {
+              console.error('Erreur setSession:', error.message);
+              return;
+            }
+            // Nettoyer le hash de l'URL pour éviter une réutilisation des tokens
+            window.history.replaceState(null, '', currentPath);
+
+            // Router vers le bon écran selon le path du lien email
+            const target = currentPath.includes('create-password') ? 'CreatePassword' : 'ResetPassword';
+            navigateWhenReady(target);
+          });
+      }
+    }
+
+    // Fallback : écouter PASSWORD_RECOVERY pour mobile / deep links
+    // (Supabase gère lui-même la session depuis les deep links natifs)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        if (navigationRef.isReady()) {
-          const url = typeof window !== 'undefined' ? (window.location?.href || '') : '';
-          const target = url.includes('create-password') ? 'CreatePassword' : 'ResetPassword';
-          navigationRef.reset({ index: 0, routes: [{ name: target }] });
-        }
+        const url = typeof window !== 'undefined' ? (window.location?.href || '') : '';
+        const target = url.includes('create-password') ? 'CreatePassword' : 'ResetPassword';
+        navigateWhenReady(target);
       }
     });
     return () => subscription.unsubscribe();
