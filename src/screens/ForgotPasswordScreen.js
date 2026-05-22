@@ -8,7 +8,6 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import BrandHeader from '../components/BrandHeader';
 
-const REDIRECT_RESET = 'https://app.sofpain.com/reset-password';
 
 export default function ForgotPasswordScreen({ navigation, route }) {
   const mode = route?.params?.mode || 'reset';
@@ -50,11 +49,10 @@ export default function ForgotPasswordScreen({ navigation, route }) {
         });
         if (fnError) throw fnError;
       } else {
-        // Mot de passe oublié → email Supabase standard vers /reset-password
-        const { error: err } = await supabase.auth.resetPasswordForEmail(trimmed, {
-          redirectTo: REDIRECT_RESET,
+        const { error: fnError } = await supabase.functions.invoke('send-reset-password-email', {
+          body: { email: trimmed },
         });
-        if (err) throw err;
+        if (fnError) throw fnError;
       }
 
       setSent(true);
