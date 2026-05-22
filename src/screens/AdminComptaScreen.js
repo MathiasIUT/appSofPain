@@ -511,6 +511,8 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
           clientName: clientName,
           monthLabel: monthLabelCap,
           pdfBase64: pdfBase64,
+          orders: enriched,
+          totalMois: totalMois,
         }
       });
 
