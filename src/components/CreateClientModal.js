@@ -209,7 +209,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
             {/* Contact */}
             <Text style={s.sectionTitle}>Contact</Text>
             {renderField('telephone', 'Téléphone', '06 00 00 00 00', { required: true, inputProps: { keyboardType: 'phone-pad' } })}
-            {renderField('email', 'Email', 'optionnel@societe.fr (facultatif)', { inputProps: { keyboardType: 'email-address', autoCapitalize: 'none' } })}
+            {renderField('email', 'Email', 'contact@societe.fr', { required: true, inputProps: { keyboardType: 'email-address', autoCapitalize: 'none' } })}
 
             {/* Adresse */}
             <Text style={s.sectionTitle}>Adresse</Text>
