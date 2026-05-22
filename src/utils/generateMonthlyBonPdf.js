@@ -1,7 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
-import { Asset } from 'expo-asset';
 
 export async function generateMonthlyBonPdf(client, date, orders) {
   const html = buildHtml(client, date, orders);
@@ -40,6 +39,28 @@ export async function generateMonthlyBonPdf(client, date, orders) {
 
 export async function generateMonthlyBonPdfBase64(client, date, orders) {
   const html = buildHtml(client, date, orders);
+
+  if (Platform.OS === 'web') {
+    try {
+      const module = await import('html2pdf.js');
+      const html2pdf = module.default || module;
+
+      const opt = {
+        margin: [5, 5, 5, 5],
+        filename: 'bon_mensuel.pdf',
+        image: { type: 'jpeg', quality: 1.0 },
+        html2canvas: { scale: 4, useCORS: true, logging: false, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      const base64DataUri = await html2pdf().from(html).set(opt).outputPdf('datauristring');
+      return base64DataUri;
+    } catch (err) {
+      console.error('Erreur génération PDF web:', err);
+      throw new Error('Impossible de générer le PDF sur le Web.');
+    }
+  }
+
   const { base64 } = await Print.printToFileAsync({ html, base64: true });
   return base64;
 }
@@ -63,6 +84,10 @@ const fmtDate = (d) => {
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
+const LOGO = 'https://zoemyisrqqfybgfnnlay.supabase.co/storage/v1/object/public/products/logo1.png';
+const COLOR_PRIMARY = '#C4924A';
+const COLOR_PRIMARY_LIGHT = '#FFF6EC';
+
 function buildHtml(client, date, orders) {
   const clientName = client.nom_societe
     || [client.prenom, client.nom].filter(Boolean).join(' ')
@@ -71,52 +96,74 @@ function buildHtml(client, date, orders) {
   const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
   const printDate = fmtDate(new Date());
-
   const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
-  const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
 
-  let tableRows = '';
-  orders.forEach((o, orderIndex) => {
+  // Génération des blocs de commande en pur tableau HTML
+  let ordersRows = '';
+  orders.forEach((o) => {
     const items = o.order_items || [];
     const sousTotalHt = Number(o.total_ht || 0);
-    const rowClass = orderIndex % 2 === 0 ? 'order-even' : 'order-odd';
+
+    // En-tête de commande
+    ordersRows += `
+      <tr>
+        <td colspan="4" style="padding:0;padding-top:14px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #DDD;border-radius:6px;overflow:hidden;border-collapse:separate;">
+            <!-- Titre commande -->
+            <tr>
+              <td colspan="4" style="background:#F0F0F0;padding:8px 12px;border-bottom:1px solid #DDD;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="font-size:11px;font-weight:bold;color:#1A1A1A;">Commande N° ${esc(o.numero)}</td>
+                    <td align="right" style="font-size:10px;color:#666;font-weight:bold;">${fmtDate(o.date_commande)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- En-tête colonnes -->
+            <tr style="background:#F7F7F7;">
+              <td style="padding:6px 12px;font-size:9px;font-weight:bold;color:#666;text-transform:uppercase;border-bottom:1px solid #EEE;width:44%;">Produit</td>
+              <td style="padding:6px 12px;font-size:9px;font-weight:bold;color:#666;text-transform:uppercase;border-bottom:1px solid #EEE;text-align:center;width:12%;">Qté</td>
+              <td style="padding:6px 12px;font-size:9px;font-weight:bold;color:#666;text-transform:uppercase;border-bottom:1px solid #EEE;text-align:right;width:22%;">PU HT</td>
+              <td style="padding:6px 12px;font-size:9px;font-weight:bold;color:#666;text-transform:uppercase;border-bottom:1px solid #EEE;text-align:right;width:22%;">Total HT</td>
+            </tr>
+    `;
 
     if (items.length === 0) {
-      tableRows += `
-        <tr class="data-row ${rowClass}">
-          <td>${fmtDate(o.date_commande)}</td>
-          <td class="col-num">${esc(o.numero)}</td>
-          <td colspan="4" style="color:#999;font-style:italic;">Aucun article</td>
-        </tr>`;
+      ordersRows += `
+            <tr>
+              <td colspan="4" style="padding:10px 12px;font-size:10px;color:#999;font-style:italic;text-align:center;">Aucun article</td>
+            </tr>
+      `;
     } else {
-      items.forEach((it, itIndex) => {
+      items.forEach((it, idx) => {
         const prodNom = esc(it.product_nom || it.products?.nom || `Produit #${it.product_id}`);
         const qty = it.quantite;
         const pu = Number(it.prix_unitaire_ht || 0);
         const ligneTotal = n2(pu * qty);
+        const rowBg = idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA';
 
-        const dateCell = itIndex === 0
-          ? `<td class="col-date" rowspan="${items.length}">${fmtDate(o.date_commande)}</td><td class="col-num" rowspan="${items.length}">${esc(o.numero)}</td>`
-          : '';
-
-        tableRows += `
-        <tr class="data-row ${rowClass}">
-          ${dateCell}
-          <td class="col-produit">${prodNom}</td>
-          <td class="col-qty">${qty}</td>
-          <td class="col-pu">${n2(pu)} €</td>
-          <td class="col-total">${ligneTotal} €</td>
-        </tr>`;
+        ordersRows += `
+            <tr style="background-color:${rowBg};">
+              <td style="padding:7px 12px;font-size:10px;color:#1A1A1A;border-bottom:1px solid #F5F5F5;">${prodNom}</td>
+              <td style="padding:7px 12px;font-size:10px;color:#1A1A1A;text-align:center;border-bottom:1px solid #F5F5F5;font-weight:bold;">${qty}</td>
+              <td style="padding:7px 12px;font-size:10px;color:#666;text-align:right;border-bottom:1px solid #F5F5F5;">${n2(pu)} €</td>
+              <td style="padding:7px 12px;font-size:10px;color:#1A1A1A;text-align:right;border-bottom:1px solid #F5F5F5;font-weight:bold;">${ligneTotal} €</td>
+            </tr>
+        `;
       });
     }
 
-    if (items.length > 1) {
-      tableRows += `
-        <tr class="subtotal-row">
-          <td colspan="5" style="text-align:right;padding-right:8px;font-weight:700;font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Sous-total commande</td>
-          <td class="col-total" style="font-weight:700;color:#C4924A;">${n2(sousTotalHt)} €</td>
-        </tr>`;
-    }
+    // Sous-total commande
+    ordersRows += `
+            <tr style="background:#FFF8F0;">
+              <td colspan="3" style="padding:7px 12px;font-size:9px;font-weight:bold;color:#888;text-align:right;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid #E8D5BB;">Sous-total</td>
+              <td style="padding:7px 12px;font-size:10px;font-weight:bold;color:${COLOR_PRIMARY};text-align:right;border-top:1px solid #E8D5BB;">${n2(sousTotalHt)} €</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `;
   });
 
   return `<!DOCTYPE html>
@@ -125,214 +172,100 @@ function buildHtml(client, date, orders) {
 <meta charset="UTF-8">
 <title>Bon mensuel — ${esc(clientName)} — ${esc(monthLabelCap)}</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root { --primary: #C4924A; --primary-light: #FFF6EC; --text: #1A1A1A; --muted: #666; --border: #DDD; }
-
-  html { font-size: 10px; }
-  body {
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    color: var(--text);
-    padding: 16px 20px;
-    line-height: 1.35;
-  }
-
-  /* En-tête */
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 3px solid var(--primary);
-    padding-bottom: 10px;
-    margin-bottom: 12px;
-  }
-  .brand { font-size: 20px; font-weight: 900; color: var(--primary); letter-spacing: 2px; }
-  .brand-sub { font-size: 8px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
-  .doc-title { text-align: right; }
-  .doc-title h1 { font-size: 16px; font-weight: 800; text-transform: uppercase; color: var(--text); }
-  .doc-title .doc-period { font-size: 12px; font-weight: 700; color: var(--primary); margin-top: 2px; }
-  .doc-title .doc-print { font-size: 8px; color: var(--muted); margin-top: 3px; }
-
-  /* Bloc client */
-  .client-block {
-    background: var(--primary-light);
-    border-left: 4px solid var(--primary);
-    border-radius: 4px;
-    padding: 8px 12px;
-    margin-bottom: 12px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-  }
-  .client-main { flex: 1; min-width: 200px; }
-  .client-block .label { font-size: 8px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
-  .client-name { font-size: 14px; font-weight: 800; color: var(--text); }
-  .client-detail { font-size: 9px; color: var(--muted); margin-top: 2px; }
-
-  /* Résumé */
-  .summary-bar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-  }
-  .summary-pill {
-    background: #F5F5F5;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 9px;
-    color: var(--muted);
-  }
-  .summary-pill strong { color: var(--text); }
-
-  /* Tableau principal */
-  .main-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-    font-size: 10px;
-  }
-  .main-table thead tr {
-    background: #F0F0F0;
-  }
-  .main-table th {
-    padding: 6px 8px;
-    text-align: left;
-    font-size: 8.5px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 2px solid var(--border);
-  }
-  .main-table th.right, .main-table td.right { text-align: right; }
-  .main-table th.center, .main-table td.center { text-align: center; }
-
-  .data-row td {
-    padding: 4px 8px;
-    border-bottom: 1px solid #F0F0F0;
-    vertical-align: top;
-  }
-  .order-even td { background: #FFFFFF; }
-  .order-odd  td { background: #FAFAFA; }
-
-  .col-date  { width: 10%; white-space: nowrap; color: var(--text); font-weight: 600; }
-  .col-num   { width: 14%; font-size: 9px; color: var(--muted); white-space: nowrap; }
-  .col-produit { width: 38%; }
-  .col-qty   { width: 8%;  text-align: center; font-weight: 600; }
-  .col-pu    { width: 13%; text-align: right; color: var(--muted); }
-  .col-total { width: 13%; text-align: right; font-weight: 600; color: var(--text); }
-
-  /* Ligne sous-total par commande */
-  .subtotal-row td {
-    padding: 3px 8px;
-    background: #FFF8F0;
-    border-bottom: 2px solid #E8D5BB;
-    font-size: 9px;
-  }
-
-  /* Total global */
-  .total-global {
-    margin-top: 14px;
-    border-top: 2px solid var(--primary);
-    padding-top: 8px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .total-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-  .total-amount { font-size: 20px; font-weight: 900; color: var(--primary); }
-  .total-ht-tag { font-size: 9px; color: var(--muted); }
-
-  /* Pied de page */
-  .page-footer {
-    margin-top: 16px;
-    border-top: 1px solid var(--border);
-    padding-top: 6px;
-    font-size: 8px;
-    color: var(--muted);
-    text-align: center;
-  }
-
-  /* Impression */
-  @media print {
-    @page { margin: 8mm 10mm; size: A4; }
-    body { padding: 0; font-size: 9px; }
-    .main-table { font-size: 9px; }
-    .subtotal-row td { page-break-after: avoid; }
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #FFFFFF; color: #1A1A1A; }
 </style>
 </head>
-<body>
+<body style="margin:0;padding:0;">
 
-  <!-- En-tête -->
-  <div class="page-header">
-    <div>
-      <div class="brand"><img src="${logoUri}" style="height: 70px; object-fit: contain;" alt="Sof Pain" /></div>
-      <div class="brand-sub">Livraison de produits frais</div>
-    </div>
-    <div class="doc-title">
-      <h1>Bon Mensuel</h1>
-      <div class="doc-period">${esc(monthLabelCap)}</div>
-      <div class="doc-print">Imprimé le ${esc(printDate)}</div>
-    </div>
-  </div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#FFFFFF;padding:14px 20px;max-width:800px;margin:0 auto;">
 
-  <!-- Client -->
-  <div class="client-block">
-    <div class="client-main">
-      <div class="label">Client</div>
-      <div class="client-name">${esc(clientName)}</div>
-      ${client.adresse ? `<div class="client-detail">${esc(client.adresse)}${client.ville ? `, ${esc(client.ville)}` : ''}</div>` : ''}
-    </div>
-    <div>
-      ${client.telephone ? `<div class="client-detail">Tél : ${esc(client.telephone)}</div>` : ''}
-      ${client.siret ? `<div class="client-detail">SIRET : ${esc(client.siret)}</div>` : ''}
-    </div>
-  </div>
+  <!-- En-tête : Logo + Titre -->
+  <tr>
+    <td style="padding-bottom:16px;border-bottom:3px solid ${COLOR_PRIMARY};">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td width="50%">
+            <img src="${LOGO}" alt="Sof Pain" style="height:64px;object-fit:contain;" />
+            <div style="font-size:8px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Livraison de produits frais</div>
+          </td>
+          <td width="50%" align="right">
+            <div style="font-size:18px;font-weight:900;text-transform:uppercase;color:#1A1A1A;letter-spacing:1px;">Bon Mensuel</div>
+            <div style="font-size:13px;font-weight:700;color:${COLOR_PRIMARY};margin-top:3px;">${esc(monthLabelCap)}</div>
+            <div style="font-size:8px;color:#999;margin-top:3px;">Imprimé le ${esc(printDate)}</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- Bloc client -->
+  <tr>
+    <td style="padding-top:14px;padding-bottom:14px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:${COLOR_PRIMARY_LIGHT};border-left:4px solid ${COLOR_PRIMARY};border-radius:4px;padding:10px 14px;">
+        <tr>
+          <td>
+            <div style="font-size:8px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;">Client</div>
+            <div style="font-size:14px;font-weight:800;color:#1A1A1A;margin-top:2px;">${esc(clientName)}</div>
+            ${client.adresse ? `<div style="font-size:9px;color:#666;margin-top:2px;">${esc(client.adresse)}${client.ville ? `, ${esc(client.ville)}` : ''}</div>` : ''}
+          </td>
+          <td align="right">
+            ${client.telephone ? `<div style="font-size:9px;color:#666;">Tél : ${esc(client.telephone)}</div>` : ''}
+            ${client.siret ? `<div style="font-size:9px;color:#666;margin-top:2px;">SIRET : ${esc(client.siret)}</div>` : ''}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
   <!-- Résumé -->
-  <div class="summary-bar">
-    <div class="summary-pill"><strong>${orders.length}</strong> commande${orders.length > 1 ? 's' : ''}</div>
-    <div class="summary-pill">Période : <strong>${esc(monthLabelCap)}</strong></div>
-  </div>
+  <tr>
+    <td style="padding-bottom:10px;">
+      <table cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="background:#F5F5F5;border:1px solid #DDD;border-radius:20px;padding:3px 12px;font-size:9px;color:#666;">
+            <strong style="color:#1A1A1A;">${orders.length}</strong> commande${orders.length > 1 ? 's' : ''}
+          </td>
+          <td width="8"></td>
+          <td style="background:#F5F5F5;border:1px solid #DDD;border-radius:20px;padding:3px 12px;font-size:9px;color:#666;">
+            Période : <strong style="color:#1A1A1A;">${esc(monthLabelCap)}</strong>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-  <!-- Tableau des commandes -->
-  ${orders.length > 0 ? `
-  <table class="main-table">
-    <thead>
-      <tr>
-        <th class="col-date">Date</th>
-        <th class="col-num">N° Commande</th>
-        <th class="col-produit">Produit</th>
-        <th class="col-qty center">Qté</th>
-        <th class="col-pu right">Prix unit. HT</th>
-        <th class="col-total right">Montant HT</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tableRows}
-    </tbody>
-  </table>
-  ` : '<p style="text-align:center;color:#999;padding:20px;">Aucune commande ce mois-ci.</p>'}
+  <!-- Commandes -->
+  ${orders.length > 0 ? ordersRows : `
+  <tr>
+    <td style="padding:20px;text-align:center;color:#999;font-style:italic;">Aucune commande ce mois-ci.</td>
+  </tr>
+  `}
 
   <!-- Total global -->
-  <div class="total-global">
-    <span class="total-label">Total du mois</span>
-    <span class="total-amount">${n2(totalMois)} €</span>
-    <span class="total-ht-tag">HT</span>
-  </div>
+  <tr>
+    <td style="padding-top:18px;border-top:2px solid ${COLOR_PRIMARY};margin-top:14px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="right">
+            <span style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:1px;margin-right:12px;">Total du mois</span>
+            <span style="font-size:22px;font-weight:900;color:${COLOR_PRIMARY};">${n2(totalMois)} €</span>
+            <span style="font-size:9px;color:#666;margin-left:4px;">HT</span>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
   <!-- Pied de page -->
-  <div class="page-footer">
-    Document généré automatiquement par SofPain · ${esc(monthLabelCap)} · ${esc(clientName)}
-  </div>
+  <tr>
+    <td style="padding-top:16px;border-top:1px solid #DDD;margin-top:14px;font-size:8px;color:#999;text-align:center;">
+      Document généré automatiquement par SofPain · ${esc(monthLabelCap)} · ${esc(clientName)}
+    </td>
+  </tr>
+
+</table>
 
 </body>
 </html>`;
 }
-
