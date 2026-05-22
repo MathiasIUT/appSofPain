@@ -79,7 +79,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      const email = form.email.trim().toLowerCase();
+      const email = form.email.trim();
       // Mot de passe temporaire aléatoire — jamais communiqué, le client le remplacera via le lien
       const tempPassword = Array.from(crypto.getRandomValues(new Uint8Array(18)))
         .map(b => b.toString(36)).join('').slice(0, 18);
