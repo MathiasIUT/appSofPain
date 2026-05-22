@@ -3,10 +3,9 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const CREATE_PASSWORD_URL = 'https://app.sofpain.com/create-password';
+const RESET_PASSWORD_URL = 'https://app.sofpain.com/reset-password';
 
 serve(async (req: Request) => {
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
@@ -17,12 +16,12 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { email, nom, prenom, nom_societe } = await req.json();
+    const { email } = await req.json();
 
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email requis' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
 
@@ -32,11 +31,10 @@ serve(async (req: Request) => {
     if (!resendApiKey) {
       return new Response(JSON.stringify({ error: 'RESEND_API_KEY non configurée' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
 
-    // Génération du lien de création de mot de passe via Admin API Supabase
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -45,25 +43,18 @@ serve(async (req: Request) => {
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email,
-      options: {
-        redirectTo: CREATE_PASSWORD_URL,
-      },
+      options: { redirectTo: RESET_PASSWORD_URL },
     });
 
     if (linkError || !linkData?.properties?.action_link) {
       console.error('Erreur génération lien:', linkError);
       return new Response(JSON.stringify({ error: linkError?.message || 'Impossible de générer le lien' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
 
     const actionLink = linkData.properties.action_link;
-    const prenom_affiche = prenom || '';
-    const nom_affiche = nom || '';
-    const civilite = prenom_affiche || nom_affiche
-      ? `${prenom_affiche} ${nom_affiche}`.trim()
-      : 'cher client';
 
     const htmlBody = `
 <!DOCTYPE html>
@@ -71,7 +62,7 @@ serve(async (req: Request) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bienvenue chez Sof Pain</title>
+  <title>Réinitialisation de votre mot de passe</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F9FAFB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F9FAFB;padding:60px 0;">
@@ -87,28 +78,28 @@ serve(async (req: Request) => {
           <!-- Body Content -->
           <tr>
             <td style="padding:0 48px 48px 48px;">
-              <h1 style="margin:0 0 24px 0;color:#111827;font-size:24px;font-weight:700;line-height:1.3;text-align:center;">Bienvenue, ${civilite}</h1>
-              ${nom_societe ? `<p style="margin:0 0 32px 0;color:#6B7280;font-size:14px;font-weight:600;letter-spacing:1px;text-transform:uppercase;text-align:center;">${nom_societe}</p>` : ''}
+              <p style="margin:0 0 12px 0;color:#6B7280;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;text-align:center;">Sécurité du compte</p>
+              <h1 style="margin:0 0 32px 0;color:#111827;font-size:24px;font-weight:700;line-height:1.3;text-align:center;">Réinitialisation du mot de passe</h1>
               
               <p style="margin:0 0 24px 0;color:#374151;font-size:16px;line-height:1.6;text-align:left;">
-                Votre compte professionnel <strong>Sof Pain</strong> a été créé avec succès. Vous pouvez dès à présent accéder à votre espace de commandes en ligne.
+                Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte professionnel <strong>Sof Pain</strong>.
               </p>
               
               <p style="margin:0 0 40px 0;color:#374151;font-size:16px;line-height:1.6;text-align:left;">
-                Afin de sécuriser votre compte, merci de définir votre mot de passe en cliquant sur le bouton ci-dessous :
+                Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe de manière sécurisée :
               </p>
               
               <!-- Action Button -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <a href="${actionLink}" style="display:inline-block;background-color:#C9411A;color:#FFFFFF;text-decoration:none;font-size:16px;font-weight:600;padding:16px 36px;border-radius:8px;">Créer mon mot de passe</a>
+                    <a href="${actionLink}" style="display:inline-block;background-color:#C9411A;color:#FFFFFF;text-decoration:none;font-size:16px;font-weight:600;padding:16px 36px;border-radius:8px;">Réinitialiser mon mot de passe</a>
                   </td>
                 </tr>
               </table>
               
               <p style="margin:40px 0 0 0;color:#9CA3AF;font-size:14px;line-height:1.5;text-align:center;">
-                Ce lien de sécurité est valide pendant 24 heures.<br>Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
+                Ce lien de sécurité est valide pendant 24 heures.<br>Si vous n'avez pas fait cette demande, vous pouvez ignorer cet e-mail, votre mot de passe restera inchangé.
               </p>
             </td>
           </tr>
@@ -132,7 +123,6 @@ serve(async (req: Request) => {
 </html>
     `.trim();
 
-    // Envoi via Resend API
     const resendResponse = await fetch(RESEND_API_URL, {
       method: 'POST',
       headers: {
@@ -142,7 +132,7 @@ serve(async (req: Request) => {
       body: JSON.stringify({
         from: resendFrom,
         to: [email],
-        subject: 'Bienvenue chez Sof Pain — Créez votre mot de passe',
+        subject: 'Sof Pain — Réinitialisation de votre mot de passe',
         html: htmlBody,
       }),
     });
@@ -153,23 +143,20 @@ serve(async (req: Request) => {
       console.error('Erreur Resend:', resendData);
       return new Response(JSON.stringify({ error: 'Erreur envoi email', details: resendData }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
 
     return new Response(JSON.stringify({ success: true, id: resendData.id }), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
 
   } catch (err) {
     console.error('Edge Function error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   }
 });
