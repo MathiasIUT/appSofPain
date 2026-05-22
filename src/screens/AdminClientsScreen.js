@@ -385,10 +385,19 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
     setSelectedLivreur(livId);
     setSavingLivreur(true);
     try {
+      // 1. Mise à jour du profil client
       const { data, error } = await supabase.from('profiles')
         .update({ livreur_id: livId || null })
         .eq('id', client.id).select('*').single();
       if (error) throw error;
+      
+      // 2. Synchronisation des commandes en cours (nouvelle ou en_preparation)
+      // pour qu'elles passent sur le nouveau livreur
+      await supabase.from('orders')
+        .update({ livreur_id: livId || null })
+        .eq('client_id', client.id)
+        .in('statut', ['nouvelle', 'en_preparation']);
+
       onUpdated(data);
     } catch (err) {
       showAlert('Erreur', 'Impossible de changer le livreur.');
