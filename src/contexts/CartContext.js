@@ -56,6 +56,21 @@ export function CartProvider({ children }) {
     setItems(loadedItems);
   }, []);
 
+  const reorderIntoCart = useCallback((orderItems) => {
+    setEditingOrder(null);
+    const loadedItems = orderItems.map(oi => ({
+      product: {
+        id: oi.product_id,
+        nom: oi.product_nom,
+        prix_unitaire_ht: oi.prix_unitaire_ht,
+        tva_pourcent: oi.tva_pourcent,
+        increment: oi.increment || 10,
+      },
+      quantite: oi.quantite
+    }));
+    setItems(loadedItems);
+  }, []);
+
   const totals = useMemo(() => {
     let totalHt = 0;
     let totalTva = 0;
@@ -85,8 +100,9 @@ export function CartProvider({ children }) {
     removeFromCart,
     clearCart,
     loadOrderIntoCart,
+    reorderIntoCart,
     totals,
-  }), [items, editingOrder, addToCart, setQuantity, removeFromCart, clearCart, loadOrderIntoCart, totals]);
+  }), [items, editingOrder, addToCart, setQuantity, removeFromCart, clearCart, loadOrderIntoCart, reorderIntoCart, totals]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

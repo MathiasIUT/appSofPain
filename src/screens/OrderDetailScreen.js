@@ -41,7 +41,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { loadOrderIntoCart } = useCart();
+  const { loadOrderIntoCart, reorderIntoCart } = useCart();
 
   useEffect(() => {
     if (!order?.id) { setLoading(false); return; }
@@ -97,6 +97,15 @@ export default function OrderDetailScreen({ navigation, route }) {
     } finally {
       setPdfLoading(false);
     }
+  };
+
+  const handleReorder = () => {
+    if (!items || items.length === 0) {
+      showAlert('Erreur', 'Impossible de charger les articles à recommander.');
+      return;
+    }
+    reorderIntoCart(items);
+    navigation.navigate('Cart');
   };
 
   const handleEditOrder = () => {
@@ -267,6 +276,16 @@ export default function OrderDetailScreen({ navigation, route }) {
           )}
         </View>
 
+        {/* ── Bouton Recommander ───────────────────────────────── */}
+        <Button
+          title="Recommander à l'identique"
+          onPress={handleReorder}
+          disabled={pdfLoading || loading}
+          fullWidth
+          size="lg"
+          style={{ marginBottom: spacing.md }}
+        />
+
         {/* ── Bouton PDF ───────────────────────────────── */}
         <Button
           title="Télécharger le bon de commande"
@@ -275,6 +294,7 @@ export default function OrderDetailScreen({ navigation, route }) {
           disabled={pdfLoading || loading}
           fullWidth
           size="lg"
+          variant="outline"
         />
 
         {/* ── Boutons Modifier/Supprimer ──────────────── */}
