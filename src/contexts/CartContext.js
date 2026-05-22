@@ -50,6 +50,7 @@ export function CartProvider({ children }) {
         prix_unitaire_ht: oi.prix_unitaire_ht,
         tva_pourcent: oi.tva_pourcent,
         increment: oi.increment || 10,
+        image_url: oi.products?.image_url || null,
       },
       quantite: oi.quantite
     }));
@@ -65,6 +66,7 @@ export function CartProvider({ children }) {
         prix_unitaire_ht: oi.prix_unitaire_ht,
         tva_pourcent: oi.tva_pourcent,
         increment: oi.increment || 10,
+        image_url: oi.products?.image_url || null,
       },
       quantite: oi.quantite
     }));

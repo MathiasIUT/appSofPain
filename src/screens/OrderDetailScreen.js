@@ -59,7 +59,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             .single(),
           supabase
             .from('order_items')
-            .select('*')
+            .select('*, products(image_url)')
             .eq('order_id', order.id)
             .order('created_at', { ascending: true }),
           supabase

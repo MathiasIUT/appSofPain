@@ -10,10 +10,8 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
-import { useCart } from '../contexts/CartContext';
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
@@ -27,7 +25,6 @@ export default function MyOrdersScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const ordersLengthRef = useRef(0);
-  const { reorderIntoCart } = useCart();
 
   useEffect(() => { ordersLengthRef.current = orders.length; }, [orders.length]);
 
@@ -43,7 +40,7 @@ export default function MyOrdersScreen({ navigation }) {
 
       const { data, error, count } = await supabase
         .from('orders')
-        .select('*, order_items(*)', { count: 'exact' })
+        .select('*', { count: 'exact' })
         .eq('client_id', user.id)
         .order('date_commande', { ascending: false })
         .range(from, to);
@@ -70,15 +67,6 @@ export default function MyOrdersScreen({ navigation }) {
   const handlePressOrder = useCallback((order) => {
     navigation.navigate('OrderDetail', { order });
   }, [navigation]);
-
-  const handleReorder = useCallback((order) => {
-    if (!order.order_items || order.order_items.length === 0) {
-      if (Platform.OS === 'web') window.alert('Erreur: impossible de charger les articles.');
-      return;
-    }
-    reorderIntoCart(order.order_items);
-    navigation.navigate('Cart');
-  }, [reorderIntoCart, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -125,13 +113,7 @@ export default function MyOrdersScreen({ navigation }) {
           maxToRenderPerBatch={10}
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android' || Platform.OS === 'web'}
-          renderItem={({ item }) => (
-            <OrderCard 
-              item={item} 
-              onPress={handlePressOrder} 
-              onReorder={handleReorder} 
-            />
-          )}
+          renderItem={({ item }) => <OrderCard item={item} onPress={handlePressOrder} />}
           ListFooterComponent={hasMore ? (
             <TouchableOpacity
               style={styles.loadMoreBtn}
@@ -154,38 +136,26 @@ export default function MyOrdersScreen({ navigation }) {
   );
 }
 
-const OrderCard = React.memo(({ item, onPress, onReorder }) => {
+const OrderCard = React.memo(({ item, onPress }) => {
   return (
-    <View style={styles.card}>
-      <TouchableOpacity
-        style={styles.cardBody}
-        onPress={() => onPress(item)}
-        activeOpacity={0.75}
-      >
-        <View style={styles.cardTop}>
-          <Text style={styles.cardNum}>N° {item.numero}</Text>
-        </View>
-        <View style={styles.cardBottom}>
-          <Text style={styles.cardDate}>
-            {fmt(item.date_commande)}
-          </Text>
-          <Text style={styles.cardTotal}>
-            {Number(item.total_ht ?? 0).toFixed(2)} € HT
-          </Text>
-        </View>
-        <Text style={styles.cardArrow}>›</Text>
-      </TouchableOpacity>
-      
-      <View style={styles.cardActions}>
-        <TouchableOpacity 
-          style={styles.reorderBtn} 
-          onPress={() => onReorder(item)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.reorderBtnText}>Recommander</Text>
-        </TouchableOpacity>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onPress(item)}
+      activeOpacity={0.75}
+    >
+      <View style={styles.cardTop}>
+        <Text style={styles.cardNum}>N° {item.numero}</Text>
       </View>
-    </View>
+      <View style={styles.cardBottom}>
+        <Text style={styles.cardDate}>
+          {fmt(item.date_commande)}
+        </Text>
+        <Text style={styles.cardTotal}>
+          {Number(item.total_ht ?? 0).toFixed(2)} € HT
+        </Text>
+      </View>
+      <Text style={styles.cardArrow}>›</Text>
+    </TouchableOpacity>
   );
 });
 
@@ -264,12 +234,9 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  cardBody: {
-    padding: spacing.lg,
     position: 'relative',
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
@@ -306,23 +273,4 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: colors.border,
   },
-  cardActions: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: '#FAFAFA',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  reorderBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    ...Platform.select({ web: { cursor: 'pointer' } }),
-  },
-  reorderBtnText: {
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: fontSizes.sm,
-  }
 });
