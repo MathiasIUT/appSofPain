@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Alert,
+  TextInput,
 } from 'react-native';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
@@ -30,6 +31,7 @@ export default function AdminComptaScreen() {
 
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [search, setSearch] = useState('');
 
   const [bonClient, setBonClient] = useState(null);
   const [bonVisible, setBonVisible] = useState(false);
@@ -109,6 +111,14 @@ export default function AdminComptaScreen() {
       filteredClients = clients.filter(c => c.livreur_id === selectedLivreurId);
     }
 
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      filteredClients = filteredClients.filter(c => {
+        const name = [c.nom_societe, c.prenom, c.nom].filter(Boolean).join(' ').toLowerCase();
+        return name.includes(q);
+      });
+    }
+
     const result = [];
     let globalTotalHt = 0;
 
@@ -142,6 +152,9 @@ export default function AdminComptaScreen() {
       const orphanOrders = orders.filter(o => !o.client_id && o.client_nom);
       const orphanByKey = {};
       for (const order of orphanOrders) {
+        if (search.trim() && !order.client_nom?.toLowerCase().includes(search.toLowerCase())) {
+          continue;
+        }
         const key = order.client_uuid_snapshot || `name-${order.client_nom}`;
         if (!orphanByKey[key]) {
           orphanByKey[key] = {
@@ -183,7 +196,7 @@ export default function AdminComptaScreen() {
     });
 
     return { rows: result, globalTotalHt };
-  }, [clients, orders, selectedLivreurId]);
+  }, [clients, orders, selectedLivreurId, search]);
 
   const getDisplayPrice = (productId, clientId, aggregatedPrice) => {
     if (aggregatedPrice !== undefined) return aggregatedPrice;
@@ -227,6 +240,16 @@ export default function AdminComptaScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </View>
+
+      <View style={styles.searchWrap}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher un client dans ce bilan..."
+          placeholderTextColor={colors.textLight}
+          value={search}
+          onChangeText={setSearch}
+        />
       </View>
 
       <View style={styles.tabsContainer}>
@@ -700,6 +723,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: fontSizes.sm,
+  },
+  searchWrap: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: Platform.OS === 'web' ? spacing.sm : 10,
+    fontSize: fontSizes.sm,
+    color: colors.textPrimary,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
   datePicker: {
     flexDirection: 'row',
