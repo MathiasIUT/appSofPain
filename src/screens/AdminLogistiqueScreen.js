@@ -197,7 +197,7 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
     });
   };
 
-  // Déplace une commande d'une position dans la tournée
+  // Déplace une commande d'une position dans la tournée (Local)
   const moveOrder = (isoDate, fromIdx, toIdx) => {
     setOrdersOrderMap(prev => {
       const current = getDayOrdersSorted(isoDate, orders).map(o => o.id);
@@ -208,6 +208,29 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
     });
   };
 
+  // Déplace un client d'une position dans sa tournée et sauvegarde en base
+  const moveClient = async (fromIdx, toIdx) => {
+    const nextClients = [...clients];
+    const [moved] = nextClients.splice(fromIdx, 1);
+    nextClients.splice(toIdx, 0, moved);
+    setClients(nextClients);
+
+    try {
+      // Sauvegarde des nouveaux ordres de tournée en base de données
+      const updates = nextClients.map((c, idx) => ({
+        id: c.id,
+        ordre_tournee: idx,
+      }));
+      // On utilise upsert pour mettre à jour plusieurs lignes d'un coup (si Supabase le permet facilement, 
+      // ou sinon on fait un appel successif car il y a peu de clients)
+      for (const update of updates) {
+        await supabase.from('profiles').update({ ordre_tournee: update.ordre_tournee }).eq('id', update.id);
+      }
+    } catch (err) {
+      showAlert('Erreur', 'Impossible de sauvegarder le nouvel ordre des clients.');
+    }
+  };
+
   const handleToggleClients = async () => {
     const next = !clientsOpen;
     setClientsOpen(next);
@@ -215,8 +238,9 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
       setLoadingClients(true);
       try {
         const { data } = await supabase
-          .from('profiles').select('id, nom_societe, nom, prenom')
+          .from('profiles').select('id, nom_societe, nom, prenom, ordre_tournee')
           .eq('role', 'client').eq('livreur_id', livreur.id)
+          .order('ordre_tournee', { ascending: true })
           .order('nom_societe', { ascending: true });
         setClients(data || []);
         setClientsLoaded(true);
@@ -232,12 +256,21 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
       setLoadingOrders(true);
       try {
         const { data } = await supabase
-          .from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone), order_items(*)')
+          .from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*)')
           .eq('livreur_id', livreur.id).in('statut', ['nouvelle'])
           .order('numero', { ascending: true });
         const fetched = data || [];
+        
+        // Tri local des commandes reçues selon l'ordre_tournee du client
+        fetched.sort((a, b) => {
+          const ordreA = a.client?.ordre_tournee || 0;
+          const ordreB = b.client?.ordre_tournee || 0;
+          if (ordreA !== ordreB) return ordreA - ordreB;
+          return a.numero.localeCompare(b.numero);
+        });
+
         setOrders(fetched);
-        // Initialiser l'ordre par défaut (par numéro de commande croissant)
+        // Initialiser l'ordre par défaut (basé sur le tri précédent)
         const newOrderMap = {};
         const dates = [...new Set(fetched.map(o => (o.date_commande || '').split('T')[0]))];
         dates.forEach(isoDate => {
@@ -307,9 +340,38 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
             ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
             : clients.length === 0
               ? <Text style={s.emptyText}>Aucun client assigné.</Text>
-              : clients.map(c => (
-                <View key={c.id} style={s.clientRow}>
-                  <Text style={s.clientName}>{c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—'}</Text>
+              : clients.map((c, idx) => (
+                <View key={c.id} style={s.orderLine}>
+                  {/* Badge de position */}
+                  <View style={[s.tourBadge, { backgroundColor: idx === 0 ? colors.primary : idx === clients.length - 1 ? '#888' : colors.secondary }]}>
+                    <Text style={[s.tourBadgeText, { color: idx === 0 ? '#fff' : idx === clients.length - 1 ? '#fff' : colors.primary }]}>
+                      {idx + 1}
+                    </Text>
+                  </View>
+                  
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={s.orderNum} numberOfLines={1}>{c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—'}</Text>
+                  </View>
+
+                  {/* Boutons de réordonnancement des clients */}
+                  <View style={s.reorderBtns}>
+                    <TouchableOpacity
+                      style={[s.reorderBtn, idx === 0 && s.reorderBtnDisabled]}
+                      onPress={() => moveClient(idx, idx - 1)}
+                      disabled={idx === 0}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[s.reorderBtnText, idx === 0 && s.reorderBtnTextDisabled]}>▲</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.reorderBtn, idx === clients.length - 1 && s.reorderBtnDisabled]}
+                      onPress={() => moveClient(idx, idx + 1)}
+                      disabled={idx === clients.length - 1}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[s.reorderBtnText, idx === clients.length - 1 && s.reorderBtnTextDisabled]}>▼</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
         )}
