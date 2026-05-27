@@ -78,6 +78,10 @@ function buildOrderBody(order, items, client) {
   const nomClient = [client?.prenom, client?.nom].filter(Boolean).join(' ');
   const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
 
+  const typeBadgeHtml = order.type_commande === 'surgele'
+    ? `<span style="display:inline-block; background:#E3F2FD; color:#1565C0; padding:4px 8px; border-radius:4px; font-size:0.85rem; font-weight:700; margin-bottom:8px;">Surgelé</span>`
+    : `<span style="display:inline-block; background:#E8F5E9; color:#2E7D32; padding:4px 8px; border-radius:4px; font-size:0.85rem; font-weight:700; margin-bottom:8px;">Frais</span>`;
+
   const lignes = items.map((it) => {
     const pu = Number(it.prix_unitaire_ht);
     const stHt = Number(it.sous_total_ht);
@@ -100,6 +104,7 @@ function buildOrderBody(order, items, client) {
   </div>
   <div class="doc-meta">
     <h1>Bon de commande</h1>
+    <div>${typeBadgeHtml}</div>
     <div class="num">N° ${esc(order.numero)}</div>
     <div class="date">Émis le ${dateCommande}</div>
   </div>
@@ -118,6 +123,7 @@ function buildOrderBody(order, items, client) {
   <div class="info-block">
     <h3>Livraison</h3>
     ${adresseHtml ? `<p>${adresseHtml}</p>` : '<p class="muted">Adresse non renseignée</p>'}
+    ${order.date_livraison_souhaitee ? `<p class="delivery-date" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Livraison souhaitée le ${fmt(order.date_livraison_souhaitee)}</p>` : ''}
   </div>
 </div>
 

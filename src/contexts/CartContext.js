@@ -5,44 +5,79 @@ const CartContext = createContext(null);
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [editingOrder, setEditingOrder] = useState(null);
+  const [cartType, setCartType] = useState(null); // 'frais' | 'surgele' | null
 
   const addToCart = useCallback((product, quantite = 1) => {
+    const productType = product.category?.slug === 'surgele' ? 'surgele' : 'frais';
+
     setItems((prev) => {
+      // Vérification du type de panier si le panier n'est pas vide
+      if (prev.length > 0 && cartType && cartType !== productType) {
+        // Cette erreur sera gérée dans le composant appelant pour afficher une alerte
+        throw new Error(`MIX_TYPE:${cartType}`);
+      }
+
       const existing = prev.find((i) => i.product.id === product.id);
+      let newItems;
       if (existing) {
-        return prev.map((i) =>
+        newItems = prev.map((i) =>
           i.product.id === product.id
             ? { ...i, quantite: i.quantite + quantite }
             : i
         );
+      } else {
+        newItems = [...prev, { product, quantite: quantite }];
       }
-      return [...prev, { product, quantite: quantite }];
+
+      // Mettre à jour le type si c'est le premier article
+      if (prev.length === 0) {
+        setCartType(productType);
+      }
+
+      return newItems;
     });
-  }, []);
+  }, [cartType]);
 
   const setQuantity = useCallback((productId, quantite) => {
     setItems((prev) => {
+      let newItems;
       if (quantite <= 0) {
         // Quantité à 0 = on retire du panier
-        return prev.filter((i) => i.product.id !== productId);
+        newItems = prev.filter((i) => i.product.id !== productId);
+      } else {
+        newItems = prev.map((i) =>
+          i.product.id === productId ? { ...i, quantite: quantite } : i
+        );
       }
-      return prev.map((i) =>
-        i.product.id === productId ? { ...i, quantite: quantite } : i
-      );
+
+      // Si le panier se vide, on réinitialise le type
+      if (newItems.length === 0) {
+        setCartType(null);
+      }
+
+      return newItems;
     });
   }, []);
 
   const removeFromCart = useCallback((productId) => {
-    setItems((prev) => prev.filter((i) => i.product.id !== productId));
+    setItems((prev) => {
+      const newItems = prev.filter((i) => i.product.id !== productId);
+      if (newItems.length === 0) {
+        setCartType(null);
+      }
+      return newItems;
+    });
   }, []);
 
   const clearCart = useCallback(() => {
     setItems([]);
     setEditingOrder(null);
+    setCartType(null);
   }, []);
 
   const loadOrderIntoCart = useCallback((order, orderItems) => {
     setEditingOrder(order);
+    setCartType(order.type_commande || 'frais');
     const loadedItems = orderItems.map(oi => ({
       product: {
         id: oi.product_id,
@@ -51,14 +86,16 @@ export function CartProvider({ children }) {
         tva_pourcent: oi.tva_pourcent,
         increment: oi.increment || 10,
         image_url: oi.products?.image_url || null,
+        category: { slug: order.type_commande || 'frais' },
       },
       quantite: oi.quantite
     }));
     setItems(loadedItems);
   }, []);
 
-  const reorderIntoCart = useCallback((orderItems) => {
+  const reorderIntoCart = useCallback((orderItems, type_commande) => {
     setEditingOrder(null);
+    setCartType(type_commande || 'frais');
     const loadedItems = orderItems.map(oi => ({
       product: {
         id: oi.product_id,
@@ -67,6 +104,7 @@ export function CartProvider({ children }) {
         tva_pourcent: oi.tva_pourcent,
         increment: oi.increment || 10,
         image_url: oi.products?.image_url || null,
+        category: { slug: type_commande || 'frais' },
       },
       quantite: oi.quantite
     }));
@@ -97,6 +135,7 @@ export function CartProvider({ children }) {
   const value = useMemo(() => ({
     items,
     editingOrder,
+    cartType,
     addToCart,
     setQuantity,
     removeFromCart,
@@ -104,7 +143,7 @@ export function CartProvider({ children }) {
     loadOrderIntoCart,
     reorderIntoCart,
     totals,
-  }), [items, editingOrder, addToCart, setQuantity, removeFromCart, clearCart, loadOrderIntoCart, reorderIntoCart, totals]);
+  }), [items, editingOrder, cartType, addToCart, setQuantity, removeFromCart, clearCart, loadOrderIntoCart, reorderIntoCart, totals]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

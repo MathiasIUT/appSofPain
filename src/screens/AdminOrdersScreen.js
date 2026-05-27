@@ -65,7 +65,7 @@ export default function AdminOrdersScreen() {
         .select(`
           id, numero, client_id, client_nom, statut, date_commande,
           total_ht, total_tva, total_ttc, livreur_id, notes_client, notes_admin,
-          adresse_livraison,
+          adresse_livraison, type_commande,
           client:profiles!client_id(
             id, nom, prenom, nom_societe, email, telephone
           )
@@ -381,6 +381,15 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
         <View style={styles.rowCol}>
           <Text style={styles.rowNum}>{`N° ${item.numero}`}</Text>
           <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
+          {item.type_commande === 'surgele' ? (
+            <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
+              <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
+            </View>
+          ) : (
+            <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
+              <Text style={{ color: '#2E7D32', fontSize: 10, fontWeight: '700' }}>Frais</Text>
+            </View>
+          )}
           <Text style={[styles.rowDeleteWarning, { color: warningColor }]}>
             Suppression dans {daysLeft} j
           </Text>
@@ -621,7 +630,18 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       {/* ── Header ─────────────────────────────────────────── */}
       <View style={modal.header}>
         <View>
-          <Text style={modal.headerNum}>{`N° ${order.numero}`}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={modal.headerNum}>{`N° ${order.numero}`}</Text>
+            {order.type_commande === 'surgele' ? (
+              <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
+                <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
+              </View>
+            ) : (
+              <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
+                <Text style={{ color: '#2E7D32', fontSize: 10, fontWeight: '700' }}>Frais</Text>
+              </View>
+            )}
+          </View>
           <Text style={modal.headerDate}>Passée le {fmt(order.date_commande)}</Text>
         </View>
         <View style={modal.headerRight}>
@@ -656,6 +676,9 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               <InfoItem label="Contact" value={clientName} />
               <InfoItem label="Email" value={order.client?.email || '—'} />
               <InfoItem label="Téléphone" value={telephone} />
+              {order.date_livraison_souhaitee ? (
+                <InfoItem label="Date livraison souhaitée" value={fmt(order.date_livraison_souhaitee)} />
+              ) : null}
             </View>
           </View>
 
@@ -1262,6 +1285,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const [manualLines, setManualLines] = useState([]);
   const [qtyDraft, setQtyDraft] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [orderType, setOrderType] = useState('frais');
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -1283,7 +1307,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
         .order('nom_societe', { ascending: true }),
       supabase
         .from('products')
-        .select('id, nom, prix_unitaire_ht, increment, tva_pourcent')
+        .select('id, nom, prix_unitaire_ht, increment, tva_pourcent, category:categories(id, slug)')
         .eq('actif', true)
         .order('nom'),
     ]).then(([cliRes, prodRes]) => {
@@ -1384,6 +1408,13 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     try {
       const adresse = selectedClient.ville || 'Commande prise par admin';
 
+      let dateLivraison = null;
+      if (orderType === 'surgele') {
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        dateLivraison = d.toISOString().split('T')[0];
+      }
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -1394,6 +1425,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
           total_ht: totalHt,
           total_tva: totalTva,
           total_ttc: totalTtc,
+          type_commande: orderType,
+          date_livraison_souhaitee: dateLivraison,
         })
         .select('*')
         .single();
@@ -1513,8 +1546,24 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
           ) : (
             /* ── Étape 2 : sélection produits ── */
             <>
+              {/* Tabs Frais / Surgelé */}
+              <View style={{ flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <TouchableOpacity 
+                  style={[{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 4 }, orderType === 'frais' && { backgroundColor: '#E8F5E9' }]}
+                  onPress={() => setOrderType('frais')}
+                >
+                  <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, orderType === 'frais' && { color: '#2E7D32' }]}>Frais</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 4 }, orderType === 'surgele' && { backgroundColor: '#E3F2FD' }]}
+                  onPress={() => setOrderType('surgele')}
+                >
+                  <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, orderType === 'surgele' && { color: '#1565C0' }]}>Surgelé</Text>
+                </TouchableOpacity>
+              </View>
+
               <FlatList
-                data={products}
+                data={products.filter(p => p.category?.slug === orderType)}
                 keyExtractor={(p) => p.id}
                 contentContainerStyle={[to.listContent, { paddingBottom: 90 }]}
                 ItemSeparatorComponent={() => <View style={{ height: 6 }} />}

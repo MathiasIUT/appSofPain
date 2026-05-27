@@ -34,7 +34,7 @@ const showConfirm = (title, message) =>
  * et de supprimer des articles. Bouton "Valider" amène au checkout.
  */
 export default function CartScreen({ navigation }) {
-  const { items, setQuantity, removeFromCart, clearCart, totals } = useCart();
+  const { items, setQuantity, removeFromCart, clearCart, totals, cartType } = useCart();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -69,6 +69,13 @@ export default function CartScreen({ navigation }) {
       >
         <View style={styles.titleBlock}>
           <Text style={styles.title}>Mon panier</Text>
+          {cartType && (
+            <View style={[styles.typeBadge, cartType === 'surgele' ? styles.typeBadgeSurgele : styles.typeBadgeFrais]}>
+              <Text style={[styles.typeBadgeText, cartType === 'surgele' ? styles.typeBadgeTextSurgele : styles.typeBadgeTextFrais]}>
+                {cartType === 'surgele' ? 'Commande Surgelé' : 'Commande Frais'}
+              </Text>
+            </View>
+          )}
           {items.length > 0 ? (
             <Text style={styles.subtitle}>
               {`${totals.nbProduitsDistincts} produit${totals.nbProduitsDistincts > 1 ? 's' : ''} · ${totals.nbArticles} unité${totals.nbArticles > 1 ? 's' : ''}`}
@@ -166,6 +173,8 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
   const increment = Number(product.increment || 10);
   const sousTotalHt = prixUnitaireHt * quantite;
   const sousTotalTtc = sousTotalHt * (1 + TVA / 100);
+  const isSurgele = product.category?.slug === 'surgele';
+  const cartonsParPalette = product.cartons_par_palette || 24;
 
   // Gestion saisie manuelle de la quantité
   const handleManualChange = (value) => {
@@ -195,8 +204,13 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
       <View style={styles.cartItemBody}>
         <Text style={styles.cartItemName}>{product.nom}</Text>
         <Text style={styles.cartItemPriceUnit}>
-          {`${prixUnitaireHt.toFixed(2)} € HT / unité`}
+          {`${prixUnitaireHt.toFixed(2)} € HT / ${isSurgele ? 'carton' : 'unité'}`}
         </Text>
+        {isSurgele && (
+          <Text style={styles.cartItemPaletteInfo}>
+            {`${quantite / cartonsParPalette} palette(s)`}
+          </Text>
+        )}
 
         <View style={styles.cartItemControls}>
           <View style={styles.cartQtyRow}>
@@ -297,6 +311,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.textPrimary,
   },
+  typeBadge: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  typeBadgeFrais: {
+    backgroundColor: '#E8F5E9',
+  },
+  typeBadgeSurgele: {
+    backgroundColor: '#E3F2FD',
+  },
+  typeBadgeText: {
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+  },
+  typeBadgeTextFrais: {
+    color: '#2E7D32',
+  },
+  typeBadgeTextSurgele: {
+    color: '#1565C0',
+  },
   subtitle: {
     fontSize: fontSizes.sm,
     color: colors.textSecondary,
@@ -394,6 +432,12 @@ const styles = StyleSheet.create({
   cartItemPriceUnit: {
     fontSize: fontSizes.xs,
     color: colors.textSecondary,
+  },
+  cartItemPaletteInfo: {
+    fontSize: fontSizes.sm,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
   },
   cartItemControls: {
     flexDirection: 'row',

@@ -33,7 +33,7 @@ const formatDateFr = (isoDate) => {
 };
 
 export default function CheckoutScreen({ navigation }) {
-  const { items, totals, clearCart, editingOrder } = useCart();
+  const { items, totals, clearCart, editingOrder, cartType } = useCart();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -135,6 +135,13 @@ export default function CheckoutScreen({ navigation }) {
       const adresseComplete = `${form.adresse.trim()}\n${form.code_postal.trim()} ${form.ville.trim()}\nTél : ${form.telephone.trim()}`;
       const livreurId = profile?.livreur_id || null;
 
+      let dateLivraison = null;
+      if (cartType === 'surgele') {
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        dateLivraison = d.toISOString().split('T')[0];
+      }
+
       let orderId;
       let orderToPass;
 
@@ -148,6 +155,8 @@ export default function CheckoutScreen({ navigation }) {
             total_tva: totals.totalTva,
             total_ttc: totals.totalTtc,
             date_commande: new Date().toISOString(), // Règle de minuit : réinitialise la date
+            type_commande: cartType || 'frais',
+            date_livraison_souhaitee: dateLivraison,
           })
           .eq('id', editingOrder.id)
           .select('*')
@@ -176,6 +185,8 @@ export default function CheckoutScreen({ navigation }) {
             total_ht: totals.totalHt,
             total_tva: totals.totalTva,
             total_ttc: totals.totalTtc,
+            type_commande: cartType || 'frais',
+            date_livraison_souhaitee: dateLivraison,
           })
           .select('*')
           .single();
@@ -256,6 +267,13 @@ export default function CheckoutScreen({ navigation }) {
             <Text style={styles.subtitle}>
               Renseignez les coordonnées de livraison
             </Text>
+            {cartType === 'surgele' && (
+              <View style={styles.surgeleBanner}>
+                <Text style={styles.surgeleBannerText}>
+                  Commande surgelé — Livraison estimée sous 7 jours
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={[styles.layout, isDesktop && styles.layoutDesktop]}>
@@ -426,6 +444,20 @@ const styles = StyleSheet.create({
   layout: {
     flexDirection: 'column',
     gap: spacing.lg,
+  },
+  surgeleBanner: {
+    backgroundColor: '#E3F2FD',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+  },
+  surgeleBannerText: {
+    color: '#1565C0',
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   layoutDesktop: {
     flexDirection: 'row',

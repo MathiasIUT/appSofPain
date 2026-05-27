@@ -31,14 +31,14 @@ export default function ForgotPasswordScreen({ navigation, route }) {
         return;
       }
 
-      if (isFirstLogin) {
-        // Récupérer le profil pour personnaliser l'email
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('nom, prenom, nom_societe')
-          .eq('email', trimmed)
-          .single();
+      // Récupérer le profil pour personnaliser l'email
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nom, prenom, nom_societe')
+        .eq('email', trimmed)
+        .single();
 
+      if (isFirstLogin) {
         const { error: fnError } = await supabase.functions.invoke('send-welcome-email', {
           body: {
             email: trimmed,

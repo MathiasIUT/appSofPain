@@ -145,7 +145,18 @@ const OrderCard = React.memo(({ item, onPress }) => {
       activeOpacity={0.75}
     >
       <View style={styles.cardTop}>
-        <Text style={styles.cardNum}>N° {item.numero}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Text style={styles.cardNum}>N° {item.numero}</Text>
+          {item.type_commande === 'surgele' ? (
+            <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
+              <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
+            </View>
+          ) : (
+            <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
+              <Text style={{ color: '#2E7D32', fontSize: 10, fontWeight: '700' }}>Frais</Text>
+            </View>
+          )}
+        </View>
       </View>
       <View style={styles.cardBottom}>
         <Text style={styles.cardDate}>

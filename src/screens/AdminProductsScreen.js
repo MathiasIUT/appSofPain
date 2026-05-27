@@ -18,7 +18,7 @@ import ProductFormModal from '../components/ProductFormModal';
 
 // Slugs des catégories affichées dans l'UI.
 // Ajouter 'surgele' dans ce tableau pour ré-activer les produits surgelés.
-const VISIBLE_CATEGORY_SLUGS = ['frais'];
+const VISIBLE_CATEGORY_SLUGS = ['frais', 'surgele'];
 
 /**
  * Écran admin : liste des produits avec filtres + création/modification via modal.
@@ -283,6 +283,11 @@ function ProductCard({ product, onEdit, onDelete }) {
           <Text style={styles.productDetailItem}>
             Multiple de {product.increment || 10}
           </Text>
+          {product.category?.slug === 'surgele' && (
+            <Text style={styles.productDetailItem}>
+              1 palette = {product.cartons_par_palette || 24} cartons · 1 carton = {product.sachets_par_carton} sachets
+            </Text>
+          )}
         </View>
 
         <View style={styles.productPriceRow}>

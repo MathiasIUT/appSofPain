@@ -18,8 +18,7 @@ import Button from '../components/Button';
 import { useCart } from '../contexts/CartContext';
 
 // Slugs des catégories affichées dans le catalogue client.
-// Ajouter 'surgele' plus tard si le client le propose.
-const VISIBLE_CATEGORY_SLUGS = ['frais'];
+const VISIBLE_CATEGORY_SLUGS = ['frais', 'surgele'];
 
 export default function ClientHome({ navigation }) {
   const [products, setProducts] = useState([]);
@@ -27,6 +26,7 @@ export default function ClientHome({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [profile, setProfile] = useState(null);
   const [clientPrices, setClientPrices] = useState({});
+  const [selectedTab, setSelectedTab] = useState('frais');
 
   const { items: cartItems, totals } = useCart();
 
@@ -92,16 +92,17 @@ export default function ClientHome({ navigation }) {
     });
   };
 
-  // Filtrer les produits selon la recherche
+  // Filtrer les produits selon la recherche et l'onglet sélectionné
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return products;
+    let result = products.filter(p => p.category?.slug === selectedTab);
+    if (!searchQuery.trim()) return result;
     const q = searchQuery.trim().toLowerCase();
-    return products.filter(
+    return result.filter(
       (p) =>
         p.nom.toLowerCase().includes(q) ||
         (p.description || '').toLowerCase().includes(q)
     );
-  }, [products, searchQuery]);
+  }, [products, searchQuery, selectedTab]);
 
   if (loading) {
     return (
@@ -175,13 +176,30 @@ export default function ClientHome({ navigation }) {
         style={styles.content}
         contentContainerStyle={styles.contentInner}
       >
-        {/* Titre + barre de recherche */}
+        {/* Titre + infos */}
         <View style={styles.titleBlock}>
           <Text style={styles.title}>Catalogue</Text>
           <Text style={styles.subtitle}>
-            {products.length} produit{products.length > 1 ? 's' : ''} disponible
-            {products.length > 1 ? 's' : ''}
+            {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} disponible{filteredProducts.length > 1 ? 's' : ''}
           </Text>
+        </View>
+
+        {/* Tabs Frais / Surgelé */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity 
+            style={[styles.tabBtn, selectedTab === 'frais' && styles.tabBtnActive]}
+            onPress={() => setSelectedTab('frais')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabBtnText, selectedTab === 'frais' && styles.tabBtnTextActive]}>Pain Frais</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tabBtn, selectedTab === 'surgele' && styles.tabBtnActive]}
+            onPress={() => setSelectedTab('surgele')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabBtnText, selectedTab === 'surgele' && styles.tabBtnTextActive]}>Pain Surgelé</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Barre de recherche */}
@@ -252,20 +270,51 @@ export default function ClientHome({ navigation }) {
 // ---------------------------------------------------------
 
 function ProductCard({ product, isDesktop }) {
-  const { items, addToCart, setQuantity } = useCart();
+  const { items, addToCart, setQuantity, clearCart } = useCart();
   const TVA = Number(product.tva_pourcent);
   const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
   const increment = Number(product.increment || 10);
+  const isSurgele = product.category?.slug === 'surgele';
 
   // Quantité actuelle dans le panier
   const inCart = items.find((i) => i.product.id === product.id);
   const currentQty = inCart ? inCart.quantite : 0;
 
   const handleIncrement = () => {
-    if (currentQty === 0) {
-      addToCart(product, increment);
-    } else {
-      setQuantity(product.id, currentQty + increment);
+    try {
+      if (currentQty === 0) {
+        addToCart(product, increment);
+      } else {
+        setQuantity(product.id, currentQty + increment);
+      }
+    } catch (err) {
+      if (err.message && err.message.startsWith('MIX_TYPE')) {
+        const typePanier = err.message.split(':')[1];
+        const msg = typePanier === 'frais'
+          ? "Votre panier contient déjà du frais. Voulez-vous vider le panier pour commander du surgelé ?"
+          : "Votre panier contient déjà du surgelé. Voulez-vous vider le panier pour commander du frais ?";
+        
+        if (Platform.OS === 'web') {
+          if (window.confirm(msg)) {
+            clearCart();
+            addToCart(product, increment);
+          }
+        } else {
+          Alert.alert("Panier mixte impossible", msg, [
+            { text: "Annuler", style: "cancel" },
+            { 
+              text: "Vider le panier", 
+              style: "destructive", 
+              onPress: () => {
+                clearCart();
+                addToCart(product, increment);
+              } 
+            }
+          ]);
+        }
+      } else {
+        console.error(err);
+      }
     }
   };
 
@@ -298,15 +347,26 @@ function ProductCard({ product, isDesktop }) {
         </Text>
 
         <View style={styles.productMeta}>
-          <Text style={styles.productMetaItem}>
-            {`Commande par lot de ${increment}`}
-          </Text>
+          {isSurgele ? (
+            <>
+              <Text style={styles.productMetaItem}>
+                {`Commande par palette entière (${product.cartons_par_palette || 24} cartons)`}
+              </Text>
+              <Text style={styles.productMetaItem}>
+                {`1 carton = ${product.sachets_par_carton} sachets`}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.productMetaItem}>
+              {`Commande par lot de ${increment}`}
+            </Text>
+          )}
         </View>
 
         {/* Prix */}
         <View style={styles.pricingBlock}>
           <View>
-            <Text style={styles.priceMain}>{`${prixUnitaireHt.toFixed(2)} € HT / unité`}</Text>
+            <Text style={styles.priceMain}>{`${prixUnitaireHt.toFixed(2)} € HT / ${isSurgele ? 'carton' : 'unité'}`}</Text>
           </View>
         </View>
 
@@ -520,6 +580,33 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+    padding: 4,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: borderRadius.sm - 2,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  tabBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  tabBtnText: {
+    fontSize: fontSizes.md,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tabBtnTextActive: {
+    color: colors.white,
   },
 
   // Barre de recherche

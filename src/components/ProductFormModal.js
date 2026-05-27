@@ -60,6 +60,8 @@ export default function ProductFormModal({
     prix_unitaire_ht: '',
     actif: true,
     image_url: null,
+    sachets_par_carton: '',
+    cartons_par_palette: '24',
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -77,6 +79,8 @@ export default function ProductFormModal({
           prix_unitaire_ht: String(product.prix_unitaire_ht || ''),
           actif: product.actif !== false,
           image_url: product.image_url || null,
+          sachets_par_carton: product.sachets_par_carton ? String(product.sachets_par_carton) : '',
+          cartons_par_palette: product.cartons_par_palette ? String(product.cartons_par_palette) : '24',
         });
       } else {
         setForm({
@@ -87,6 +91,8 @@ export default function ProductFormModal({
           prix_unitaire_ht: '',
           actif: true,
           image_url: null,
+          sachets_par_carton: '',
+          cartons_par_palette: '24',
         });
       }
       setErrors({});
@@ -112,6 +118,18 @@ export default function ProductFormModal({
     const prix = parseFloat(form.prix_unitaire_ht.replace(',', '.'));
     if (form.prix_unitaire_ht === '' || isNaN(prix) || prix < 0) {
       newErrors.prix_unitaire_ht = 'Doit être un nombre supérieur ou égal à 0';
+    }
+
+    const selectedCategory = categories.find(c => c.id === form.category_id);
+    if (selectedCategory?.slug === 'surgele') {
+      const sachets = parseInt(form.sachets_par_carton, 10);
+      if (!form.sachets_par_carton || isNaN(sachets) || sachets < 1) {
+        newErrors.sachets_par_carton = 'Requis pour les produits surgelés';
+      }
+      const cartons = parseInt(form.cartons_par_palette, 10);
+      if (!form.cartons_par_palette || isNaN(cartons) || cartons < 1) {
+        newErrors.cartons_par_palette = 'Requis pour les produits surgelés';
+      }
     }
 
     setErrors(newErrors);
@@ -221,6 +239,15 @@ export default function ProductFormModal({
         image_url: finalImageUrl,
       };
 
+      const selectedCategory = categories.find(c => c.id === form.category_id);
+      if (selectedCategory?.slug === 'surgele') {
+        payload.sachets_par_carton = parseInt(form.sachets_par_carton, 10);
+        payload.cartons_par_palette = parseInt(form.cartons_par_palette, 10);
+      } else {
+        payload.sachets_par_carton = null;
+        payload.cartons_par_palette = null;
+      }
+
       if (isEditing) {
         const { error } = await supabase
           .from('products')
@@ -280,6 +307,9 @@ export default function ProductFormModal({
   const incrementValue = parseInt(form.increment || '10', 10);
   const showSummary =
     !errors.prix_unitaire_ht && !isNaN(prixNum) && prixNum > 0 && !isNaN(incrementValue) && incrementValue > 0;
+  
+  const selectedCategory = categories.find(c => c.id === form.category_id);
+  const isSurgele = selectedCategory?.slug === 'surgele';
 
   return (
     <Modal
@@ -425,11 +455,47 @@ export default function ProductFormModal({
               editable={!saving}
             />
 
+            {/* Inputs Surgelé */}
+            {isSurgele && (
+              <>
+                <Input
+                  label="Sachets par carton"
+                  required
+                  value={form.sachets_par_carton}
+                  onChangeText={(v) =>
+                    updateField('sachets_par_carton', v.replace(/[^0-9]/g, ''))
+                  }
+                  placeholder="Ex : 50"
+                  keyboardType="numeric"
+                  error={errors.sachets_par_carton}
+                  editable={!saving}
+                />
+                <Input
+                  label="Cartons par palette"
+                  required
+                  value={form.cartons_par_palette}
+                  onChangeText={(v) =>
+                    updateField('cartons_par_palette', v.replace(/[^0-9]/g, ''))
+                  }
+                  placeholder="Ex : 24"
+                  keyboardType="numeric"
+                  error={errors.cartons_par_palette}
+                  editable={!saving}
+                />
+              </>
+            )}
+
             {/* Résumé tarifaire */}
             {showSummary ? (
               <View style={styles.summary}>
                 <Text style={styles.summaryTitle}>Récapitulatif tarifaire</Text>
-                <PricingSummary prixUnitaire={prixNum} increment={incrementValue} tva={5.5} />
+                <PricingSummary 
+                  prixUnitaire={prixNum} 
+                  increment={incrementValue} 
+                  tva={5.5} 
+                  isSurgele={isSurgele}
+                  cartonsParPalette={parseInt(form.cartons_par_palette || '0', 10)}
+                />
               </View>
             ) : null}
           </ScrollView>
@@ -469,10 +535,26 @@ export default function ProductFormModal({
 }
 
 // ---- Résumé tarifaire ----
-function PricingSummary({ prixUnitaire, increment, tva }) {
+function PricingSummary({ prixUnitaire, increment, tva, isSurgele, cartonsParPalette }) {
   const prixLotHt = prixUnitaire * increment;
-  const tvaAmount = prixLotHt * (tva / 100);
-  const prixLotTtc = prixLotHt + tvaAmount;
+
+  if (isSurgele && cartonsParPalette > 0) {
+    const prixPaletteHt = prixUnitaire * cartonsParPalette;
+    return (
+      <View>
+        <SummaryRow
+          label="Prix HT / carton"
+          value={`${prixUnitaire.toFixed(2)} €`}
+          bold
+        />
+        <SummaryRow
+          label={`Prix HT / palette (${cartonsParPalette} cartons)`}
+          value={`${prixPaletteHt.toFixed(2)} €`}
+          bold
+        />
+      </View>
+    );
+  }
 
   return (
     <View>

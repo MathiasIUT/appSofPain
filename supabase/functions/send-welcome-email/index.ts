@@ -17,7 +17,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { email, nom, prenom, nom_societe } = await req.json();
+    const { email, nom, prenom, nom_societe, mode = 'first_login' } = await req.json();
 
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email requis' }), {
@@ -42,11 +42,13 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    const redirectUrl = mode === 'reset_password' ? 'https://app.sofpain.com/reset-password' : CREATE_PASSWORD_URL;
+
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email,
       options: {
-        redirectTo: CREATE_PASSWORD_URL,
+        redirectTo: redirectUrl,
       },
     });
 
@@ -65,13 +67,14 @@ serve(async (req: Request) => {
       ? `${prenom_affiche} ${nom_affiche}`.trim()
       : 'cher client';
 
+
     const htmlBody = `
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bienvenue chez Sof Pain</title>
+  <title>Sof Pain</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F9FAFB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F9FAFB;padding:60px 0;">

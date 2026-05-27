@@ -28,6 +28,7 @@ export default function AdminComptaScreen() {
   const [clients, setClients] = useState([]);
   const [clientPrices, setClientPrices] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [comptaType, setComptaType] = useState('frais'); // 'frais' ou 'surgele'
 
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -51,12 +52,12 @@ export default function AdminComptaScreen() {
 
       const [livRes, prodRes, cliRes, pricesRes, ordRes] = await Promise.all([
         supabase.from('livreurs').select('*').eq('actif', true),
-        supabase.from('products').select('*').eq('actif', true).order('nom'),
+        supabase.from('products').select('*, category:categories(slug)').eq('actif', true).order('nom'),
         supabase.from('profiles').select('*').eq('role', 'client'),
         supabase.from('client_prices').select('*'),
         supabase
           .from('orders')
-          .select('id, client_id, client_nom, client_uuid_snapshot, total_ht, order_items(product_id, quantite, prix_unitaire_ht)')
+          .select('id, client_id, client_nom, client_uuid_snapshot, total_ht, type_commande, order_items(product_id, quantite, prix_unitaire_ht)')
           .gte('date_commande', startOfMonth.toISOString())
           .lte('date_commande', endOfMonth.toISOString())
           .neq('statut', 'annulee')
@@ -95,7 +96,8 @@ export default function AdminComptaScreen() {
   const handleExportExcel = async () => {
     setExportingExcel(true);
     try {
-      exportComptaExcel(tableData.rows, products, monthLabelCap, livreurs);
+      const displayProducts = products.filter(p => (p.category?.slug || 'frais') === comptaType);
+      exportComptaExcel(tableData.rows, displayProducts, monthLabelCap, livreurs);
     } catch (err) {
       console.error('Erreur export Excel compta :', err);
     } finally {
@@ -104,6 +106,9 @@ export default function AdminComptaScreen() {
   };
 
   const tableData = useMemo(() => {
+    const displayProducts = products.filter(p => (p.category?.slug || 'frais') === comptaType);
+    const validProductIds = new Set(displayProducts.map(p => p.id));
+    const filteredOrders = orders.filter(o => (o.type_commande || 'frais') === comptaType);
     let filteredClients = clients;
     if (selectedLivreurId === 'unassigned') {
       filteredClients = clients.filter(c => !c.livreur_id);
@@ -123,7 +128,7 @@ export default function AdminComptaScreen() {
     let globalTotalHt = 0;
 
     for (const client of filteredClients) {
-      const clientOrders = orders.filter(o => o.client_id === client.id);
+      const clientOrders = filteredOrders.filter(o => o.client_id === client.id);
 
       const productAgg = {};
       let totalHt = 0;
@@ -131,6 +136,7 @@ export default function AdminComptaScreen() {
       for (const order of clientOrders) {
         totalHt += Number(order.total_ht || 0);
         for (const item of (order.order_items || [])) {
+          if (!validProductIds.has(item.product_id)) continue;
           if (!productAgg[item.product_id]) {
             productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
           }
@@ -149,7 +155,7 @@ export default function AdminComptaScreen() {
     }
 
     if (selectedLivreurId === 'all') {
-      const orphanOrders = orders.filter(o => !o.client_id && o.client_nom);
+      const orphanOrders = filteredOrders.filter(o => !o.client_id && o.client_nom);
       const orphanByKey = {};
       for (const order of orphanOrders) {
         if (search.trim() && !order.client_nom?.toLowerCase().includes(search.toLowerCase())) {
@@ -166,6 +172,7 @@ export default function AdminComptaScreen() {
         }
         orphanByKey[key].totalHt += Number(order.total_ht || 0);
         for (const item of (order.order_items || [])) {
+          if (!validProductIds.has(item.product_id)) continue;
           if (!orphanByKey[key].productAgg[item.product_id]) {
             orphanByKey[key].productAgg[item.product_id] = { qty: 0, price: item.prix_unitaire_ht };
           }
@@ -195,8 +202,8 @@ export default function AdminComptaScreen() {
       return nameA.localeCompare(nameB);
     });
 
-    return { rows: result, globalTotalHt };
-  }, [clients, orders, selectedLivreurId, search]);
+    return { rows: result, globalTotalHt, displayProducts };
+  }, [clients, orders, selectedLivreurId, search, comptaType, products]);
 
   const getDisplayPrice = (productId, clientId, aggregatedPrice) => {
     if (aggregatedPrice !== undefined) return aggregatedPrice;
@@ -250,6 +257,21 @@ export default function AdminComptaScreen() {
           value={search}
           onChangeText={setSearch}
         />
+      </View>
+
+      <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <TouchableOpacity 
+          style={[{ flex: 1, paddingVertical: 12, alignItems: 'center' }, comptaType === 'frais' && { borderBottomWidth: 3, borderBottomColor: colors.primary }]}
+          onPress={() => setComptaType('frais')}
+        >
+          <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, comptaType === 'frais' && { color: colors.primary }]}>Comptabilité Frais</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[{ flex: 1, paddingVertical: 12, alignItems: 'center' }, comptaType === 'surgele' && { borderBottomWidth: 3, borderBottomColor: colors.primary }]}
+          onPress={() => setComptaType('surgele')}
+        >
+          <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, comptaType === 'surgele' && { color: colors.primary }]}>Comptabilité Surgelé</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabsContainer}>
@@ -315,7 +337,7 @@ export default function AdminComptaScreen() {
                   <View style={[styles.th, styles.colClient]}>
                     <Text style={styles.thText}>Client</Text>
                   </View>
-                  {products.map(p => (
+                  {tableData.displayProducts.map(p => (
                     <View key={p.id} style={[styles.th, styles.colProduct]}>
                       <Text style={styles.thText} numberOfLines={2}>{p.nom}</Text>
                     </View>
@@ -348,7 +370,7 @@ export default function AdminComptaScreen() {
                         </TouchableOpacity>
                       </View>
 
-                      {products.map(p => {
+                      {tableData.displayProducts.map(p => {
                         const agg = row.productAgg[p.id];
                         const qty = agg ? agg.qty : 0;
                         const price = getDisplayPrice(p.id, row.client.id, agg ? agg.price : undefined);
@@ -379,7 +401,7 @@ export default function AdminComptaScreen() {
                   <View style={[styles.td, styles.colClient]}>
                     <Text style={styles.tdFooterText}>TOTAL GLOBAL</Text>
                   </View>
-                  {products.map(p => {
+                  {tableData.displayProducts.map(p => {
                     // Calcul de la somme totale des quantités pour ce produit pour la vue actuelle
                     let totalQty = 0;
                     tableData.rows.forEach(r => {
@@ -417,7 +439,8 @@ export default function AdminComptaScreen() {
               <BonMensuelModal
                 client={bonClient}
                 currentDate={currentDate}
-                products={products}
+                products={tableData.displayProducts}
+                comptaType={comptaType}
                 onClose={closeBon}
               />
             )}
@@ -428,7 +451,7 @@ export default function AdminComptaScreen() {
   );
 }
 
-function BonMensuelModal({ client, currentDate, products, onClose }) {
+function BonMensuelModal({ client, currentDate, products, comptaType, onClose }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -462,6 +485,7 @@ function BonMensuelModal({ client, currentDate, products, onClose }) {
           .gte('date_commande', startOfMonth.toISOString())
           .lte('date_commande', endOfMonth.toISOString())
           .neq('statut', 'annulee')
+          .eq('type_commande', comptaType)
           .order('date_commande', { ascending: true });
 
         if (isOrphan) {

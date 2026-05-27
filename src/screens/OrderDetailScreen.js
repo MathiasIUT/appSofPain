@@ -209,7 +209,18 @@ export default function OrderDetailScreen({ navigation, route }) {
       >
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>N° {order.numero}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Text style={styles.title}>N° {order.numero}</Text>
+              {order.type_commande === 'surgele' ? (
+                <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
+                  <Text style={{ color: '#1565C0', fontSize: 12, fontWeight: '700' }}>Surgelé</Text>
+                </View>
+              ) : (
+                <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
+                  <Text style={{ color: '#2E7D32', fontSize: 12, fontWeight: '700' }}>Frais</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.dateText}>Passée le {fmt(order.date_commande)}</Text>
           </View>
         </View>
@@ -222,6 +233,15 @@ export default function OrderDetailScreen({ navigation, route }) {
               <Text style={styles.infoLabel}>Adresse</Text>
               <Text style={[styles.infoValue, styles.infoValueRight]} numberOfLines={3}>
                 {order.adresse_livraison}
+              </Text>
+            </View>
+          ) : null}
+
+          {order.date_livraison_souhaitee ? (
+            <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
+              <Text style={styles.infoLabel}>Date de livraison souhaitée</Text>
+              <Text style={[styles.infoValue, styles.infoValueRight]}>
+                {fmt(order.date_livraison_souhaitee)}
               </Text>
             </View>
           ) : null}

@@ -471,6 +471,15 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                               {o.adresse_livraison ? (
                                 <Text style={s.orderAddress} numberOfLines={1}>{o.adresse_livraison.split('\n')[0]}</Text>
                               ) : null}
+                              {o.type_commande === 'surgele' ? (
+                                <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 2 }}>
+                                  <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
+                                </View>
+                              ) : (
+                                <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 2 }}>
+                                  <Text style={{ color: '#2E7D32', fontSize: 10, fontWeight: '700' }}>Frais</Text>
+                                </View>
+                              )}
                             </View>
 
                             <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} €</Text>
