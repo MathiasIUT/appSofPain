@@ -3,7 +3,7 @@ import { View, Image, StyleSheet } from 'react-native';
 import { spacing } from '../config/theme';
 
 export default function BrandHeader({ size = 'md' }) {
-  const logoSize = { sm: 200, md: 260, lg: 320 }[size];
+  const logoSize = { sm: 120, md: 160, lg: 220 }[size];
 
   return (
     <View style={styles.container}>
@@ -19,6 +19,7 @@ export default function BrandHeader({ size = 'md' }) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
   },
 });

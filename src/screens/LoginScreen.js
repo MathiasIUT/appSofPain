@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   cardDesktop: {
     backgroundColor: colors.surface,
-    padding: spacing.xxl,
+    padding: spacing.xl,
     borderRadius: borderRadius.xl,
     ...shadows.lg,
   },
