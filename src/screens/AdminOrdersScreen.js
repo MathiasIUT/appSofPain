@@ -18,11 +18,6 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 import { exportOrdersExcel } from '../utils/exportExcel';
-
-──────
-
-
-
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 const n2 = (v) => Number(v ?? 0).toFixed(2);
@@ -33,9 +28,6 @@ const showAlert = (title, msg) => {
 };
 
 const PAGE_SIZE = 30;
-
-─
-
 export default function AdminOrdersScreen() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -340,9 +332,6 @@ export default function AdminOrdersScreen() {
     </View>
   );
 }
-
-──
-
 const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) => {
   const clientName = item.client?.nom_societe
     || [item.client?.prenom, item.client?.nom].filter(Boolean).join(' ')
@@ -898,9 +887,6 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     </View>
   );
 }
-
-─
-
 function InfoItem({ label, value }) {
   return (
     <View style={modal.infoItem}>
@@ -918,9 +904,6 @@ function TotalLine({ label, value, final }) {
     </View>
   );
 }
-
-────
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
@@ -1080,9 +1063,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
 });
-
-────
-
 const modal = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },
   header: {
