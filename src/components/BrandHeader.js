@@ -20,6 +20,6 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     marginBottom: spacing.md,
-    marginTop: spacing.sm,
+    marginTop: -20,
   },
 });
