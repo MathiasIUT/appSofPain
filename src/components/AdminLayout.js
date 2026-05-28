@@ -23,7 +23,8 @@ const SECTIONS = [
   { key: 'orders', label: 'Commandes' },
   { key: 'clients', label: 'Clients' },
   { key: 'logistique', label: 'Logistique' },
-  { key: 'compta', label: 'Comptabilité' },
+  { key: 'compta_frais', label: 'Comptabilité Frais' },
+  { key: 'compta_surgele', label: 'Comptabilité Surgelé' },
 ];
 
 export default function AdminLayout({

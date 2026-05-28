@@ -19,7 +19,7 @@ import ConfirmModal from '../components/ConfirmModal';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
-export default function AdminComptaScreen() {
+export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -28,7 +28,6 @@ export default function AdminComptaScreen() {
   const [clients, setClients] = useState([]);
   const [clientPrices, setClientPrices] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [comptaType, setComptaType] = useState('frais'); // 'frais' ou 'surgele'
 
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -96,7 +95,7 @@ export default function AdminComptaScreen() {
   const handleExportExcel = async () => {
     setExportingExcel(true);
     try {
-      const displayProducts = products.filter(p => (p.category?.slug || 'frais') === comptaType);
+      const displayProducts = products.filter(p => (p.category?.slug || 'frais') === fixedComptaType);
       exportComptaExcel(tableData.rows, displayProducts, monthLabelCap, livreurs);
     } catch (err) {
       console.error('Erreur export Excel compta :', err);
@@ -106,14 +105,16 @@ export default function AdminComptaScreen() {
   };
 
   const tableData = useMemo(() => {
-    const displayProducts = products.filter(p => (p.category?.slug || 'frais') === comptaType);
+    const displayProducts = products.filter(p => (p.category?.slug || 'frais') === fixedComptaType);
     const validProductIds = new Set(displayProducts.map(p => p.id));
-    const filteredOrders = orders.filter(o => (o.type_commande || 'frais') === comptaType);
+    const filteredOrders = orders.filter(o => (o.type_commande || 'frais') === fixedComptaType);
     let filteredClients = clients;
+    const targetLivreurField = fixedComptaType === 'surgele' ? 'livreur_surgele_id' : 'livreur_id';
+    
     if (selectedLivreurId === 'unassigned') {
-      filteredClients = clients.filter(c => !c.livreur_id);
+      filteredClients = clients.filter(c => !c[targetLivreurField]);
     } else if (selectedLivreurId !== 'all') {
-      filteredClients = clients.filter(c => c.livreur_id === selectedLivreurId);
+      filteredClients = clients.filter(c => c[targetLivreurField] === selectedLivreurId);
     }
 
     if (search.trim()) {
@@ -203,7 +204,7 @@ export default function AdminComptaScreen() {
     });
 
     return { rows: result, globalTotalHt, displayProducts };
-  }, [clients, orders, selectedLivreurId, search, comptaType, products]);
+  }, [clients, orders, selectedLivreurId, search, fixedComptaType, products]);
 
   const getDisplayPrice = (productId, clientId, aggregatedPrice) => {
     if (aggregatedPrice !== undefined) return aggregatedPrice;
@@ -219,7 +220,7 @@ export default function AdminComptaScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Comptabilité</Text>
+          <Text style={styles.title}>Comptabilité {fixedComptaType === 'surgele' ? 'Surgelé' : 'Frais'}</Text>
           <Text style={styles.subtitle}>Bilan par livreur et par mois</Text>
         </View>
 
@@ -259,20 +260,7 @@ export default function AdminComptaScreen() {
         />
       </View>
 
-      <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <TouchableOpacity 
-          style={[{ flex: 1, paddingVertical: 12, alignItems: 'center' }, comptaType === 'frais' && { borderBottomWidth: 3, borderBottomColor: colors.primary }]}
-          onPress={() => setComptaType('frais')}
-        >
-          <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, comptaType === 'frais' && { color: colors.primary }]}>Comptabilité Frais</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[{ flex: 1, paddingVertical: 12, alignItems: 'center' }, comptaType === 'surgele' && { borderBottomWidth: 3, borderBottomColor: colors.primary }]}
-          onPress={() => setComptaType('surgele')}
-        >
-          <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, comptaType === 'surgele' && { color: colors.primary }]}>Comptabilité Surgelé</Text>
-        </TouchableOpacity>
-      </View>
+
 
       <View style={styles.tabsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
@@ -285,7 +273,9 @@ export default function AdminComptaScreen() {
             </Text>
           </TouchableOpacity>
 
-          {livreurs.map(l => (
+          {livreurs
+            .filter(l => l.type_livreur === 'les_deux' || l.type_livreur === fixedComptaType)
+            .map(l => (
             <TouchableOpacity
               key={l.id}
               style={[styles.tab, selectedLivreurId === l.id && styles.tabActive]}
@@ -356,7 +346,7 @@ export default function AdminComptaScreen() {
                       <View style={[styles.td, styles.colClient]}>
                         <Text style={styles.tdClientText} numberOfLines={2}>{clientName}</Text>
                         <Text style={styles.tdClientSub} numberOfLines={1}>{row.client.ville || ''}</Text>
-                        {!row.client.livreur_id && !String(row.client.id).startsWith('deleted-') && (
+                        {!row.client[fixedComptaType === 'surgele' ? 'livreur_surgele_id' : 'livreur_id'] && !String(row.client.id).startsWith('deleted-') && (
                           <View style={{ backgroundColor: '#FFEBEE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, alignSelf: 'flex-start' }}>
                             <Text style={{ color: '#D32F2F', fontSize: 10, fontWeight: '700' }}>SANS LIVREUR</Text>
                           </View>
@@ -440,7 +430,7 @@ export default function AdminComptaScreen() {
                 client={bonClient}
                 currentDate={currentDate}
                 products={tableData.displayProducts}
-                comptaType={comptaType}
+                comptaType={fixedComptaType}
                 onClose={closeBon}
               />
             )}

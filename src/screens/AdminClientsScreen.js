@@ -350,7 +350,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
     (async () => {
       try {
         const [livRes, prodRes, pricesRes] = await Promise.all([
-          supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
+          supabase.from('livreurs').select('id, nom, prenom, type_livreur').eq('actif', true),
           supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('nom'),
           supabase.from('client_prices').select('*').eq('client_id', client.id),
         ]);
@@ -578,7 +578,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         {/* Livreur Frais assigné */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Livreur Frais assigné</Text>
-          {livreurs.length === 0 ? (
+          {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').length === 0 ? (
             <Text style={modal.emptyOrders}>Aucun livreur disponible.</Text>
           ) : (
             <>
@@ -589,7 +589,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
                 >
                   <Text style={[modal.chipText, !selectedLivreur && modal.chipTextActive]}>Aucun</Text>
                 </TouchableOpacity>
-                {livreurs.map(l => (
+                {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').map(l => (
                   <TouchableOpacity
                     key={l.id}
                     style={[modal.chip, selectedLivreur === l.id && modal.chipActive]}
@@ -611,7 +611,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         {/* Livreur Surgelé assigné */}
         <View style={modal.section}>
           <Text style={modal.sectionTitle}>Livreur Surgelé assigné</Text>
-          {livreurs.length === 0 ? (
+          {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').length === 0 ? (
             <Text style={modal.emptyOrders}>Aucun livreur disponible.</Text>
           ) : (
             <>
@@ -622,7 +622,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
                 >
                   <Text style={[modal.chipText, !selectedLivreurSurgele && modal.chipTextActive]}>Aucun</Text>
                 </TouchableOpacity>
-                {livreurs.map(l => (
+                {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').map(l => (
                   <TouchableOpacity
                     key={l.id}
                     style={[modal.chip, selectedLivreurSurgele === l.id && modal.chipActive]}

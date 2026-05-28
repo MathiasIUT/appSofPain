@@ -98,6 +98,7 @@ export default function AdminLogistiqueScreen() {
         <View style={s.modalOverlay}>
           <View style={[s.modalBox, isDesktop && s.modalBoxDesktop]}>
             {selected && <LivreurDetail livreur={selected} onClose={() => { setDetailVisible(false); setSelected(null); }}
+              onUpdated={(updatedLivreur) => { setLivreurs(prev => prev.map(l => l.id === updatedLivreur.id ? updatedLivreur : l)); setSelected(updatedLivreur); }}
               onDeleted={(id) => { setLivreurs(prev => prev.filter(l => l.id !== id)); setDetailVisible(false); setSelected(null); }} />}
           </View>
         </View>
@@ -118,6 +119,11 @@ const LivreurRow = React.memo(({ item, onPress }) => {
           {item.actif !== false ? 'Actif' : 'Inactif'}
         </Text>
       </View>
+      <View style={[s.badge, { marginLeft: 8, backgroundColor: item.type_livreur === 'surgele' ? '#E3F2FD' : item.type_livreur === 'frais' ? '#E8F5E9' : '#F3E5F5' }]}>
+        <Text style={[s.badgeText, { color: item.type_livreur === 'surgele' ? '#1565C0' : item.type_livreur === 'frais' ? '#2E7D32' : '#7B1FA2' }]}>
+          {item.type_livreur === 'surgele' ? 'Surgelé' : item.type_livreur === 'frais' ? 'Frais' : 'Les deux'}
+        </Text>
+      </View>
       <Text style={s.arrow}>›</Text>
     </TouchableOpacity>
   );
@@ -126,10 +132,10 @@ const LivreurRow = React.memo(({ item, onPress }) => {
 function CreateLivreurModal({ visible, onClose, onCreated }) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
-  const [form, setForm] = useState({ nom: '', prenom: '' });
+  const [form, setForm] = useState({ nom: '', prenom: '', type_livreur: 'les_deux' });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (visible) setForm({ nom: '', prenom: '' }); }, [visible]);
+  useEffect(() => { if (visible) setForm({ nom: '', prenom: '', type_livreur: 'les_deux' }); }, [visible]);
 
   const handleCreate = async () => {
     if (!form.nom.trim() && !form.prenom.trim()) { showAlert('Erreur', 'Nom ou prénom requis.'); return; }
@@ -138,6 +144,7 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
       const { error } = await supabase.from('livreurs').insert({
         nom: form.nom.trim() || null,
         prenom: form.prenom.trim() || null,
+        type_livreur: form.type_livreur,
         actif: true,
       });
       if (error) throw error;
@@ -160,6 +167,31 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
           <View style={{ padding: spacing.lg, gap: spacing.md }}>
             <Field label="Prénom" value={form.prenom} onChangeText={v => setForm(p => ({ ...p, prenom: v }))} placeholder="Jean" />
             <Field label="Nom" value={form.nom} onChangeText={v => setForm(p => ({ ...p, nom: v }))} placeholder="Dupont" />
+            
+            <View>
+              <Text style={s.label}>Type de livreur</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                <TouchableOpacity
+                  style={[s.typeBtn, form.type_livreur === 'frais' && s.typeBtnActiveFrais]}
+                  onPress={() => setForm(p => ({ ...p, type_livreur: 'frais' }))}
+                >
+                  <Text style={[s.typeBtnText, form.type_livreur === 'frais' && s.typeBtnTextActive]}>Frais</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.typeBtn, form.type_livreur === 'surgele' && s.typeBtnActiveSurgele]}
+                  onPress={() => setForm(p => ({ ...p, type_livreur: 'surgele' }))}
+                >
+                  <Text style={[s.typeBtnText, form.type_livreur === 'surgele' && s.typeBtnTextActive]}>Surgelé</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.typeBtn, form.type_livreur === 'les_deux' && s.typeBtnActiveDeux]}
+                  onPress={() => setForm(p => ({ ...p, type_livreur: 'les_deux' }))}
+                >
+                  <Text style={[s.typeBtnText, form.type_livreur === 'les_deux' && s.typeBtnTextActive]}>Les deux</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <Button title="Créer le livreur" onPress={handleCreate} loading={saving} disabled={saving} fullWidth size="lg" />
           </View>
         </View>
@@ -168,7 +200,7 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
   );
 }
 
-function LivreurDetail({ livreur, onClose, onDeleted }) {
+function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
   const [clients, setClients] = useState([]);
   const [clientsOpen, setClientsOpen] = useState(false);
   const [clientsLoaded, setClientsLoaded] = useState(false);
@@ -182,6 +214,15 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
   const [printing, setPrinting] = useState(false);
   const [printedDates, setPrintedDates] = useState({});
   const [selectedSurgele, setSelectedSurgele] = useState({});
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    nom: livreur.nom || '',
+    prenom: livreur.prenom || '',
+    type_livreur: livreur.type_livreur || 'les_deux',
+    actif: livreur.actif !== false,
+  });
 
   const getWeekBoundaries = (dateStr) => {
     const d = new Date(dateStr);
@@ -363,15 +404,87 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
     } finally { setDeleting(false); }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editForm.nom.trim() && !editForm.prenom.trim()) { showAlert('Erreur', 'Nom ou prénom requis.'); return; }
+    setSavingEdit(true);
+    try {
+      const { data, error } = await supabase.from('livreurs')
+        .update({
+          nom: editForm.nom.trim() || null,
+          prenom: editForm.prenom.trim() || null,
+          type_livreur: editForm.type_livreur,
+          actif: editForm.actif,
+        })
+        .eq('id', livreur.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      onUpdated?.(data);
+      setIsEditing(false);
+      showAlert('Succès', 'Livreur mis à jour.');
+    } catch (err) {
+      showAlert('Erreur', err.message || 'Impossible de mettre à jour le livreur.');
+    } finally { setSavingEdit(false); }
+  };
+
   const displayName = [livreur.prenom, livreur.nom].filter(Boolean).join(' ') || '—';
 
   return (
     <View style={{ flex: 1, overflow: 'hidden' }}>
       <View style={s.modalHeader}>
-        <Text style={s.modalHeaderTitle}>{displayName}</Text>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Text style={s.modalHeaderTitle}>{displayName}</Text>
+          <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={{ padding: 4, backgroundColor: isEditing ? colors.primary : colors.surface, borderRadius: 4, borderWidth: 1, borderColor: colors.primary }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: isEditing ? colors.white : colors.primary }}>ÉDITER</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity onPress={onClose}><Text style={s.closeText}>✕</Text></TouchableOpacity>
       </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
+
+        {isEditing && (
+          <View style={{ backgroundColor: colors.surface, padding: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: colors.border, gap: spacing.sm, marginBottom: spacing.sm }}>
+            <Text style={s.sectionTitle}>Modifier les informations</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <View style={{ flex: 1 }}><Field label="Prénom" value={editForm.prenom} onChangeText={v => setEditForm(p => ({ ...p, prenom: v }))} /></View>
+              <View style={{ flex: 1 }}><Field label="Nom" value={editForm.nom} onChangeText={v => setEditForm(p => ({ ...p, nom: v }))} /></View>
+            </View>
+            <View>
+              <Text style={s.label}>Type de livreur</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                <TouchableOpacity
+                  style={[s.typeBtn, editForm.type_livreur === 'frais' && s.typeBtnActiveFrais]}
+                  onPress={() => setEditForm(p => ({ ...p, type_livreur: 'frais' }))}
+                >
+                  <Text style={[s.typeBtnText, editForm.type_livreur === 'frais' && s.typeBtnTextActive]}>Frais</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.typeBtn, editForm.type_livreur === 'surgele' && s.typeBtnActiveSurgele]}
+                  onPress={() => setEditForm(p => ({ ...p, type_livreur: 'surgele' }))}
+                >
+                  <Text style={[s.typeBtnText, editForm.type_livreur === 'surgele' && s.typeBtnTextActive]}>Surgelé</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.typeBtn, editForm.type_livreur === 'les_deux' && s.typeBtnActiveDeux]}
+                  onPress={() => setEditForm(p => ({ ...p, type_livreur: 'les_deux' }))}
+                >
+                  <Text style={[s.typeBtnText, editForm.type_livreur === 'les_deux' && s.typeBtnTextActive]}>Les deux</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <Text style={{ fontSize: 14, color: colors.textPrimary }}>Compte actif</Text>
+              <TouchableOpacity
+                style={{ width: 50, height: 28, borderRadius: 14, backgroundColor: editForm.actif ? colors.success : colors.border, padding: 2, justifyContent: 'center', alignItems: editForm.actif ? 'flex-end' : 'flex-start' }}
+                onPress={() => setEditForm(p => ({ ...p, actif: !p.actif }))}
+                activeOpacity={0.8}
+              >
+                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', ...shadows.sm }} />
+              </TouchableOpacity>
+            </View>
+            <Button title="Enregistrer" onPress={handleSaveEdit} loading={savingEdit} disabled={savingEdit} style={{ marginTop: spacing.md }} />
+          </View>
+        )}
 
         <TouchableOpacity onPress={handleToggleClients} style={s.accordionHeader}>
           <Text style={[s.sectionTitle, { borderBottomWidth: 0, paddingBottom: 0, marginTop: 0 }]}>
@@ -764,6 +877,17 @@ const s = StyleSheet.create({
   reorderBtnDisabled: { opacity: 0.25, backgroundColor: colors.background },
   reorderBtnText: { fontSize: 11, fontWeight: '700', color: colors.primary, lineHeight: 13 },
   reorderBtnTextDisabled: { color: colors.textLight },
+  typeBtn: {
+    flex: 1, paddingVertical: 8, borderRadius: 6,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  typeBtnText: { fontSize: fontSizes.xs, fontWeight: '600', color: colors.textSecondary },
+  typeBtnActiveFrais: { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' },
+  typeBtnActiveSurgele: { backgroundColor: '#E3F2FD', borderColor: '#1565C0' },
+  typeBtnActiveDeux: { backgroundColor: '#F3E5F5', borderColor: '#7B1FA2' },
+  typeBtnTextActive: { color: '#000' },
   toggleBtn: {
     borderRadius: borderRadius.md, paddingVertical: spacing.md,
     alignItems: 'center', marginTop: spacing.md,

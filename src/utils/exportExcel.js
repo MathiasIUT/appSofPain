@@ -150,15 +150,15 @@ export async function exportOrdersExcel(ids = null) {
     itemsByOrder[it.order_id][it.product_id] = it;
   }
 
-  const headers = ['N°', 'Date', 'Société', 'Contact', 'Email', 'Téléphone'];
-  const widths = [8, 12, 28, 22, 30, 16];
+  const headers = ['N°', 'Type', 'Date', 'Société', 'Contact', 'Email', 'Téléphone'];
+  const widths = [8, 12, 12, 28, 22, 30, 16];
   products.forEach((p) => {
     headers.push(`${p.nom} (Qté)`);
     headers.push(`${p.nom} (PU €)`);
     widths.push(Math.max(p.nom.length + 6, 14));
     widths.push(Math.max(p.nom.length + 6, 14));
   });
-  headers.push('Total HT (€)', 'Livreur');
+  headers.push('Total HT (€)', 'Livreur Assigné');
   widths.push(14, 20);
 
   const orders = (ordRes.data || []).filter((o) => !o.client || o.client.role === 'client');
@@ -167,6 +167,7 @@ export async function exportOrdersExcel(ids = null) {
     const contact = [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || o.client_nom || '';
     const cells = [
       o.numero || '',
+      o.type_commande === 'surgele' ? 'Surgelé' : 'Frais',
       fmt(o.date_commande),
       o.client?.nom_societe || '',
       contact,

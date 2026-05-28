@@ -452,7 +452,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         const [itemsRes, livRes] = await Promise.all([
           supabase.from('order_items').select('*').eq('order_id', order.id)
             .order('created_at', { ascending: true }),
-          supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
+          supabase.from('livreurs').select('id, nom, prenom, type_livreur').eq('actif', true),
         ]);
         if (itemsRes.error) throw itemsRes.error;
         const fetched = itemsRes.data || [];
@@ -701,7 +701,9 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                 <Text style={modal.addressText}>{order.adresse_livraison}</Text>
               </View>
             ) : null}
-            <Text style={[modal.sectionTitle, { marginTop: spacing.md }]}>Livreur assigné</Text>
+            <Text style={[modal.sectionTitle, { marginTop: spacing.md }]}>
+              Livreur assigné ({order.type_commande === 'surgele' ? 'Surgelé' : 'Frais'})
+            </Text>
             {!selectedLivreur && (
               <View style={{ backgroundColor: colors.error + '18', borderWidth: 1, borderColor: colors.error + '55', borderRadius: 8, padding: spacing.sm, marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={{ flex: 1, fontSize: 12, color: colors.error, fontWeight: '600' }}>
@@ -716,17 +718,34 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               >
                 <Text style={[modal.statutChipText, !selectedLivreur && modal.statutChipTextActive]}>Aucun</Text>
               </TouchableOpacity>
-              {livreurs.map(l => (
-                <TouchableOpacity
-                  key={l.id}
-                  style={[modal.statutChip, selectedLivreur === l.id && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                  onPress={() => setSelectedLivreur(l.id)}
-                >
-                  <Text style={[modal.statutChipText, selectedLivreur === l.id && modal.statutChipTextActive]}>
-                    {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {livreurs
+                .filter(l => 
+                  l.type_livreur === 'les_deux' || 
+                  l.type_livreur === (order.type_commande === 'surgele' ? 'surgele' : 'frais')
+                )
+                .map(l => {
+                const isDefault = order.type_commande === 'surgele' ? l.id === order.client?.livreur_surgele_id : l.id === order.client?.livreur_id;
+                return (
+                  <TouchableOpacity
+                    key={l.id}
+                    style={[
+                      modal.statutChip,
+                      selectedLivreur === l.id && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      isDefault && selectedLivreur !== l.id && { borderColor: order.type_commande === 'surgele' ? '#1565C0' : '#2E7D32', borderWidth: 2 }
+                    ]}
+                    onPress={() => setSelectedLivreur(l.id)}
+                  >
+                    <Text style={[
+                      modal.statutChipText,
+                      selectedLivreur === l.id && modal.statutChipTextActive,
+                      isDefault && selectedLivreur !== l.id && { color: order.type_commande === 'surgele' ? '#1565C0' : '#2E7D32', fontWeight: 'bold' }
+                    ]}>
+                      {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
+                      {isDefault ? ' (Défaut)' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 

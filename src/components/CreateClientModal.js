@@ -51,7 +51,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     // Load livreurs and products
     (async () => {
       const [livRes, prodRes] = await Promise.all([
-        supabase.from('livreurs').select('id, nom, prenom').eq('actif', true),
+        supabase.from('livreurs').select('id, nom, prenom, type_livreur').eq('actif', true),
         supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('nom'),
       ]);
       setLivreurs(livRes.data || []);
@@ -238,7 +238,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
 
             {/* Livreur Frais */}
             <Text style={s.sectionTitle}>Livreur Frais assigné</Text>
-            {livreurs.length === 0 ? (
+            {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').length === 0 ? (
               <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
             ) : (
               <View style={s.chipsRow}>
@@ -248,7 +248,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
                 >
                   <Text style={[s.chipText, !livreurId && s.chipTextActive]}>Aucun</Text>
                 </TouchableOpacity>
-                {livreurs.map(l => (
+                {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').map(l => (
                   <TouchableOpacity
                     key={l.id}
                     style={[s.chip, livreurId === l.id && s.chipActive]}
@@ -262,9 +262,8 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
               </View>
             )}
 
-            {/* Livreur Surgelé */}
             <Text style={s.sectionTitle}>Livreur Surgelé assigné</Text>
-            {livreurs.length === 0 ? (
+            {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').length === 0 ? (
               <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
             ) : (
               <View style={s.chipsRow}>
@@ -274,7 +273,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
                 >
                   <Text style={[s.chipText, !livreurSurgeleId && s.chipTextActive]}>Aucun</Text>
                 </TouchableOpacity>
-                {livreurs.map(l => (
+                {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').map(l => (
                   <TouchableOpacity
                     key={l.id}
                     style={[s.chip, livreurSurgeleId === l.id && s.chipActive]}

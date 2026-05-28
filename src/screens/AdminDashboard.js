@@ -39,8 +39,10 @@ export default function AdminDashboard({ navigation }) {
         return <AdminClientsScreen />;
       case 'logistique':
         return <AdminLogistiqueScreen />;
-      case 'compta':
-        return <AdminComptaScreen />;
+      case 'compta_frais':
+        return <AdminComptaScreen key="frais" fixedComptaType="frais" />;
+      case 'compta_surgele':
+        return <AdminComptaScreen key="surgele" fixedComptaType="surgele" />;
       default:
         return <AdminProductsScreen />;
     }
