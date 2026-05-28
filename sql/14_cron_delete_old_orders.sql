@@ -1,12 +1,9 @@
--- ============================================================
--- SOF PAIN - Suppression Automatique des Commandes (45 jours)
--- ============================================================
 
--- 1. Activer l'extension pg_cron (nécessite les droits superuser, 
--- normalement activable via l'interface Supabase dans Database > Extensions)
+--Suppression Automatique des Commandes (45 jours)
+
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- 2. Créer une fonction de nettoyage
+--Créer une fonction de nettoyage
 CREATE OR REPLACE FUNCTION public.delete_old_orders()
 RETURNS void AS $$
 BEGIN
@@ -17,7 +14,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Planifier la tâche avec pg_cron (tous les jours à minuit)
+-- Planifier la tâche avec pg_cron (tous les jours à minuit)
 -- On nettoie l'ancienne version si elle existe avant de la recréer
 SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'delete_old_orders_job';
 
@@ -27,10 +24,8 @@ SELECT cron.schedule(
   'SELECT public.delete_old_orders();'
 );
 
--- ============================================================
 -- Pour vérifier l'état des tâches cron :
 -- SELECT * FROM cron.job;
---
+
 -- Pour vérifier l'historique d'exécution :
 -- SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10;
--- ============================================================

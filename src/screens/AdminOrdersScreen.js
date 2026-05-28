@@ -19,7 +19,7 @@ import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 import { exportOrdersExcel } from '../utils/exportExcel';
 
-// ─── Constantes ──────────────────────────────────────────────────────────────
+──────
 
 
 
@@ -34,7 +34,7 @@ const showAlert = (title, msg) => {
 
 const PAGE_SIZE = 30;
 
-// ─── Écran principal ─────────────────────────────────────────────────────────
+─
 
 export default function AdminOrdersScreen() {
   const [orders, setOrders] = useState([]);
@@ -48,11 +48,7 @@ export default function AdminOrdersScreen() {
   const [selectingAll, setSelectingAll] = useState(false);
   const [takeOrderVisible, setTakeOrderVisible] = useState(false);
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 900;
-
-
-
-  // Charger les commandes paginées
+  const isDesktop = width >= 900;
   const loadOrders = useCallback(async (reset = true, currentLength = 0) => {
     if (reset) setLoading(true);
     else setLoadingMore(true);
@@ -88,9 +84,7 @@ export default function AdminOrdersScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
-
-  // Charger au montage uniquement
+  }, []);
   useEffect(() => { loadOrders(true); }, []);
 
   const hasMore = orders.length < totalCount;
@@ -144,8 +138,7 @@ export default function AdminOrdersScreen() {
     const ids = Array.from(selectedIds);
 
     setBulkActionLoading(true);
-    try {
-      // Vérifier si certaines commandes ne sont pas encore traitées
+    try {
       const { data: nonTraite } = await supabase
         .from('orders')
         .select('numero, livreur_id, livreur:livreurs(nom, prenom)')
@@ -175,16 +168,12 @@ export default function AdminOrdersScreen() {
         }
       });
 
-      if (!confirmed) return;
-
-      // Supprimer les items d'abord (contrainte FK)
+      if (!confirmed) return;
       const { error: itemsErr } = await supabase
         .from('order_items')
         .delete()
         .in('order_id', ids);
-      if (itemsErr) throw itemsErr;
-
-      // Supprimer les commandes
+      if (itemsErr) throw itemsErr;
       const { error: ordersErr } = await supabase
         .from('orders')
         .delete()
@@ -352,7 +341,7 @@ export default function AdminOrdersScreen() {
   );
 }
 
-// ─── Ligne commande ──────────────────────────────────────────────────────────
+──
 
 const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) => {
   const clientName = item.client?.nom_societe
@@ -420,10 +409,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
       </TouchableOpacity>
     </View>
   );
-});
-
-
-// ─── Modal détail commande ───────────────────────────────────────────────────
+});
 
 function OrderDetailModal({ order, onClose, onUpdated }) {
   const [items, setItems] = useState([]);
@@ -434,12 +420,10 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [livreurs, setLivreurs] = useState([]);
-  const [selectedLivreur, setSelectedLivreur] = useState(order.livreur_id || null);
-  // ── Édition des quantités
+  const [selectedLivreur, setSelectedLivreur] = useState(order.livreur_id || null);
   const [editingQty, setEditingQty] = useState(false);
   const [draftQty, setDraftQty] = useState({});
-  const [savingItems, setSavingItems] = useState(false);
-  // Totaux calculés localement (recalculés après sauvegarde)
+  const [savingItems, setSavingItems] = useState(false);
   const [localTotalHt, setLocalTotalHt] = useState(Number(order.total_ht || 0));
 
   const { width, height } = useWindowDimensions();
@@ -469,9 +453,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         setLoadingItems(false);
       }
     })();
-  }, [order.id]);
-
-  // Ouvrir le mode édition quantités
+  }, [order.id]);
   const startEditQty = () => {
     const init = {};
     items.forEach(it => { init[it.id] = it.quantite; });
@@ -496,11 +478,8 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     if (!isNaN(parsed) && parsed >= 0) {
       setDraftQty(prev => ({ ...prev, [itemId]: parsed }));
     }
-  };
-
-  // Sauvegarder les quantités : met à jour order_items + recalcule total_ht dans orders
-  const handleSaveItems = async () => {
-    // Vérifier qu'au moins un article reste
+  };
+  const handleSaveItems = async () => {
     const remaining = items.filter(it => (draftQty[it.id] ?? it.quantite) > 0);
     if (remaining.length === 0) {
       showAlert('Erreur', 'La commande doit contenir au moins un article.');
@@ -519,17 +498,14 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     }
 
     setSavingItems(true);
-    try {
-      // 1. Supprimer les articles mis à 0
+    try {
       if (toDelete.length > 0) {
         const { error: delErr } = await supabase
           .from('order_items')
           .delete()
           .in('id', toDelete.map(it => it.id));
         if (delErr) throw delErr;
-      }
-
-      // 2. Mettre à jour les quantités modifiées
+      }
       for (const it of toUpdate) {
         const newQty = draftQty[it.id];
         const newSousTotal = Number((newQty * Number(it.prix_unitaire_ht)).toFixed(2));
@@ -538,9 +514,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           .update({ quantite: newQty, sous_total_ht: newSousTotal })
           .eq('id', it.id);
         if (updErr) throw updErr;
-      }
-
-      // 3. Recalculer le total_ht de la commande
+      }
       const updatedItems = items
         .filter(it => (draftQty[it.id] ?? it.quantite) > 0)
         .map(it => ({
@@ -558,14 +532,10 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         .eq('id', order.id)
         .select('*')
         .single();
-      if (orderErr) throw orderErr;
-
-      // 4. Mettre à jour l'état local
+      if (orderErr) throw orderErr;
       setItems(updatedItems);
       setLocalTotalHt(newTotalHtRounded);
-      onUpdated({ ...updatedOrder });
-
-      // Regénérer l'aperçu PDF
+      onUpdated({ ...updatedOrder });
       const clientData = order.client || {
         nom_societe: order.client_nom || 'Client inconnu',
         telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
@@ -623,16 +593,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const clientName = order.client?.nom_societe
     || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
     || order.client_nom
-    || '— Client supprimé —';
-
-  // Fallback : extraire le téléphone depuis l'adresse si absent du profil
+    || '— Client supprimé —';
   const telephone = order.client?.telephone
     || (order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim())
     || '—';
 
-  const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '') || selectedLivreur !== (order.livreur_id || null);
-
-  // Hauteur utile pour les colonnes (modal - header)
+  const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '') || selectedLivreur !== (order.livreur_id || null);
   const bodyHeight = Math.min(height * 0.88, 820) - 64;
 
   return (
@@ -933,7 +899,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   );
 }
 
-// ─── Sous-composants ─────────────────────────────────────────────────────────
+─
 
 function InfoItem({ label, value }) {
   return (
@@ -953,7 +919,7 @@ function TotalLine({ label, value, final }) {
   );
 }
 
-// ─── Styles liste ────────────────────────────────────────────────────────────
+────
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
@@ -1115,12 +1081,10 @@ const styles = StyleSheet.create({
   },
 });
 
-// ─── Styles modal ────────────────────────────────────────────────────────────
+────
 
 const modal = StyleSheet.create({
-  container: { flex: 1, overflow: 'hidden' },
-
-  // Header
+  container: { flex: 1, overflow: 'hidden' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1137,17 +1101,11 @@ const modal = StyleSheet.create({
   headerDate: { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   closeBtn: { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
-  closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
-
-  // Layout 2 colonnes
-  body: { flex: 1 },
-
-  // Colonne gauche (infos)
+  closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
+  body: { flex: 1 },
   leftCol: { flex: 1 },
   leftColDesktop: { flex: 1, borderRightWidth: 1, borderRightColor: colors.border },
-  leftColContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
-
-  // Colonne droite (aperçu)
+  leftColContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
   rightCol: {
     flex: 1,
     padding: spacing.lg,
@@ -1172,9 +1130,7 @@ const modal = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  previewLoadingText: { fontSize: fontSizes.sm, color: colors.textSecondary },
-
-  // Sections
+  previewLoadingText: { fontSize: fontSizes.sm, color: colors.textSecondary },
   section: { marginBottom: spacing.lg },
   sectionTitle: {
     fontSize: fontSizes.xs,
@@ -1186,9 +1142,7 @@ const modal = StyleSheet.create({
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-
-  // Statut
+  },
   statutRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   statutChip: {
     paddingHorizontal: spacing.md,
@@ -1200,20 +1154,14 @@ const modal = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   statutChipText: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
-  statutChipTextActive: { color: colors.white, fontWeight: '700' },
-
-  // Infos
+  statutChipTextActive: { color: colors.white, fontWeight: '700' },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   infoItem: { minWidth: 140, flex: 1, backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.sm },
   infoLabel: { fontSize: fontSizes.xs, color: colors.textLight, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  infoValue: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
-
-  // Adresse
+  infoValue: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
   addressBox: { backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.sm },
   addressLabel: { fontSize: fontSizes.xs, color: colors.textLight, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  addressText: { fontSize: fontSizes.sm, color: colors.textPrimary, lineHeight: 20 },
-
-  // Tableau
+  addressText: { fontSize: fontSizes.sm, color: colors.textPrimary, lineHeight: 20 },
   tableHead: {
     flexDirection: 'row',
     paddingVertical: spacing.xs,
@@ -1227,22 +1175,16 @@ const modal = StyleSheet.create({
   rowAlt: { backgroundColor: colors.secondary },
   td: { fontSize: fontSizes.sm, color: colors.textPrimary },
   right: { textAlign: 'right' },
-  bold: { fontWeight: '600' },
-
-  // Totaux
+  bold: { fontWeight: '600' },
   totals: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: 4 },
   totalLine: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   totalLineFinal: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.xs, paddingTop: spacing.xs },
   totalLabel: { fontSize: fontSizes.sm, color: colors.textSecondary },
   totalValue: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
   totalLabelFinal: { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
-  totalValueFinal: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
-
-  // Ligne supprimée (quantité = 0)
+  totalValueFinal: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
   rowDeleted: { opacity: 0.45, backgroundColor: '#FFE5E5' },
-  tdStrike: { textDecorationLine: 'line-through', color: colors.textLight },
-
-  // Contrôles édition quantités
+  tdStrike: { textDecorationLine: 'line-through', color: colors.textLight },
   editQtyBtn: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
@@ -1289,9 +1231,7 @@ const modal = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  editQtySaveText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
-
-  // Notes
+  editQtySaveText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
   notesClientBox: { backgroundColor: colors.secondary, borderRadius: borderRadius.md, padding: spacing.md, borderLeftWidth: 3, borderLeftColor: colors.primary },
   notesClientText: { fontSize: fontSizes.sm, color: colors.textPrimary, fontStyle: 'italic', lineHeight: 20 },
   notesInput: {
@@ -1306,9 +1246,7 @@ const modal = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
   },
-});
-
-// ─── Modal : Prendre une commande (admin) ────────────────────────────────────
+});
 
 function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const [step, setStep] = useState('client');

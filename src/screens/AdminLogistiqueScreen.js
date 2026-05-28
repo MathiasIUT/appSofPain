@@ -842,15 +842,13 @@ const s = StyleSheet.create({
   orderNum: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
   orderClient: { fontSize: fontSizes.xs, color: colors.textSecondary },
   orderAddress: { fontSize: fontSizes.xs, color: colors.textLight, fontStyle: 'italic' },
-  orderAmount: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary, minWidth: 60, textAlign: 'right' },
-  // Badge de position dans la tournée
+  orderAmount: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary, minWidth: 60, textAlign: 'right' },
   tourBadge: {
     width: 26, height: 26, borderRadius: 13,
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  tourBadgeText: { fontSize: fontSizes.xs, fontWeight: '800' },
-  // Boutons réordonnancement
+  tourBadgeText: { fontSize: fontSizes.xs, fontWeight: '800' },
   reorderBtns: { flexDirection: 'column', gap: 2, flexShrink: 0 },
   reorderBtn: {
     width: 28, height: 22, borderRadius: 4,

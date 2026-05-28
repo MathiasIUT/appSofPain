@@ -391,8 +391,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
                   <View style={[styles.td, styles.colClient]}>
                     <Text style={styles.tdFooterText}>TOTAL GLOBAL</Text>
                   </View>
-                  {tableData.displayProducts.map(p => {
-                    // Calcul de la somme totale des quantités pour ce produit pour la vue actuelle
+                  {tableData.displayProducts.map(p => {
                     let totalQty = 0;
                     tableData.rows.forEach(r => {
                       if (r.productAgg[p.id]) totalQty += r.productAgg[p.id].qty;
@@ -938,9 +937,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: '800',
     color: colors.primary,
-  },
-
-  // Bouton Voir le détail
+  },
   bonBtn: {
     marginTop: 6,
     paddingVertical: 4,
@@ -956,9 +953,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: colors.primary,
-  },
-
-  // Modal overlay
+  },
   bonOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -972,9 +967,7 @@ const styles = StyleSheet.create({
     maxHeight: '94%',
     ...Platform.select({ web: { borderRadius: borderRadius.xl, width: '92%', maxWidth: 760, maxHeight: '90%' } }),
   },
-});
-
-// ─── Styles Bon Mensuel ───────────────────────────────────────────────────────
+});
 
 const bon = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },

@@ -1,14 +1,7 @@
--- ============================================================
--- SOF PAIN - Schéma de base de données (BLOC 1 / 3)
--- Création des tables principales
--- ============================================================
+-- SOF PAIN - Schéma de base de données 
 
+--Mise à jour de la table `profiles`
 
--- ------------------------------------------------------------
--- 1. Mise à jour de la table `profiles`
--- ------------------------------------------------------------
-
--- Ajout des champs supplémentaires (optionnels)
 alter table public.profiles
   add column if not exists telephone text,
   add column if not exists adresse text,
@@ -16,9 +9,6 @@ alter table public.profiles
   add column if not exists ville text,
   add column if not exists siret text;
 
--- Mise à jour de la contrainte de rôle pour inclure 'livreur'
--- (préparation Phase C - on ne code pas la partie livreur maintenant
--- mais on prévoit la place dès maintenant pour éviter une migration plus tard)
 alter table public.profiles
   drop constraint if exists profiles_role_check;
 
@@ -27,9 +17,8 @@ alter table public.profiles
   check (role in ('client', 'admin', 'livreur'));
 
 
--- ------------------------------------------------------------
--- 2. Table `categories` (Pain frais / Pain surgelé)
--- ------------------------------------------------------------
+--Table `categories` (Pain frais / Pain surgelé)
+
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   nom text not null,
@@ -45,9 +34,8 @@ insert into public.categories (nom, slug, ordre) values
 on conflict (slug) do nothing;
 
 
--- ------------------------------------------------------------
--- 3. Table `products`
--- ------------------------------------------------------------
+--Table `products`
+
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   category_id uuid not null references public.categories(id) on delete restrict,
@@ -66,14 +54,12 @@ create index if not exists idx_products_category on public.products(category_id)
 create index if not exists idx_products_actif on public.products(actif);
 
 
--- ------------------------------------------------------------
--- 4. Table `orders`
--- ------------------------------------------------------------
+--Table `orders`
+
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
   client_id uuid not null references public.profiles(id) on delete restrict,
-  -- livreur_id préparé pour la Phase C (peut rester null pour l'instant)
   livreur_id uuid references public.profiles(id) on delete set null,
   statut text not null default 'nouvelle',
   date_commande timestamp with time zone not null default now(),
@@ -93,7 +79,7 @@ create table if not exists public.orders (
 alter table public.orders
   add column if not exists livreur_id uuid references public.profiles(id) on delete set null;
 
--- Contrainte sur les statuts (inclut 'en_livraison' pour la Phase C)
+
 alter table public.orders
   drop constraint if exists orders_statut_check;
 
@@ -107,9 +93,8 @@ create index if not exists idx_orders_statut on public.orders(statut);
 create index if not exists idx_orders_date on public.orders(date_commande desc);
 
 
--- ------------------------------------------------------------
--- 5. Table `order_items`
--- ------------------------------------------------------------
+-- Table `order_items`
+
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,

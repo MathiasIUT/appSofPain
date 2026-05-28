@@ -15,9 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, shadows, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
-import { useCart } from '../contexts/CartContext';
-
-// Slugs des catégories affichées dans le catalogue client.
+import { useCart } from '../contexts/CartContext';
 const VISIBLE_CATEGORY_SLUGS = ['frais', 'surgele'];
 
 export default function ClientHome({ navigation }) {
@@ -31,9 +29,7 @@ export default function ClientHome({ navigation }) {
   const { items: cartItems, totals } = useCart();
 
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 900;
-
-  // Chargement initial : profil + produits
+  const isDesktop = width >= 900;
   const loadData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -56,19 +52,14 @@ export default function ClientHome({ navigation }) {
       ]);
 
       if (profileRes.data) setProfile(profileRes.data);
-      if (prodRes.error) throw prodRes.error;
-
-      // Construction de la map des prix spécifiques au client
+      if (prodRes.error) throw prodRes.error;
       const priceMap = {};
       (pricesRes.data || []).forEach(p => { priceMap[p.product_id] = Number(p.prix_unitaire_ht); });
-      setClientPrices(priceMap);
-
-      // Ne garder que les produits des catégories visibles
+      setClientPrices(priceMap);
       const visibleProducts = (prodRes.data || []).filter((p) =>
         VISIBLE_CATEGORY_SLUGS.includes(p.category?.slug)
       ).map(p => ({
-        ...p,
-        // Appliquer le prix spécifique au client si disponible
+        ...p,
         prix_unitaire_ht: priceMap[p.id] !== undefined ? priceMap[p.id] : p.prix_unitaire_ht,
       }));
       setProducts(visibleProducts);
@@ -81,18 +72,14 @@ export default function ClientHome({ navigation }) {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
-
-  // Déconnexion
+  }, [loadData]);
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigation.reset({
       index: 0,
       routes: [{ name: 'Login' }],
     });
-  };
-
-  // Filtrer les produits selon la recherche et l'onglet sélectionné
+  };
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => p.category?.slug === selectedTab);
     if (!searchQuery.trim()) return result;
@@ -263,20 +250,14 @@ export default function ClientHome({ navigation }) {
       ) : null}
     </SafeAreaView>
   );
-}
-
-// ---------------------------------------------------------
-// Composant ProductCard avec boutons +/-
-// ---------------------------------------------------------
+}
 
 function ProductCard({ product, isDesktop }) {
   const { items, addToCart, setQuantity, clearCart } = useCart();
   const TVA = Number(product.tva_pourcent);
   const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
   const increment = Number(product.increment || 10);
-  const isSurgele = product.category?.slug === 'surgele';
-
-  // Quantité actuelle dans le panier
+  const isSurgele = product.category?.slug === 'surgele';
   const inCart = items.find((i) => i.product.id === product.id);
   const currentQty = inCart ? inCart.quantite : 0;
 
@@ -426,11 +407,7 @@ function ProductCard({ product, isDesktop }) {
       </View>
     </View>
   );
-}
-
-// ---------------------------------------------------------
-// Styles
-// ---------------------------------------------------------
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -447,9 +424,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
-  },
-
-  // Header
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -558,9 +533,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
     fontWeight: '500',
-  },
-
-  // Contenu principal
+  },
   content: {
     flex: 1,
   },
@@ -607,9 +580,7 @@ const styles = StyleSheet.create({
   },
   tabBtnTextActive: {
     color: colors.white,
-  },
-
-  // Barre de recherche
+  },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -635,9 +606,7 @@ const styles = StyleSheet.create({
   clearSearchText: {
     fontSize: 20,
     color: colors.textSecondary,
-  },
-
-  // Empty state
+  },
   emptyState: {
     alignItems: 'center',
     padding: spacing.xxl,
@@ -657,9 +626,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.textSecondary,
     textAlign: 'center',
-  },
-
-  // Grille
+  },
   productsGrid: {
     gap: spacing.md,
   },
@@ -750,9 +717,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.textLight,
     fontStyle: 'italic',
-  },
-
-  // Quantité +/-
+  },
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -809,9 +774,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.textSecondary,
     marginTop: 4,
-  },
-
-  // Barre panier flottante en bas
+  },
   cartBar: {
     flexDirection: 'row',
     alignItems: 'center',

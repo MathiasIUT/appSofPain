@@ -1,11 +1,7 @@
--- ============================================================
--- SOF PAIN - Sécurisation du trigger handle_new_user
--- IMPORTANT : exécuter dans le SQL Editor Supabase
--- ============================================================
 -- Garantit que le rôle est TOUJOURS 'client' à la création
 -- d'un compte, même si un attaquant passe "role":"admin"
 -- dans les options.data de signUp().
--- ============================================================
+
 
 create or replace function public.handle_new_user()
 returns trigger

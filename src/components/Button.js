@@ -67,14 +67,10 @@ const styles = StyleSheet.create({
   },
   fullWidth: { width: '100%' },
   disabled:  { opacity: 0.42 },
-  icon:      { marginRight: spacing.sm },
-
-  // Tailles
+  icon:      { marginRight: spacing.sm },
   size_sm: { paddingVertical: 10,  paddingHorizontal: spacing.md, minHeight: 42 },
   size_md: { paddingVertical: 15,  paddingHorizontal: spacing.lg              },
-  size_lg: { paddingVertical: 18,  paddingHorizontal: spacing.xl, minHeight: 58 },
-
-  // Variantes
+  size_lg: { paddingVertical: 18,  paddingHorizontal: spacing.xl, minHeight: 58 },
   variant_primary: {
     backgroundColor: colors.primary,
     ...shadows.md,
@@ -90,9 +86,7 @@ const styles = StyleSheet.create({
   },
   variant_ghost: {
     backgroundColor: 'transparent',
-  },
-
-  // Texte
+  },
   text: {
     fontWeight: '700',
     textAlign: 'center',

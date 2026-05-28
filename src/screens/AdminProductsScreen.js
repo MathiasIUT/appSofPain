@@ -14,10 +14,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
-import ProductFormModal from '../components/ProductFormModal';
-
-// Slugs des catégories affichées dans l'UI.
-// Ajouter 'surgele' dans ce tableau pour ré-activer les produits surgelés.
+import ProductFormModal from '../components/ProductFormModal';
 const VISIBLE_CATEGORY_SLUGS = ['frais', 'surgele'];
 
 /**
@@ -28,16 +25,12 @@ export default function AdminProductsScreen() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState('all');
-  const [showInactive, setShowInactive] = useState(false);
-
-  // État du modal d'édition
+  const [showInactive, setShowInactive] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 900;
-
-  // Chargement initial et rafraîchissement
+  const isDesktop = width >= 900;
   const loadData = useCallback(async () => {
     try {
       const [catRes, prodRes] = await Promise.all([
@@ -49,15 +42,11 @@ export default function AdminProductsScreen() {
       ]);
 
       if (catRes.error) throw catRes.error;
-      if (prodRes.error) throw prodRes.error;
-
-      // Filtrer les catégories visibles dans l'UI
+      if (prodRes.error) throw prodRes.error;
       const visibleCategories = (catRes.data || []).filter((c) =>
         VISIBLE_CATEGORY_SLUGS.includes(c.slug)
       );
-      setCategories(visibleCategories);
-
-      // Filtrer les produits des catégories visibles
+      setCategories(visibleCategories);
       const visibleProducts = (prodRes.data || []).filter((p) =>
         VISIBLE_CATEGORY_SLUGS.includes(p.category?.slug)
       );
@@ -71,15 +60,11 @@ export default function AdminProductsScreen() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
-
-  // Ouverture du modal en création
+  }, [loadData]);
   const handleCreate = () => {
     setEditingProduct(null);
     setModalVisible(true);
-  };
-
-  // Ouverture du modal en modification
+  };
   const handleEdit = (product) => {
     setEditingProduct(product);
     setModalVisible(true);
@@ -118,9 +103,7 @@ export default function AdminProductsScreen() {
       if (Platform.OS === 'web') window.alert(`Erreur\n\n${err.message || 'Impossible de supprimer le produit.'}`);
       else Alert.alert('Erreur', err.message || 'Impossible de supprimer le produit.');
     }
-  };
-
-  // Filtres appliqués
+  };
   const filteredProducts = products.filter((p) => {
     if (!showInactive && !p.actif) return false;
     if (filterCategory !== 'all' && p.category_id !== filterCategory) return false;
@@ -225,11 +208,7 @@ export default function AdminProductsScreen() {
       />
     </>
   );
-}
-
-// ---------------------------------------------------------
-// Sous-composants
-// ---------------------------------------------------------
+}
 
 function FilterChip({ label, active, onPress }) {
   return (
@@ -310,11 +289,7 @@ function ProductCard({ product, onEdit, onDelete }) {
       </View>
     </View>
   );
-}
-
-// ---------------------------------------------------------
-// Styles
-// ---------------------------------------------------------
+}
 
 const styles = StyleSheet.create({
   container: {

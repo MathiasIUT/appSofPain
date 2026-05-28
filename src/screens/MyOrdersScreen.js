@@ -171,9 +171,7 @@ const OrderCard = React.memo(({ item, onPress }) => {
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-
-  // Header
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,9 +186,7 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   backText: { color: colors.primary, fontWeight: '500', fontSize: fontSizes.sm },
-  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary },
-
-  // Tabs
+  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary },
   tabs: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -220,16 +216,12 @@ const styles = StyleSheet.create({
   },
   tabBadgeActive: { backgroundColor: colors.primary },
   tabBadgeText: { fontSize: fontSizes.xs - 1, fontWeight: '600', color: colors.textSecondary },
-  tabBadgeTextActive: { color: colors.white },
-
-  // États vides / loading
+  tabBadgeTextActive: { color: colors.white },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   loadingText: { marginTop: spacing.md, color: colors.textSecondary, fontSize: fontSizes.sm },
   emptyIcon: { fontSize: 40, marginBottom: spacing.md },
   emptyTitle: { fontSize: fontSizes.lg, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' },
-  emptySubtitle: { fontSize: fontSizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
-
-  // Liste
+  emptySubtitle: { fontSize: fontSizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
   list: { padding: spacing.lg, paddingBottom: spacing.xxl },
   listDesktop: { maxWidth: 720, alignSelf: 'center', width: '100%' },
   loadMoreBtn: {
@@ -239,9 +231,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  loadMoreText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
-
-  // Card commande
+  loadMoreText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,

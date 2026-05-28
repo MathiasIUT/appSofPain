@@ -1,12 +1,3 @@
--- ============================================================
--- SOF PAIN - Données de test
--- Quelques produits pour avoir un catalogue non-vide
--- ============================================================
--- ⚠️ À exécuter APRÈS les blocs 1, 2 et 3.
--- Ces données peuvent être supprimées plus tard et remplacées
--- par les vrais produits via le panneau admin.
--- ============================================================
-
 -- Récupération des IDs des catégories
 do $$
 declare

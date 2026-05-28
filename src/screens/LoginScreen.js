@@ -107,9 +107,7 @@ export default function LoginScreen({ navigation }) {
         .eq('id', authData.user.id)
         .single();
 
-      if (profileError || !profile) {
-        // Le profil n'existe plus = compte supprimé.
-        // On déconnecte la session auth immédiatement.
+      if (profileError || !profile) {
         await supabase.auth.signOut();
         showAlert(
           'Compte supprimé',

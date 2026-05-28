@@ -149,16 +149,13 @@ export default function OrderDetailScreen({ navigation, route }) {
     if (!proceed) return;
 
     setDeleting(true);
-    try {
-      // Supprimer les items d'abord
+    try {
       const { error: itemsError } = await supabase
         .from('order_items')
         .delete()
         .eq('order_id', order.id);
 
-      if (itemsError) throw new Error('Erreur items : ' + itemsError.message);
-
-      // Puis supprimer la commande
+      if (itemsError) throw new Error('Erreur items : ' + itemsError.message);
       const { error: orderError } = await supabase
         .from('orders')
         .delete()
@@ -347,9 +344,7 @@ export default function OrderDetailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-
-  // Header
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
@@ -361,21 +356,15 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  backText: { color: colors.primary, fontWeight: '500', fontSize: fontSizes.sm },
-
-  // États
+  backText: { color: colors.primary, fontWeight: '500', fontSize: fontSizes.sm },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  errorText: { color: colors.textSecondary, fontSize: fontSizes.md },
-
-  // Body scroll
+  errorText: { color: colors.textSecondary, fontSize: fontSizes.md },
   body: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  bodyDesktop: { maxWidth: 720, alignSelf: 'center', width: '100%' },
-
-  // Titre
+  bodyDesktop: { maxWidth: 720, alignSelf: 'center', width: '100%' },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -389,9 +378,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.round,
     marginLeft: spacing.sm,
   },
-  badgeText: { fontSize: fontSizes.xs, fontWeight: '700' },
-
-  // Cards
+  badgeText: { fontSize: fontSizes.xs, fontWeight: '700' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
@@ -408,9 +395,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-
-  // Infos livraison
+  },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -419,9 +404,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: fontSizes.sm, color: colors.textSecondary, flexShrink: 0 },
   infoValue: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
-  infoValueRight: { flex: 1, textAlign: 'right' },
-
-  // Notes
+  infoValueRight: { flex: 1, textAlign: 'right' },
   notesBox: {
     backgroundColor: colors.secondary,
     borderRadius: borderRadius.sm,
@@ -434,9 +417,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 2,
   },
-  notesText: { fontSize: fontSizes.sm, color: colors.textPrimary, fontStyle: 'italic' },
-
-  // Tableau produits
+  notesText: { fontSize: fontSizes.sm, color: colors.textPrimary, fontStyle: 'italic' },
   tableHead: {
     flexDirection: 'row',
     paddingVertical: spacing.xs,
@@ -459,9 +440,7 @@ const styles = StyleSheet.create({
   },
   rowAlt: { backgroundColor: colors.secondary },
   tdCell: { fontSize: fontSizes.sm, color: colors.textPrimary },
-  right: { textAlign: 'right' },
-
-  // Totaux
+  right: { textAlign: 'right' },
   totalsWrap: {
     marginTop: spacing.md,
     borderTopWidth: 1,

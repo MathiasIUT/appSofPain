@@ -1,8 +1,3 @@
--- ============================================================
--- Fix : corriger la FK de profiles.livreur_id
--- Exécuter dans le SQL Editor Supabase
--- ============================================================
-
 -- 1. Supprimer l'ancienne FK de profiles.livreur_id (quelle qu'elle soit)
 do $$
 declare

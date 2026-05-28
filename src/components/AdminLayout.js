@@ -12,11 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 
-/**
- * Layout commun pour tous les écrans admin.
- * - Desktop : sidebar à gauche (large, avec grand logo)
- * - Mobile : onglets en bas
- */
 
 const SECTIONS = [
   { key: 'products', label: 'Produits' },
@@ -145,10 +140,7 @@ const styles = StyleSheet.create({
   },
   layoutDesktop: {
     flexDirection: 'row',
-  },
-
-  // --- SIDEBAR (desktop) ---
-  // Largeur augmentée pour laisser de la place au logo
+  },
   sidebar: {
     width: 300,
     backgroundColor: colors.sidebarBg,
@@ -164,8 +156,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(240,217,196,0.15)',
     marginBottom: spacing.lg,
-  },
-  // Logo sidebar : nettement plus grand pour que le slogan soit lisible
+  },
   logo: {
     width: 250,
     height: 250,
@@ -241,17 +232,13 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.sidebarMuted,
     fontWeight: '500',
-  },
-
-  // --- CONTENU ---
+  },
   content: {
     flex: 1,
   },
   childrenContainer: {
     flex: 1,
-  },
-
-  // --- HEADER MOBILE ---
+  },
   mobileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,8 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.sidebarBg,
     borderBottomWidth: 0,
-  },
-  // Logo mobile : plus grand pour être lisible
+  },
   mobileLogo: {
     width: 135,
     height: 135,
@@ -274,9 +260,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.sidebarText,
     fontWeight: '500',
-  },
-
-  // --- TABS (mobile) ---
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: colors.sidebarBg,
@@ -293,8 +277,7 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  tabItemActive: {
-    // couleur gérée via le texte
+  tabItemActive: {
   },
   tabLabel: {
     fontSize: fontSizes.xs,

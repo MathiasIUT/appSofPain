@@ -17,7 +17,6 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Input from './Input';
 import Button from './Button';
 
-// ---- Helpers plateforme ----
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
     window.alert(`${title}\n\n${message}`);
@@ -36,11 +35,8 @@ const showConfirm = (title, message) =>
         { text: 'Confirmer', onPress: () => resolve(true) },
       ]);
     }
-  });
+  });
 
-/**
- * Modal de création ou modification d'un produit.
- */
 export default function ProductFormModal({
   visible,
   product,
@@ -172,27 +168,20 @@ export default function ProductFormModal({
       let fileBody;
       let contentType;
 
-      if (Platform.OS === 'web') {
-        // Sur web : asset.uri est un blob: URL, on fetch puis on récupère le vrai MIME
+      if (Platform.OS === 'web') {
         const response = await fetch(asset.uri);
         fileBody = await response.blob();
         contentType = fileBody.type || 'image/jpeg';
-      } else {
-        // Sur mobile : expo-image-picker fournit généralement le mimeType
+      } else {
         const response = await fetch(asset.uri);
         fileBody = await response.arrayBuffer();
         contentType = asset.mimeType || 'image/jpeg';
-      }
-
-      // On déduit l'extension du contentType (fiable, contrairement à l'URI)
-      // Exemples : "image/jpeg" -> "jpeg", "image/png" -> "png"
+      }
       const mimeExtension = (contentType.split('/').pop() || 'jpeg')
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '')
         .slice(0, 10); // sécurité : max 10 caractères
-      const extension = mimeExtension === 'jpeg' ? 'jpg' : mimeExtension;
-
-      // Nom de fichier sûr : uniquement chiffres + extension propre
+      const extension = mimeExtension === 'jpeg' ? 'jpg' : mimeExtension;
       const fileName = `product_${Date.now()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
@@ -297,12 +286,8 @@ export default function ProductFormModal({
     } finally {
       setSaving(false);
     }
-  };
-
-  // Image à afficher (preview de la nouvelle ou existante)
-  const previewUri = pendingImage?.uri || form.image_url;
-
-  // Calculs pour le récapitulatif tarifaire
+  };
+  const previewUri = pendingImage?.uri || form.image_url;
   const prixNum = parseFloat((form.prix_unitaire_ht || '').replace(',', '.'));
   const incrementValue = parseInt(form.increment || '10', 10);
   const showSummary =
@@ -532,9 +517,7 @@ export default function ProductFormModal({
       </View>
     </Modal>
   );
-}
-
-// ---- Résumé tarifaire ----
+}
 function PricingSummary({ prixUnitaire, increment, tva, isSurgele, cartonsParPalette }) {
   const prixLotHt = prixUnitaire * increment;
 

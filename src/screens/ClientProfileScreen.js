@@ -87,8 +87,7 @@ export default function ClientProfileScreen({ navigation }) {
 
   const setField = (key) => (v) => setForm((prev) => ({ ...prev, [key]: v }));
 
-  const handleExportData = () => {
-    // Création d'une copie du profil sans les informations confidentielles
+  const handleExportData = () => {
     const { notes_admin, ...sanitizedProfile } = profile || {};
 
     const data = {
@@ -142,31 +141,21 @@ export default function ClientProfileScreen({ navigation }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) throw new Error('Session expirée, veuillez vous reconnecter.');
-
-      // Nom à conserver dans les commandes pour la comptabilité
+      if (!user) throw new Error('Session expirée, veuillez vous reconnecter.');
       const snapshot = profile?.nom_societe
         || [profile?.prenom, profile?.nom].filter(Boolean).join(' ')
-        || 'Client supprimé';
-
-      // 1. Sauvegarder le nom ET l'UUID dans les commandes, puis détacher le profil
+        || 'Client supprimé';
       const { error: ordersError } = await supabase.from('orders')
         .update({ client_nom: snapshot, client_uuid_snapshot: user.id, client_id: null })
         .eq('client_id', user.id);
-      if (ordersError) console.warn('Avertissement orders :', ordersError.message);
-
-      // 2. Supprimer les prix personnalisés
-      await supabase.from('client_prices').delete().eq('client_id', user.id);
-
-      // 3. Supprimer physiquement le profil
+      if (ordersError) console.warn('Avertissement orders :', ordersError.message);
+      await supabase.from('client_prices').delete().eq('client_id', user.id);
       const { error: deleteError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', user.id);
 
-      if (deleteError) throw deleteError;
-
-      // 4. Déconnexion (le trigger Supabase supprime aussi auth.users)
+      if (deleteError) throw deleteError;
       await supabase.auth.signOut();
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     } catch (err) {
@@ -381,9 +370,7 @@ export default function ClientProfileScreen({ navigation }) {
       />
     </SafeAreaView>
   );
-}
-
-// ── Champ formulaire ──────────────────────────────────────────────────────────
+}
 
 function FormField({ label, value, onChangeText, placeholder, style, ...rest }) {
   return (
@@ -399,9 +386,7 @@ function FormField({ label, value, onChangeText, placeholder, style, ...rest }) 
       />
     </View>
   );
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────────
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -418,9 +403,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
-  },
-
-  // Header
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -446,18 +429,14 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: '700',
     color: colors.textPrimary,
-  },
-
-  // Scroll
+  },
   scroll: { flex: 1 },
   scrollContent: {
     padding: spacing.lg,
     maxWidth: 640,
     alignSelf: 'center',
     width: '100%',
-  },
-
-  // Carte identité
+  },
   identityCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.xl,
@@ -516,9 +495,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: fontSizes.xs,
     fontWeight: '600',
-  },
-
-  // Sections
+  },
   section: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
@@ -543,9 +520,7 @@ const styles = StyleSheet.create({
   row2: {
     flexDirection: 'row',
     gap: spacing.sm,
-  },
-
-  // Champs
+  },
   fieldWrap: {
     flex: 1,
     marginBottom: spacing.sm,
@@ -589,14 +564,10 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: fontSizes.sm,
     fontWeight: '700',
-  },
-
-  // Bouton enregistrer
+  },
   saveWrap: {
     marginBottom: spacing.md,
-  },
-
-  // Zone dangereuse
+  },
   dangerSection: {
     backgroundColor: colors.error + '08',
     borderRadius: borderRadius.lg,

@@ -1,12 +1,4 @@
--- ============================================================
--- SOF PAIN - Commerce Privé : Migrations
--- IMPORTANT : exécuter dans le SQL Editor Supabase
--- ============================================================
-
-
--- ------------------------------------------------------------
 -- 1. Table `livreurs` — Entité séparée (pas de compte auth)
--- ------------------------------------------------------------
 
 create table if not exists public.livreurs (
   id uuid primary key default gen_random_uuid(),
@@ -46,17 +38,14 @@ create policy "Clients can view livreurs"
   using (auth.uid() is not null);
 
 
--- ------------------------------------------------------------
--- 2. Colonne `livreur_id` sur `profiles` → référence livreurs
--- ------------------------------------------------------------
+-- 2. Colonne `livreur_id` sur `profiles` -> référence livreurs
 
 alter table public.profiles
   add column if not exists livreur_id uuid references public.livreurs(id) on delete set null;
 
 
--- ------------------------------------------------------------
+ 
 -- 3. Table `client_prices` — Prix personnalisés par client
--- ------------------------------------------------------------
 
 create table if not exists public.client_prices (
   id uuid primary key default gen_random_uuid(),
@@ -97,17 +86,15 @@ create policy "Clients can view own prices"
   using (client_id = auth.uid());
 
 
--- ------------------------------------------------------------
 -- 4. Mise à jour de orders.livreur_id → référence livreurs
--- ------------------------------------------------------------
+
 -- Si la colonne existe déjà et pointe vers profiles, on la corrige.
 -- Sinon on la crée.
--- ------------------------------------------------------------
 
 -- Supprimer l'ancienne contrainte FK si elle existe
 do $$
 begin
-  -- Drop old FK on orders.livreur_id if it references profiles
+
   if exists (
     select 1 from information_schema.table_constraints tc
     join information_schema.constraint_column_usage ccu on tc.constraint_name = ccu.constraint_name

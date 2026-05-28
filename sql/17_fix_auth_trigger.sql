@@ -33,11 +33,3 @@ begin
   return new;
 end;
 $$;
-
--- 2. Une fois votre compte créé dans Authentication > Add user, 
--- exécutez CETTE REQUÊTE ci-dessous en remplaçant l'email 
--- pour vous transformer en Administrateur :
-
--- UPDATE public.profiles
--- SET role = 'admin'
--- WHERE email = 'votre-email@exemple.com';

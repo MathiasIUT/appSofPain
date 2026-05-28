@@ -160,11 +160,7 @@ export default function CartScreen({ navigation }) {
       </ScrollView>
     </SafeAreaView>
   );
-}
-
-// ---------------------------------------------------------
-// Sous-composants
-// ---------------------------------------------------------
+}
 
 function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }) {
   const { product, quantite } = item;
@@ -174,17 +170,13 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
   const sousTotalHt = prixUnitaireHt * quantite;
   const sousTotalTtc = sousTotalHt * (1 + TVA / 100);
   const isSurgele = product.category?.slug === 'surgele';
-  const cartonsParPalette = product.cartons_par_palette || 24;
-
-  // Gestion saisie manuelle de la quantité
+  const cartonsParPalette = product.cartons_par_palette || 24;
   const handleManualChange = (value) => {
     const cleaned = value.replace(/[^0-9]/g, '');
     const num = parseInt(cleaned, 10);
-    if (cleaned === '' || isNaN(num)) {
-      // On garde au moins 1 pendant la saisie pour ne pas vider le panier involontairement
+    if (cleaned === '' || isNaN(num)) {
       onSetQuantity(1);
-    } else {
-      // Plafond à 9999 pour éviter n'importe quoi
+    } else {
       onSetQuantity(Math.min(num, 9999));
     }
   };
@@ -269,11 +261,7 @@ function SummaryLine({ label, value, highlight }) {
       </Text>
     </View>
   );
-}
-
-// ---------------------------------------------------------
-// Styles
-// ---------------------------------------------------------
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -339,9 +327,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-  },
-
-  // Empty state
+  },
   emptyState: {
     alignItems: 'center',
     padding: spacing.xxl,
@@ -365,9 +351,7 @@ const styles = StyleSheet.create({
   },
   emptyAction: {
     marginTop: spacing.md,
-  },
-
-  // Layout 2 colonnes sur desktop
+  },
   layout: {
     flexDirection: 'column',
     gap: spacing.lg,
@@ -388,9 +372,7 @@ const styles = StyleSheet.create({
   summaryColumnDesktop: {
     flex: 1,
     maxWidth: 360,
-  },
-
-  // Articles du panier
+  },
   cartItem: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -516,9 +498,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
     textDecorationLine: 'underline',
-  },
-
-  // Récapitulatif
+  },
   summaryCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,

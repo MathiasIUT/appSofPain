@@ -80,13 +80,9 @@ export default function AdminClientsScreen() {
         .select('*', { count: 'exact' })
         .eq('role', 'client')
         .order('created_at', { ascending: false })
-        .range(from, to);
-
-      // Filtre actif/inactif côté serveur
+        .range(from, to);
       if (filter === 'actifs') query = query.neq('actif', false);
-      if (filter === 'inactifs') query = query.eq('actif', false);
-
-      // Recherche côté serveur
+      if (filter === 'inactifs') query = query.eq('actif', false);
       if (debouncedSearch.trim()) {
         const q = `%${debouncedSearch.trim()}%`;
         query = query.or(`nom_societe.ilike.${q},nom.ilike.${q},prenom.ilike.${q},email.ilike.${q}`);
@@ -391,14 +387,11 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const handleSelectLivreur = async (livId) => {
     setSelectedLivreur(livId);
     setSavingLivreur(true);
-    try {
-      // 1. Mise à jour du profil client
+    try {
       const { data, error } = await supabase.from('profiles')
         .update({ livreur_id: livId || null })
         .eq('id', client.id).select('*').single();
-      if (error) throw error;
-      
-      // 2. Synchronisation des commandes en cours FRAIS (nouvelle ou en_preparation)
+      if (error) throw error;
       await supabase.from('orders')
         .update({ livreur_id: livId || null })
         .eq('client_id', client.id)
@@ -414,14 +407,11 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const handleSelectLivreurSurgele = async (livId) => {
     setSelectedLivreurSurgele(livId);
     setSavingLivreurSurgele(true);
-    try {
-      // 1. Mise à jour du profil client
+    try {
       const { data, error } = await supabase.from('profiles')
         .update({ livreur_surgele_id: livId || null })
         .eq('id', client.id).select('*').single();
-      if (error) throw error;
-      
-      // 2. Synchronisation des commandes en cours SURGELÉES (nouvelle ou en_preparation)
+      if (error) throw error;
       await supabase.from('orders')
         .update({ livreur_id: livId || null })
         .eq('client_id', client.id)
@@ -871,7 +861,7 @@ const styles = StyleSheet.create({
   },
 });
 
-// ─── Styles modal ────────────────────────────────────────────────────────────
+
 
 const modal = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },

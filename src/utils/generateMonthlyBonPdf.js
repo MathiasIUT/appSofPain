@@ -98,13 +98,11 @@ function buildHtml(client, date, orders) {
   const printDate = fmtDate(new Date());
   const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
 
-  // Génération des blocs de commande en pur tableau HTML
   let ordersRows = '';
   orders.forEach((o) => {
     const items = o.order_items || [];
     const sousTotalHt = Number(o.total_ht || 0);
 
-    // En-tête de commande
     ordersRows += `
       <tr>
         <td colspan="4" style="padding:0;padding-top:14px;">
@@ -154,7 +152,6 @@ function buildHtml(client, date, orders) {
       });
     }
 
-    // Sous-total commande
     ordersRows += `
             <tr style="background:#FFF8F0;">
               <td colspan="3" style="padding:7px 12px;font-size:9px;font-weight:bold;color:#888;text-align:right;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid #E8D5BB;">Sous-total</td>

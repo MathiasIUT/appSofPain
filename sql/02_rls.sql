@@ -1,17 +1,5 @@
--- ============================================================
--- SOF PAIN - Schéma de base de données (BLOC 2 / 3)
--- Row Level Security (RLS) et politiques d'accès
--- ============================================================
--- Principe : les clients ne voient que leurs propres données,
--- l'admin voit tout.
--- ============================================================
+-- RLS et autorisations des users
 
-
--- ------------------------------------------------------------
--- Helper : fonction pour savoir si un user est admin
--- ------------------------------------------------------------
--- On extrait ça en fonction pour pouvoir la réutiliser dans
--- toutes les policies sans dupliquer la logique.
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -25,9 +13,7 @@ as $$
 $$;
 
 
--- ============================================================
 -- TABLE : categories
--- ============================================================
 alter table public.categories enable row level security;
 
 -- Tout le monde (connecté) peut lire les catégories
@@ -46,9 +32,7 @@ create policy "Admin peut modifier les categories"
   with check (public.is_admin());
 
 
--- ============================================================
 -- TABLE : products
--- ============================================================
 alter table public.products enable row level security;
 
 -- Les clients voient seulement les produits actifs
@@ -67,9 +51,7 @@ create policy "Admin peut gerer les produits"
   with check (public.is_admin());
 
 
--- ============================================================
 -- TABLE : orders
--- ============================================================
 alter table public.orders enable row level security;
 
 -- Un client voit ses propres commandes, l'admin voit tout
@@ -79,14 +61,14 @@ create policy "Clients voient leurs commandes"
   to authenticated
   using (client_id = auth.uid() or public.is_admin());
 
--- Un client peut créer une commande pour lui-même ; l'admin peut créer pour n'importe quel client
+-- Un client peut créer une commande pour lui-même , l'admin peut créer pour n'importe quel client
 drop policy if exists "Clients peuvent creer leurs commandes" on public.orders;
 create policy "Clients peuvent creer leurs commandes"
   on public.orders for insert
   to authenticated
   with check (client_id = auth.uid() or public.is_admin());
 
--- Seul l'admin peut modifier les commandes (statut, notes, etc.)
+-- Seul l'admin peut modifier les commandes (statut, notes, etc...)
 drop policy if exists "Admin peut modifier les commandes" on public.orders;
 create policy "Admin peut modifier les commandes"
   on public.orders for update
@@ -102,9 +84,8 @@ create policy "Admin peut supprimer les commandes"
   using (public.is_admin());
 
 
--- ============================================================
 -- TABLE : order_items
--- ============================================================
+
 alter table public.order_items enable row level security;
 
 -- Un client voit les lignes de ses commandes, l'admin voit tout
@@ -120,7 +101,7 @@ create policy "Clients voient leurs lignes de commande"
     )
   );
 
--- Un client peut créer des lignes dans ses propres commandes ; l'admin peut créer dans n'importe quelle commande
+-- Un client peut créer des lignes dans ses propres commandes, l'admin peut créer dans n'importe quelle commande
 drop policy if exists "Clients peuvent creer lignes dans leurs commandes" on public.order_items;
 create policy "Clients peuvent creer lignes dans leurs commandes"
   on public.order_items for insert

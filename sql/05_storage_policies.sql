@@ -1,10 +1,3 @@
--- ============================================================
--- SOF PAIN - Storage Policies pour le bucket `products`
--- ============================================================
--- À exécuter APRÈS avoir créé le bucket `products` en mode public
--- via l'interface Supabase Storage.
--- ============================================================
-
 -- Tout le monde (y compris non connecté) peut voir les images
 -- (nécessaire pour que les images produits s'affichent dans le catalogue)
 drop policy if exists "Images produits lisibles publiquement" on storage.objects;

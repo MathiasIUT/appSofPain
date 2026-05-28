@@ -1,15 +1,3 @@
--- ============================================================
--- SOF PAIN - Produits officiels (10 produits)
--- ============================================================
--- Ce script :
--- 1. Supprime les produits précédents (test et ancien seed)
--- 2. Insère les 10 vrais produits du catalogue Sof Pain
---
--- Les prix et nombres d'unités par carton sont à 0 par défaut :
--- ils seront ajustés via le panel admin (Livraison 2).
--- Les images seront également ajoutées depuis le panel admin.
--- ============================================================
-
 -- Suppression des produits précédents
 delete from public.products;
 

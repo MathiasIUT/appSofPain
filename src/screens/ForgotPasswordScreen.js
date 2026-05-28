@@ -29,9 +29,7 @@ export default function ForgotPasswordScreen({ navigation, route }) {
       if (!exists) {
         setError("Cet email n'est pas associé à un compte Sof Pain.");
         return;
-      }
-
-      // Récupérer le profil pour personnaliser l'email
+      }
       const { data: profile } = await supabase
         .from('profiles')
         .select('nom, prenom, nom_societe')

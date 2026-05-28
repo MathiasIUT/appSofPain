@@ -1,12 +1,7 @@
--- ============================================================
--- SOF PAIN - Schéma de base de données (BLOC 3 / 3)
 -- Fonctions et triggers automatiques
--- ============================================================
 
+--Trigger : mise à jour automatique du champ `updated_at`
 
--- ------------------------------------------------------------
--- 1. Trigger : mise à jour automatique du champ `updated_at`
--- ------------------------------------------------------------
 create or replace function public.handle_updated_at()
 returns trigger
 language plpgsql
@@ -29,11 +24,8 @@ create trigger set_updated_at_orders
   for each row execute procedure public.handle_updated_at();
 
 
--- ------------------------------------------------------------
 -- 2. Génération automatique du numéro de commande
--- ------------------------------------------------------------
 -- Format : CMD-2026-00001 (incrémenté chaque année)
--- ------------------------------------------------------------
 
 -- Séquence pour le compteur de commandes
 create sequence if not exists public.order_number_seq;
@@ -61,12 +53,12 @@ create trigger set_order_number
   execute procedure public.generate_order_number();
 
 
--- ------------------------------------------------------------
 -- 3. Calcul automatique des totaux de la commande
--- ------------------------------------------------------------
+
 -- À chaque ajout/modif/suppression d'une ligne, on recalcule
--- total_ht, total_tva et total_ttc de la commande parent.
--- ------------------------------------------------------------
+
+-- total_ht, total_tva et total_ttc de la commande parent
+
 create or replace function public.recalculate_order_totals()
 returns trigger
 language plpgsql

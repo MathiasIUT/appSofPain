@@ -23,9 +23,7 @@ const showAlert = (title, message) => {
   } else {
     Alert.alert(title, message);
   }
-};
-
-// Format pour l'affichage : JJ/MM/AAAA
+};
 const formatDateFr = (isoDate) => {
   if (!isoDate) return '';
   const [year, month, day] = isoDate.split('-');
@@ -46,9 +44,7 @@ export default function CheckoutScreen({ navigation }) {
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-
-  // Charger le profil client (pour pré-remplir téléphone si disponible)
+  const [loadingProfile, setLoadingProfile] = useState(true);
   useEffect(() => {
     (async () => {
       try {
@@ -77,9 +73,7 @@ export default function CheckoutScreen({ navigation }) {
         setLoadingProfile(false);
       }
     })();
-  }, []);
-
-  // Si le panier est vide, on renvoie au catalogue
+  }, []);
   useEffect(() => {
     if (items.length === 0) {
       navigation.reset({
@@ -145,8 +139,7 @@ export default function CheckoutScreen({ navigation }) {
       let orderId;
       let orderToPass;
 
-      if (editingOrder) {
-        // MISE À JOUR d'une commande existante
+      if (editingOrder) {
         const { data: updatedOrder, error: updateError } = await supabase
           .from('orders')
           .update({
@@ -164,17 +157,14 @@ export default function CheckoutScreen({ navigation }) {
 
         if (updateError) throw updateError;
         orderId = updatedOrder.id;
-        orderToPass = updatedOrder;
-
-        // Supprimer les anciens items
+        orderToPass = updatedOrder;
         const { error: delError } = await supabase
           .from('order_items')
           .delete()
           .eq('order_id', orderId);
         if (delError) throw delError;
 
-      } else {
-        // CRÉATION d'une nouvelle commande
+      } else {
         const { data: order, error: orderError } = await supabase
           .from('orders')
           .insert({

@@ -55,7 +55,7 @@ const linking = {
 
 export default function AppNavigator() {
   useEffect(() => {
-    // Helper : attendre que navigationRef soit prêt puis naviguer
+    //attendre que navigationRef soit prêt puis naviguer
     const navigateWhenReady = (target) => {
       if (navigationRef.isReady()) {
         navigationRef.reset({ index: 0, routes: [{ name: target }] });
@@ -72,19 +72,15 @@ export default function AppNavigator() {
       }
     };
 
-    // Sur le web (Expo Web / Vercel), Supabase envoie les tokens dans le hash de l'URL
-    // sous la forme : #access_token=...&refresh_token=...&type=recovery
-    // On doit les extraire manuellement et appeler setSession() pour établir la session
-    // AVANT que l'utilisateur tente de soumettre son nouveau mot de passe.
+
     if (typeof window !== 'undefined' && window.location?.hash) {
-      const hash = window.location.hash.substring(1); // enlève le '#'
+      const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
-      const type = params.get('type'); // 'recovery' ou 'signup'
+      const type = params.get('type');
 
       if (accessToken && refreshToken && (type === 'recovery' || type === 'signup')) {
-        // Sauvegarder le path AVANT de nettoyer le hash (car replaceState change location)
         const currentPath = window.location.pathname || '';
 
         // Établir la session Supabase avec les tokens du lien email
@@ -104,8 +100,7 @@ export default function AppNavigator() {
       }
     }
 
-    // Fallback : écouter PASSWORD_RECOVERY pour mobile / deep links
-    // (Supabase gère lui-même la session depuis les deep links natifs)
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         const url = typeof window !== 'undefined' ? (window.location?.href || '') : '';

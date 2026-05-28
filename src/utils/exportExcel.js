@@ -13,9 +13,7 @@ function setColWidths(ws, widths) {
 function downloadWb(wb, filename) {
   if (Platform.OS !== 'web') return;
   XLSX.writeFile(wb, filename);
-}
-
-// 1. Comptabilité
+}
 export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
   const livreurMap = Object.fromEntries(
     livreurs.map((l) => [l.id, [l.prenom, l.nom].filter(Boolean).join(' ')])
@@ -69,9 +67,7 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
   setColWidths(ws, colWidths);
   XLSX.utils.book_append_sheet(wb, ws, `Compta ${monthLabel}`);
   downloadWb(wb, `comptabilite_${monthLabel.replace(/\s+/g, '_').toLowerCase()}.xlsx`);
-}
-
-// 2. Liste Clients
+}
 export async function exportClientsExcel() {
   const [cliRes, livRes] = await Promise.all([
     supabase
@@ -109,9 +105,7 @@ export async function exportClientsExcel() {
   setColWidths(ws, widths);
   XLSX.utils.book_append_sheet(wb, ws, 'Clients');
   downloadWb(wb, `clients_${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
-
-// 3. Liste Commandes
+}
 export async function exportOrdersExcel(ids = null) {
   let ordersQ = supabase
     .from('orders')
@@ -193,9 +187,7 @@ export async function exportOrdersExcel(ids = null) {
   setColWidths(ws, widths);
   XLSX.utils.book_append_sheet(wb, ws, 'Commandes');
   downloadWb(wb, `commandes_${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
-
-// 4. Bon Mensuel Individuel
+}
 export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
   const clientName = client.nom_societe || [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client';
   
