@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
@@ -14,6 +14,7 @@ export default function CreatePasswordScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [done, setDone] = useState(false);
+  const confirmRef = useRef(null);
 
   const validate = () => {
     const e = {};
@@ -41,7 +42,7 @@ export default function CreatePasswordScreen({ navigation }) {
   if (done) {
     return (
       <SafeAreaView style={s.container}>
-        <ScrollView contentContainerStyle={s.scroll}>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} bounces={false}>
           <View style={s.card}>
             <BrandHeader />
             <View style={s.successBox}>
@@ -68,7 +69,7 @@ export default function CreatePasswordScreen({ navigation }) {
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
           <View style={s.card}>
             <BrandHeader />
 
@@ -92,6 +93,9 @@ export default function CreatePasswordScreen({ navigation }) {
                   secureTextEntry
                   autoCapitalize="none"
                   editable={!loading}
+                  returnKeyType="next"
+                  onSubmitEditing={() => confirmRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
                 {errors.password ? <Text style={s.errorText}>{errors.password}</Text> : null}
               </View>
@@ -99,6 +103,7 @@ export default function CreatePasswordScreen({ navigation }) {
               <View style={s.inputGroup}>
                 <Text style={s.label}>Confirmez votre mot de passe</Text>
                 <TextInput
+                  ref={confirmRef}
                   style={[s.input, errors.confirm && s.inputError]}
                   value={confirm}
                   onChangeText={v => { setConfirm(v); setErrors(p => ({ ...p, confirm: null })); }}
@@ -107,6 +112,8 @@ export default function CreatePasswordScreen({ navigation }) {
                   secureTextEntry
                   autoCapitalize="none"
                   editable={!loading}
+                  returnKeyType="go"
+                  onSubmitEditing={handleSubmit}
                 />
                 {errors.confirm ? <Text style={s.errorText}>{errors.confirm}</Text> : null}
               </View>

@@ -95,7 +95,7 @@ export default function ForgotPasswordScreen({ navigation, route }) {
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
           <View style={s.card}>
             <BrandHeader />
 
@@ -120,6 +120,8 @@ export default function ForgotPasswordScreen({ navigation, route }) {
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!loading}
+                    returnKeyType="go"
+                    onSubmitEditing={handleSend}
                   />
                   {error ? <Text style={s.errorText}>{error}</Text> : null}
                 </View>

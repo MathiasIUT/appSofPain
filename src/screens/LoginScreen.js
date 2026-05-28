@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,31 @@ export default function LoginScreen({ navigation }) {
   const passwordRef = useRef(null);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, actif')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.actif === false) {
+           await supabase.auth.signOut();
+           return;
+        }
+
+        if (profile?.role === 'admin') {
+          navigation.reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
+        } else if (profile?.role) {
+          navigation.reset({ index: 0, routes: [{ name: 'ClientHome' }] });
+        }
+      }
+    };
+    checkSession();
+  }, [navigation]);
 
   const validate = () => {
     const newErrors = {};
@@ -130,6 +155,8 @@ export default function LoginScreen({ navigation }) {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
           <View style={[styles.card, isDesktop && styles.cardDesktop]}>
             <BrandHeader />
