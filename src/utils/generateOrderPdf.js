@@ -76,7 +76,7 @@ export async function generateMultipleOrdersPdf(ordersList) {
 function buildOrderBody(order, items, client) {
   const dateCommande = fmt(order.date_commande ?? new Date());
   const nomClient = [client?.prenom, client?.nom].filter(Boolean).join(' ');
-  const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
+  const logoUri = 'https://zoemyisrqqfybgfnnlay.supabase.co/storage/v1/object/public/products/logo1.png';
 
   const typeBadgeHtml = order.type_commande === 'surgele'
     ? `<span style="display:inline-block; background:#E3F2FD; color:#1565C0; padding:4px 8px; border-radius:4px; font-size:0.85rem; font-weight:700; margin-bottom:8px;">Surgelé</span>`
@@ -123,7 +123,7 @@ function buildOrderBody(order, items, client) {
   <div class="info-block">
     <h3>Livraison</h3>
     ${adresseHtml ? `<p>${adresseHtml}</p>` : '<p class="muted">Adresse non renseignée</p>'}
-    ${order.date_livraison_souhaitee ? `<p class="delivery-date" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Livraison souhaitée le ${fmt(order.date_livraison_souhaitee)}</p>` : ''}
+    ${order.date_livraison_souhaitee && order.type_commande !== 'surgele' ? `<p class="delivery-date" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Livraison souhaitée le ${fmt(order.date_livraison_souhaitee)}</p>` : ''}
   </div>
 </div>
 
@@ -167,6 +167,7 @@ function wrapInHtmlDocument(content, title) {
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
 <title>${esc(title)}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

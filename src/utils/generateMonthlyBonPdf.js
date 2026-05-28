@@ -167,6 +167,7 @@ function buildHtml(client, date, orders) {
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
 <title>Bon mensuel — ${esc(clientName)} — ${esc(monthLabelCap)}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }

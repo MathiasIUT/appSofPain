@@ -108,6 +108,7 @@ function buildHtml(livreur, orders, tourDate, typeLabel) {
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
 <title>Tournée ${typeLabel ? typeLabel + ' ' : ''}${tourDate ? `du ${esc(tourDate)} ` : ''}de ${esc(livreurName)}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
