@@ -174,20 +174,51 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
   const [clientsLoaded, setClientsLoaded] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
   const [orders, setOrders] = useState([]);
-  // ordersOrderMap : { [isoDate]: [orderId, orderId, ...] } — ordre de livraison par jour
   const [ordersOrderMap, setOrdersOrderMap] = useState({});
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [printedDates, setPrintedDates] = useState({});
+  const [selectedSurgele, setSelectedSurgele] = useState({});
 
-  // Retourne les commandes d'un jour dans l'ordre de la tournée
-  const getDayOrdersSorted = (isoDate, allOrders) => {
-    const dayOrders = allOrders.filter(o => (o.date_commande || '').split('T')[0] === isoDate);
-    const orderIds = ordersOrderMap[isoDate];
-    if (!orderIds) return dayOrders;
-    return [...dayOrders].sort((a, b) => {
+  const getWeekBoundaries = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return { monIso: dateStr, sunIso: dateStr, monDisp: dateStr, sunDisp: dateStr };
+    const day = d.getDay();
+    const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d);
+    monday.setDate(diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return {
+      monIso: monday.toISOString().split('T')[0],
+      sunIso: sunday.toISOString().split('T')[0],
+      monDisp: monday.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'}),
+      sunDisp: sunday.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'})
+    };
+  };
+
+  const getGroupOrdersSorted = (groupKey, allOrders) => {
+    let groupOrders;
+    if (groupKey.endsWith('_surgele')) {
+      const [monIso, sunIso] = groupKey.split('_');
+      groupOrders = allOrders.filter(o => {
+        if (o.type_commande !== 'surgele') return false;
+        const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
+        return w.monIso === monIso && w.sunIso === sunIso;
+      });
+    } else {
+      const [isoDate, typeCmd] = groupKey.split('_');
+      groupOrders = allOrders.filter(o => 
+        (o.date_commande || '').split('T')[0] === isoDate && 
+        (o.type_commande === 'surgele' ? 'surgele' : 'frais') === typeCmd
+      );
+    }
+    const orderIds = ordersOrderMap[groupKey];
+    if (!orderIds) return groupOrders;
+    return [...groupOrders].sort((a, b) => {
       const ia = orderIds.indexOf(a.id);
       const ib = orderIds.indexOf(b.id);
       if (ia === -1 && ib === -1) return 0;
@@ -197,18 +228,16 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
     });
   };
 
-  // Déplace une commande d'une position dans la tournée (Local)
-  const moveOrder = (isoDate, fromIdx, toIdx) => {
+  const moveOrder = (groupKey, fromIdx, toIdx) => {
     setOrdersOrderMap(prev => {
-      const current = getDayOrdersSorted(isoDate, orders).map(o => o.id);
+      const current = getGroupOrdersSorted(groupKey, orders).map(o => o.id);
       const next = [...current];
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
-      return { ...prev, [isoDate]: next };
+      return { ...prev, [groupKey]: next };
     });
   };
 
-  // Déplace un client d'une position dans sa tournée et sauvegarde en base
   const moveClient = async (fromIdx, toIdx) => {
     const nextClients = [...clients];
     const [moved] = nextClients.splice(fromIdx, 1);
@@ -216,13 +245,10 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
     setClients(nextClients);
 
     try {
-      // Sauvegarde des nouveaux ordres de tournée en base de données
       const updates = nextClients.map((c, idx) => ({
         id: c.id,
         ordre_tournee: idx,
       }));
-      // On utilise upsert pour mettre à jour plusieurs lignes d'un coup (si Supabase le permet facilement, 
-      // ou sinon on fait un appel successif car il y a peu de clients)
       for (const update of updates) {
         await supabase.from('profiles').update({ ordre_tournee: update.ordre_tournee }).eq('id', update.id);
       }
@@ -238,8 +264,9 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
       setLoadingClients(true);
       try {
         const { data } = await supabase
-          .from('profiles').select('id, nom_societe, nom, prenom, ordre_tournee')
-          .eq('role', 'client').eq('livreur_id', livreur.id)
+          .from('profiles').select('id, nom_societe, nom, prenom, ordre_tournee, livreur_id, livreur_surgele_id')
+          .eq('role', 'client')
+          .or(`livreur_id.eq.${livreur.id},livreur_surgele_id.eq.${livreur.id}`)
           .order('ordre_tournee', { ascending: true })
           .order('nom_societe', { ascending: true });
         setClients(data || []);
@@ -261,7 +288,6 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
           .order('numero', { ascending: true });
         const fetched = data || [];
         
-        // Tri local des commandes reçues selon l'ordre_tournee du client
         fetched.sort((a, b) => {
           const ordreA = a.client?.ordre_tournee || 0;
           const ordreB = b.client?.ordre_tournee || 0;
@@ -270,13 +296,31 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
         });
 
         setOrders(fetched);
-        // Initialiser l'ordre par défaut (basé sur le tri précédent)
         const newOrderMap = {};
-        const dates = [...new Set(fetched.map(o => (o.date_commande || '').split('T')[0]))];
-        dates.forEach(isoDate => {
-          newOrderMap[isoDate] = fetched
-            .filter(o => (o.date_commande || '').split('T')[0] === isoDate)
-            .map(o => o.id);
+        const groupsSet = new Set();
+        fetched.forEach(o => {
+          if (o.type_commande === 'surgele') {
+            const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
+            groupsSet.add(`${w.monIso}_${w.sunIso}_surgele`);
+          } else {
+            groupsSet.add(`${(o.date_commande || '').split('T')[0]}_frais`);
+          }
+        });
+        const groups = [...groupsSet];
+        groups.forEach(groupKey => {
+          if (groupKey.endsWith('_surgele')) {
+            const [monIso, sunIso] = groupKey.split('_');
+            newOrderMap[groupKey] = fetched.filter(o => {
+              if (o.type_commande !== 'surgele') return false;
+              const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
+              return w.monIso === monIso && w.sunIso === sunIso;
+            }).map(o => o.id);
+          } else {
+            const [isoDate] = groupKey.split('_');
+            newOrderMap[groupKey] = fetched
+              .filter(o => o.type_commande !== 'surgele' && (o.date_commande || '').split('T')[0] === isoDate)
+              .map(o => o.id);
+          }
         });
         setOrdersOrderMap(newOrderMap);
         setOrdersLoaded(true);
@@ -340,9 +384,13 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
             ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
             : clients.length === 0
               ? <Text style={s.emptyText}>Aucun client assigné.</Text>
-              : clients.map((c, idx) => (
+              : clients.map((c, idx) => {
+                const isFrais = c.livreur_id === livreur.id;
+                const isSurgele = c.livreur_surgele_id === livreur.id;
+                const typeLabel = isFrais && isSurgele ? 'Frais + Surgelé' : isSurgele ? 'Surgelé' : 'Frais';
+                const typeBgColor = isFrais && isSurgele ? '#7B1FA2' : isSurgele ? '#1565C0' : '#2E7D32';
+                return (
                 <View key={c.id} style={s.orderLine}>
-                  {/* Badge de position */}
                   <View style={[s.tourBadge, { backgroundColor: idx === 0 ? colors.primary : idx === clients.length - 1 ? '#888' : colors.secondary }]}>
                     <Text style={[s.tourBadgeText, { color: idx === 0 ? '#fff' : idx === clients.length - 1 ? '#fff' : colors.primary }]}>
                       {idx + 1}
@@ -351,9 +399,13 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                   
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={s.orderNum} numberOfLines={1}>{c.nom_societe || [c.prenom, c.nom].filter(Boolean).join(' ') || '—'}</Text>
+                    <View style={{ flexDirection: 'row' }}>
+                      <View style={{ backgroundColor: typeBgColor + '22', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: typeBgColor }}>{typeLabel}</Text>
+                      </View>
+                    </View>
                   </View>
 
-                  {/* Boutons de réordonnancement des clients */}
                   <View style={s.reorderBtns}>
                     <TouchableOpacity
                       style={[s.reorderBtn, idx === 0 && s.reorderBtnDisabled]}
@@ -373,7 +425,8 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                     </TouchableOpacity>
                   </View>
                 </View>
-              ))
+                );
+              })
         )}
 
         <TouchableOpacity onPress={handleToggleOrders} style={s.accordionHeader}>
@@ -387,44 +440,96 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
             ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
             : orders.length === 0
               ? <Text style={s.emptyText}>Aucune commande en cours.</Text>
-              : [...new Set(orders.map(o => (o.date_commande || '').split('T')[0]))]
-                  .sort((a, b) => b.localeCompare(a))
-                  .map(isoDate => {
-                    const dayOrders = getDayOrdersSorted(isoDate, orders);
-                    const dateObj = new Date(isoDate);
-                    const dateStr = isNaN(dateObj) ? isoDate : dateObj.toLocaleDateString('fr-FR');
+              : [...new Set(orders.map(o => {
+                  if (o.type_commande === 'surgele') {
+                    const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
+                    return `${w.monIso}_${w.sunIso}_surgele`;
+                  }
+                  return `${(o.date_commande || '').split('T')[0]}_frais`;
+                }))]
+                  .sort((a, b) => {
+                    const isSurgeleA = a.endsWith('_surgele');
+                    const isSurgeleB = b.endsWith('_surgele');
+                    if (isSurgeleA && !isSurgeleB) return -1;
+                    if (!isSurgeleA && isSurgeleB) return 1;
+                    const dateA = a.split('_')[0];
+                    const dateB = b.split('_')[0];
+                    return dateB.localeCompare(dateA);
+                  })
+                  .map(groupKey => {
+                    const isReservoir = groupKey.endsWith('_surgele');
+                    const [iso1, iso2, typeCmd] = groupKey.split('_');
+                    const dayOrders = getGroupOrdersSorted(groupKey, orders);
+                    
+                    let dateStr = '';
+                    if (isReservoir) {
+                      const w = getWeekBoundaries(iso1);
+                      dateStr = `Semaine du ${w.monDisp} au ${w.sunDisp}`;
+                    } else {
+                      const dateObj = new Date(iso1);
+                      dateStr = isNaN(dateObj) ? iso1 : dateObj.toLocaleDateString('fr-FR');
+                    }
+
+                    const isPrinted = !!printedDates[groupKey];
+                    const labelType = isReservoir ? 'SURGELÉS (RÉSERVOIR)' : 'FRAIS';
+                    const colorType = isReservoir ? '#1565C0' : '#2E7D32';
+
+                    const ordersToProcess = isReservoir ? dayOrders.filter(o => selectedSurgele[o.id]) : dayOrders;
+                    const hasSelection = isReservoir ? ordersToProcess.length > 0 : true;
+
                     return (
-                      <View key={isoDate} style={{ marginBottom: spacing.md }}>
-                        {/* ── En-tête du jour ── */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.xs }}>
-                          <View>
-                            <Text style={{ fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary }}>
-                              Journée du {dateStr}
+                      <View key={groupKey} style={{ marginBottom: spacing.md, backgroundColor: typeCmd === 'surgele' ? '#F5FAFF' : '#F9FBF9', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: typeCmd === 'surgele' ? '#E3F2FD' : '#E8F5E9' }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: typeCmd === 'surgele' ? '#BBDEFB' : '#C8E6C9', marginBottom: spacing.xs }}>
+                          <View style={{ flex: 1, marginRight: spacing.sm }}>
+                            <Text style={{ fontSize: fontSizes.sm, fontWeight: '700', color: colorType }}>
+                              {isReservoir ? `RÉSERVOIR SURGELÉS (${dateStr}) - ${dayOrders.length} cmd.` : `Tournée FRAIS du ${dateStr}`}
                             </Text>
-                            <Text style={{ fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                              {dayOrders.length} livraison{dayOrders.length > 1 ? 's' : ''} · Glissez ↑↓ pour réordonner
+                            <Text style={{ fontSize: fontSizes.xs, color: isPrinted ? colors.success : colors.error, fontWeight: '600', marginTop: 2 }}>
+                              {isPrinted ? '✓ Tournée sélectionnée imprimée' : 'Tournée NON imprimée'}
                             </Text>
+                            {isReservoir && (
+                              <View style={{ flexDirection: 'row', marginTop: spacing.sm }}>
+                                <TouchableOpacity onPress={() => {
+                                  const allSelected = dayOrders.every(o => selectedSurgele[o.id]);
+                                  const newSel = { ...selectedSurgele };
+                                  dayOrders.forEach(o => { newSel[o.id] = !allSelected; });
+                                  setSelectedSurgele(newSel);
+                                  setPrintedDates(prev => ({...prev, [groupKey]: false}));
+                                }}>
+                                  <Text style={{ fontSize: 12, color: colorType, textDecorationLine: 'underline' }}>
+                                    {dayOrders.every(o => selectedSurgele[o.id]) ? 'Tout décocher' : 'Tout cocher'}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
                           </View>
                           <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             <TouchableOpacity
                               onPress={async () => {
+                                if (!hasSelection) {
+                                  showAlert('Attention', 'Veuillez sélectionner au moins une commande.');
+                                  return;
+                                }
                                 setPrinting(true);
                                 try {
-                                  await generateDriverTourPdf(livreur, dayOrders, dateStr);
+                                  const titleDate = isReservoir ? '' : dateStr;
+                                  const titleLabel = isReservoir ? 'SURGELÉS (Sélection)' : labelType;
+                                  await generateDriverTourPdf(livreur, ordersToProcess, titleDate, titleLabel);
+                                  setPrintedDates(prev => ({ ...prev, [groupKey]: true }));
                                   if (Platform.OS === 'web') {
-                                    if (window.confirm('La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?')) {
-                                      archiverCommandes(dayOrders);
+                                    if (window.confirm(`La tournée a été générée. Voulez-vous retirer ces ${ordersToProcess.length} commandes de la liste ?`)) {
+                                      archiverCommandes(ordersToProcess);
                                     }
                                   } else {
-                                    Alert.alert('Traitement', 'La tournée a été générée. Voulez-vous retirer ces commandes de la liste ?', [
+                                    Alert.alert('Traitement', `La tournée a été générée. Voulez-vous retirer ces ${ordersToProcess.length} commandes de la liste ?`, [
                                       { text: 'Non', style: 'cancel' },
-                                      { text: 'Oui', onPress: () => archiverCommandes(dayOrders) },
+                                      { text: 'Oui', onPress: () => archiverCommandes(ordersToProcess) },
                                     ]);
                                   }
                                 } catch (e) { showAlert('Erreur', 'Impossible de générer le PDF.'); }
                                 finally { setPrinting(false); }
                               }}
-                              style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, ...Platform.select({ web: { cursor: 'pointer' } }) }}
+                              style={{ backgroundColor: colorType, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, ...Platform.select({ web: { cursor: 'pointer' } }) }}
                               disabled={printing}
                             >
                               {printing
@@ -434,14 +539,25 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
 
                             <TouchableOpacity
                               onPress={() => {
-                                const confirmText = `Voulez-vous retirer la tournée du ${dateStr} de la liste ?`;
+                                if (!hasSelection) {
+                                  showAlert('Attention', 'Veuillez sélectionner au moins une commande.');
+                                  return;
+                                }
+                                const confirmText = isPrinted
+                                  ? `Cette sélection a bien été imprimée.\n\nVoulez-vous valider et retirer ces ${ordersToProcess.length} commandes de la liste (le statut passera à "Livré") ?`
+                                  : `⚠️ ATTENTION : La sélection N'A PAS ENCORE ÉTÉ IMPRIMÉE !\n\nSi vous la retirez par inadvertance, ces commandes passeront au statut "Livré" et il sera très difficile de les retrouver.\n\nVoulez-vous vraiment valider et retirer ces ${ordersToProcess.length} commandes ?`;
+                                
                                 if (Platform.OS === 'web') {
-                                  if (window.confirm(confirmText)) archiverCommandes(dayOrders);
+                                  if (window.confirm(confirmText)) archiverCommandes(ordersToProcess);
                                 } else {
-                                  Alert.alert('Confirmation', confirmText, [
-                                    { text: 'Annuler', style: 'cancel' },
-                                    { text: 'Retirer', style: 'destructive', onPress: () => archiverCommandes(dayOrders) },
-                                  ]);
+                                  Alert.alert(
+                                    isPrinted ? 'Confirmation' : '⚠️ AVERTISSEMENT CRITIQUE',
+                                    confirmText,
+                                    [
+                                      { text: 'Annuler', style: 'cancel' },
+                                      { text: isPrinted ? 'Valider et retirer' : 'Retirer quand même (Erreur)', style: 'destructive', onPress: () => archiverCommandes(ordersToProcess) },
+                                    ]
+                                  );
                                 }
                               }}
                               style={{ backgroundColor: colors.error, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, ...Platform.select({ web: { cursor: 'pointer' } }) }}
@@ -452,12 +568,25 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                           </View>
                         </View>
 
-                        {/* ── Liste des commandes réordonnables ── */}
-                        {dayOrders.map((o, idx) => (
-                          <View key={o.id} style={s.orderLine}>
+                        {dayOrders.map((o, idx) => {
+                          const isSelected = !!selectedSurgele[o.id];
+                          const opacity = (isReservoir && !isSelected) ? 0.6 : 1;
+                          return (
+                          <View key={o.id} style={[s.orderLine, { borderBottomColor: 'transparent', opacity }]}>
+                            {isReservoir && (
+                              <TouchableOpacity 
+                                style={[s.checkbox, isSelected && s.checkboxChecked]}
+                                onPress={() => {
+                                  setSelectedSurgele(prev => ({...prev, [o.id]: !prev[o.id]}));
+                                  setPrintedDates(prev => ({...prev, [groupKey]: false}));
+                                }}
+                              >
+                                {isSelected && <View style={s.checkboxInner} />}
+                              </TouchableOpacity>
+                            )}
                             {/* Badge de position dans la tournée */}
-                            <View style={[s.tourBadge, { backgroundColor: idx === 0 ? colors.primary : idx === dayOrders.length - 1 ? '#888' : colors.secondary }]}>
-                              <Text style={[s.tourBadgeText, { color: idx === 0 ? '#fff' : idx === dayOrders.length - 1 ? '#fff' : colors.primary }]}>
+                            <View style={[s.tourBadge, { backgroundColor: idx === 0 ? colorType : idx === dayOrders.length - 1 ? '#888' : colorType + '80' }]}>
+                              <Text style={[s.tourBadgeText, { color: '#fff' }]}>
                                 {idx + 1}
                               </Text>
                             </View>
@@ -468,18 +597,12 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                               <Text style={s.orderClient} numberOfLines={1}>
                                 {o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || '—'}
                               </Text>
+                              <Text style={{ fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' }}>
+                                Prise le {new Date(o.created_at || o.date_commande).toLocaleDateString('fr-FR')}
+                              </Text>
                               {o.adresse_livraison ? (
                                 <Text style={s.orderAddress} numberOfLines={1}>{o.adresse_livraison.split('\n')[0]}</Text>
                               ) : null}
-                              {o.type_commande === 'surgele' ? (
-                                <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 2 }}>
-                                  <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
-                                </View>
-                              ) : (
-                                <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 2 }}>
-                                  <Text style={{ color: '#2E7D32', fontSize: 10, fontWeight: '700' }}>Frais</Text>
-                                </View>
-                              )}
                             </View>
 
                             <Text style={s.orderAmount}>{Number(o.total_ht || 0).toFixed(2)} €</Text>
@@ -488,7 +611,7 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                             <View style={s.reorderBtns}>
                               <TouchableOpacity
                                 style={[s.reorderBtn, idx === 0 && s.reorderBtnDisabled]}
-                                onPress={() => moveOrder(isoDate, idx, idx - 1)}
+                                onPress={() => moveOrder(groupKey, idx, idx - 1)}
                                 disabled={idx === 0}
                                 activeOpacity={0.7}
                               >
@@ -496,7 +619,7 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={[s.reorderBtn, idx === dayOrders.length - 1 && s.reorderBtnDisabled]}
-                                onPress={() => moveOrder(isoDate, idx, idx + 1)}
+                                onPress={() => moveOrder(groupKey, idx, idx + 1)}
                                 disabled={idx === dayOrders.length - 1}
                                 activeOpacity={0.7}
                               >
@@ -504,7 +627,8 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                               </TouchableOpacity>
                             </View>
                           </View>
-                        ))}
+                          );
+                        })}
                       </View>
                     );
                   })
@@ -656,4 +780,11 @@ const s = StyleSheet.create({
     fontSize: fontSizes.md, color: colors.textPrimary,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface,
+    marginRight: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  checkboxChecked: { backgroundColor: colors.primary },
+  checkboxInner: { width: 10, height: 10, borderRadius: 2, backgroundColor: colors.white },
 });

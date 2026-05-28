@@ -25,6 +25,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     nom: '', prenom: '', note_interne_admin: '',
   });
   const [livreurId, setLivreurId] = useState(null);
+  const [livreurSurgeleId, setLivreurSurgeleId] = useState(null);
   const [livreurs, setLivreurs] = useState([]);
   const [useCustomPrices, setUseCustomPrices] = useState(false);
   const [products, setProducts] = useState([]);
@@ -42,6 +43,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
       nom: '', prenom: '', note_interne_admin: '',
     });
     setLivreurId(null);
+    setLivreurSurgeleId(null);
     setUseCustomPrices(false);
     setCustomPrices({});
     setErrors({});
@@ -121,6 +123,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         ville: form.ville.trim() || null,
         siret: form.siret.trim() || null,
         livreur_id: livreurId || null,
+        livreur_surgele_id: livreurSurgeleId || null,
         email: email,
         note_interne_admin: form.note_interne_admin.trim() || null,
       }).eq('id', userId);
@@ -233,8 +236,8 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
               inputProps: { multiline: true, style: { minHeight: 80, textAlignVertical: 'top' } }
             })}
 
-            {/* Livreur */}
-            <Text style={s.sectionTitle}>Livreur assigné</Text>
+            {/* Livreur Frais */}
+            <Text style={s.sectionTitle}>Livreur Frais assigné</Text>
             {livreurs.length === 0 ? (
               <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
             ) : (
@@ -252,6 +255,32 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
                     onPress={() => setLivreurId(l.id)}
                   >
                     <Text style={[s.chipText, livreurId === l.id && s.chipTextActive]}>
+                      {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Livreur Surgelé */}
+            <Text style={s.sectionTitle}>Livreur Surgelé assigné</Text>
+            {livreurs.length === 0 ? (
+              <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
+            ) : (
+              <View style={s.chipsRow}>
+                <TouchableOpacity
+                  style={[s.chip, !livreurSurgeleId && s.chipActive]}
+                  onPress={() => setLivreurSurgeleId(null)}
+                >
+                  <Text style={[s.chipText, !livreurSurgeleId && s.chipTextActive]}>Aucun</Text>
+                </TouchableOpacity>
+                {livreurs.map(l => (
+                  <TouchableOpacity
+                    key={l.id}
+                    style={[s.chip, livreurSurgeleId === l.id && s.chipActive]}
+                    onPress={() => setLivreurSurgeleId(l.id)}
+                  >
+                    <Text style={[s.chipText, livreurSurgeleId === l.id && s.chipTextActive]}>
                       {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
                     </Text>
                   </TouchableOpacity>

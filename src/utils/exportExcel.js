@@ -76,7 +76,7 @@ export async function exportClientsExcel() {
   const [cliRes, livRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, actif, created_at')
+      .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, livreur_surgele_id, actif, created_at')
       .eq('role', 'client')
       .order('nom_societe', { ascending: true }),
     supabase.from('livreurs').select('id, nom, prenom'),
@@ -88,8 +88,8 @@ export async function exportClientsExcel() {
     (livRes.data || []).map((l) => [l.id, [l.prenom, l.nom].filter(Boolean).join(' ')])
   );
 
-  const headers = ['Société', 'Nom', 'Prénom', 'Email', 'Téléphone', 'Ville', 'Livreur', 'Actif', 'Créé le'];
-  const widths = [28, 18, 18, 30, 16, 18, 20, 8, 12];
+  const headers = ['Société', 'Nom', 'Prénom', 'Email', 'Téléphone', 'Ville', 'Livreur Frais', 'Livreur Surgelé', 'Actif', 'Créé le'];
+  const widths = [28, 18, 18, 30, 16, 18, 20, 20, 8, 12];
 
   const dataRows = (cliRes.data || []).map((c) => [
     c.nom_societe || '',
@@ -99,6 +99,7 @@ export async function exportClientsExcel() {
     c.telephone || '',
     c.ville || '',
     livreurMap[c.livreur_id] || '',
+    livreurMap[c.livreur_surgele_id] || '',
     c.actif === false ? 'Non' : 'Oui',
     fmt(c.created_at),
   ]);

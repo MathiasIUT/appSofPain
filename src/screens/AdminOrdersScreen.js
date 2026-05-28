@@ -1307,7 +1307,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     Promise.all([
       supabase
         .from('profiles')
-        .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id')
+        .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, livreur_surgele_id')
         .eq('role', 'client')
         .order('nom_societe', { ascending: true }),
       supabase
@@ -1424,7 +1424,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
         .from('orders')
         .insert({
           client_id: selectedClient.id,
-          livreur_id: selectedClient.livreur_id || null,
+          livreur_id: orderType === 'surgele' ? (selectedClient.livreur_surgele_id || null) : (selectedClient.livreur_id || null),
           statut: 'nouvelle',
           adresse_livraison: adresse,
           total_ht: totalHt,

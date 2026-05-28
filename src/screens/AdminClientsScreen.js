@@ -329,6 +329,13 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const [livreurs, setLivreurs] = useState([]);
   const [selectedLivreur, setSelectedLivreur] = useState(client.livreur_id || null);
   const [savingLivreur, setSavingLivreur] = useState(false);
+  const [selectedLivreurSurgele, setSelectedLivreurSurgele] = useState(client.livreur_surgele_id || null);
+  const [savingLivreurSurgele, setSavingLivreurSurgele] = useState(false);
+
+  useEffect(() => {
+    setSelectedLivreur(client.livreur_id || null);
+    setSelectedLivreurSurgele(client.livreur_surgele_id || null);
+  }, [client.id, client.livreur_id, client.livreur_surgele_id]);
   const [clientPrices, setClientPrices] = useState({});
   const [products, setProducts] = useState([]);
   const [savingPrices, setSavingPrices] = useState(false);
@@ -391,17 +398,40 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         .eq('id', client.id).select('*').single();
       if (error) throw error;
       
-      // 2. Synchronisation des commandes en cours (nouvelle ou en_preparation)
-      // pour qu'elles passent sur le nouveau livreur
+      // 2. Synchronisation des commandes en cours FRAIS (nouvelle ou en_preparation)
       await supabase.from('orders')
         .update({ livreur_id: livId || null })
         .eq('client_id', client.id)
-        .in('statut', ['nouvelle', 'en_preparation']);
+        .in('statut', ['nouvelle', 'en_preparation'])
+        .neq('type_commande', 'surgele');
 
       onUpdated(data);
     } catch (err) {
-      showAlert('Erreur', 'Impossible de changer le livreur.');
+      showAlert('Erreur', 'Impossible de changer le livreur frais.');
     } finally { setSavingLivreur(false); }
+  };
+
+  const handleSelectLivreurSurgele = async (livId) => {
+    setSelectedLivreurSurgele(livId);
+    setSavingLivreurSurgele(true);
+    try {
+      // 1. Mise à jour du profil client
+      const { data, error } = await supabase.from('profiles')
+        .update({ livreur_surgele_id: livId || null })
+        .eq('id', client.id).select('*').single();
+      if (error) throw error;
+      
+      // 2. Synchronisation des commandes en cours SURGELÉES (nouvelle ou en_preparation)
+      await supabase.from('orders')
+        .update({ livreur_id: livId || null })
+        .eq('client_id', client.id)
+        .in('statut', ['nouvelle', 'en_preparation'])
+        .eq('type_commande', 'surgele');
+
+      onUpdated(data);
+    } catch (err) {
+      showAlert('Erreur', 'Impossible de changer le livreur surgelé.');
+    } finally { setSavingLivreurSurgele(false); }
   };
 
   const handleSavePrices = async () => {
@@ -545,9 +575,9 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
             loading={saving} disabled={saving} fullWidth size="lg" />
         )}
 
-        {/* Livreur assigné */}
+        {/* Livreur Frais assigné */}
         <View style={modal.section}>
-          <Text style={modal.sectionTitle}>Livreur assigné</Text>
+          <Text style={modal.sectionTitle}>Livreur Frais assigné</Text>
           {livreurs.length === 0 ? (
             <Text style={modal.emptyOrders}>Aucun livreur disponible.</Text>
           ) : (
@@ -572,6 +602,39 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
                 ))}
               </View>
               {savingLivreur && (
+                <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: spacing.sm }} />
+              )}
+            </>
+          )}
+        </View>
+
+        {/* Livreur Surgelé assigné */}
+        <View style={modal.section}>
+          <Text style={modal.sectionTitle}>Livreur Surgelé assigné</Text>
+          {livreurs.length === 0 ? (
+            <Text style={modal.emptyOrders}>Aucun livreur disponible.</Text>
+          ) : (
+            <>
+              <View style={modal.chipsRow}>
+                <TouchableOpacity
+                  style={[modal.chip, !selectedLivreurSurgele && modal.chipActive]}
+                  onPress={() => handleSelectLivreurSurgele(null)}
+                >
+                  <Text style={[modal.chipText, !selectedLivreurSurgele && modal.chipTextActive]}>Aucun</Text>
+                </TouchableOpacity>
+                {livreurs.map(l => (
+                  <TouchableOpacity
+                    key={l.id}
+                    style={[modal.chip, selectedLivreurSurgele === l.id && modal.chipActive]}
+                    onPress={() => handleSelectLivreurSurgele(l.id)}
+                  >
+                    <Text style={[modal.chipText, selectedLivreurSurgele === l.id && modal.chipTextActive]}>
+                      {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {savingLivreurSurgele && (
                 <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: spacing.sm }} />
               )}
             </>

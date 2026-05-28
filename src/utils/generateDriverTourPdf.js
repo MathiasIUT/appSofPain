@@ -3,8 +3,8 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { Asset } from 'expo-asset';
 
-export async function generateDriverTourPdf(livreur, orders, tourDate) {
-  const html = buildHtml(livreur, orders, tourDate);
+export async function generateDriverTourPdf(livreur, orders, tourDate, typeLabel) {
+  const html = buildHtml(livreur, orders, tourDate, typeLabel);
 
   if (Platform.OS === 'web') {
     const printWindow = window.open('', '_blank', 'width=960,height=760');
@@ -28,7 +28,7 @@ export async function generateDriverTourPdf(livreur, orders, tourDate) {
     const dName = [livreur.prenom, livreur.nom].filter(Boolean).join('_') || 'Livreur';
     await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
-      dialogTitle: `Tournée ${dName}`,
+      dialogTitle: `Tournée ${typeLabel || ''} ${dName}`,
       UTI: 'com.adobe.pdf',
     });
   }
@@ -52,38 +52,63 @@ const fmt = (dateObj) => {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-function buildHtml(livreur, orders, tourDate) {
+function buildHtml(livreur, orders, tourDate, typeLabel) {
   const dateStr = fmt(new Date());
   const livreurName = [livreur.prenom, livreur.nom].filter(Boolean).join(' ') || 'Livreur inconnu';
   const logoUri = Asset.fromModule(require('../../assets/logo1.png')).uri;
 
-  const commandesHtml = orders.map((o) => {
-    const clientName = o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || 'Client inconnu';
-    const telephone = o.client?.telephone || '';
-    const adresse = esc(o.adresse_livraison || '').replace(/\\n/g, '<br>');
+  const fraisOrders = orders.filter(o => o.type_commande !== 'surgele');
+  const surgeleOrders = orders.filter(o => o.type_commande === 'surgele');
 
-    const itemsStr = (o.order_items || []).map(it => {
-      return `• <b>${esc(it.product_nom)}</b> : ${esc(String(it.quantite))} pcs.`;
-    }).join('<br>');
+  const renderTable = (categoryOrders, title, colorClass) => {
+    if (categoryOrders.length === 0) return '';
+    
+    const rowsHtml = categoryOrders.map((o) => {
+      const clientName = o.client?.nom_societe || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ') || 'Client inconnu';
+      const telephone = o.client?.telephone || '';
+      const adresse = esc(o.adresse_livraison || '').replace(/\n/g, '<br>');
+
+      const itemsStr = (o.order_items || []).map(it => {
+        return `• <b>${esc(it.product_nom)}</b> : ${esc(String(it.quantite))} pcs.`;
+      }).join('<br>');
+
+      return `
+        <tr>
+          <td class="col-num">${esc(o.numero)}</td>
+          <td class="col-client">
+            <strong>${esc(clientName)}</strong><br>
+            ${telephone ? `TEL : ${esc(telephone)}` : ''}
+          </td>
+          <td class="col-adresse">${adresse || '<i>Non renseignée</i>'}</td>
+          <td class="col-produits">${itemsStr}</td>
+        </tr>
+      `;
+    }).join('');
 
     return `
-      <tr>
-        <td class="col-num">${esc(o.numero)}</td>
-        <td class="col-client">
-          <strong>${esc(clientName)}</strong><br>
-          ${telephone ? `TEL : ${esc(telephone)}` : ''}
-        </td>
-        <td class="col-adresse">${adresse || '<i>Non renseignée</i>'}</td>
-        <td class="col-produits">${itemsStr}</td>
-      </tr>
+      <div class="section-title ${colorClass}">${title} (${categoryOrders.length} commande(s))</div>
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">N°</th>
+            <th class="col-client">Client / Tél.</th>
+            <th class="col-adresse">Adresse</th>
+            <th class="col-produits">Produits (Qté)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+      <div style="height: 20px;"></div>
     `;
-  }).join('');
+  };
 
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Tournée ${tourDate ? `du ${esc(tourDate)} ` : ''}de ${esc(livreurName)}</title>
+<title>Tournée ${typeLabel ? typeLabel + ' ' : ''}${tourDate ? `du ${esc(tourDate)} ` : ''}de ${esc(livreurName)}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --primary: #C4924A; --text: #000; --border: #ccc; }
@@ -109,6 +134,23 @@ function buildHtml(livreur, orders, tourDate) {
   .header-left h1 { font-size: 16px; text-transform: uppercase; margin-bottom: 2px; }
   .header-right { text-align: right; font-weight: bold; font-size: 14px; color: var(--primary); }
   
+  /* Titres de sections (Frais / Surgelé) */
+  .section-title {
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    color: white;
+    border-radius: 4px;
+  }
+  .frais-title {
+    background-color: #2E7D32; /* Vert */
+  }
+  .surgele-title {
+    background-color: #1565C0; /* Bleu */
+  }
+
   /* Tableau dense */
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   th, td { border: 1px solid var(--border); padding: 5px 6px; vertical-align: top; word-wrap: break-word; }
@@ -125,32 +167,25 @@ function buildHtml(livreur, orders, tourDate) {
     @page { margin: 8mm; }
     body { padding: 0; }
     tr { page-break-inside: avoid; }
+    .section-title {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
   }
 </style>
 </head>
 <body>
   <div class="page-header">
     <div class="header-left">
-      <h1>Tournée ${tourDate ? `du ${esc(tourDate)} ` : ''}: ${esc(livreurName)}</h1>
+      <h1>Tournée ${typeLabel ? typeLabel + ' ' : ''}${tourDate ? `du ${esc(tourDate)} ` : ''}: ${esc(livreurName)}</h1>
       <p style="color:#555;">Date d'impression : ${dateStr} &nbsp;|&nbsp; ${orders.length} commande(s)</p>
     </div>
     <div class="header-right"><img src="${logoUri}" style="height: 60px; object-fit: contain;" alt="Sof Pain" /></div>
   </div>
   
   ${orders.length > 0 ? `
-  <table>
-    <thead>
-      <tr>
-        <th class="col-num">N°</th>
-        <th class="col-client">Client / Tél.</th>
-        <th class="col-adresse">Adresse</th>
-        <th class="col-produits">Produits (Qté)</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${commandesHtml}
-    </tbody>
-  </table>
+    ${renderTable(fraisOrders, 'PRODUITS FRAIS', 'frais-title')}
+    ${renderTable(surgeleOrders, 'PRODUITS SURGELÉS', 'surgele-title')}
   ` : '<p>Aucune commande à livrer.</p>'}
 </body>
 </html>`;

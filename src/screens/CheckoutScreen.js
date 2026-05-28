@@ -133,7 +133,7 @@ export default function CheckoutScreen({ navigation }) {
       if (!user) throw new Error('Utilisateur non connecté');
 
       const adresseComplete = `${form.adresse.trim()}\n${form.code_postal.trim()} ${form.ville.trim()}\nTél : ${form.telephone.trim()}`;
-      const livreurId = profile?.livreur_id || null;
+      const livreurId = cartType === 'surgele' ? (profile?.livreur_surgele_id || null) : (profile?.livreur_id || null);
 
       let dateLivraison = null;
       if (cartType === 'surgele') {
