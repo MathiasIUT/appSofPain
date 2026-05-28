@@ -111,15 +111,10 @@ const LivreurRow = React.memo(({ item, onPress }) => {
   return (
     <TouchableOpacity style={[s.row, item.actif === false && s.rowInactive]}
       onPress={() => onPress(item)}>
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
         <Text style={s.rowName}>{[item.prenom, item.nom].filter(Boolean).join(' ') || '—'}</Text>
       </View>
-      <View style={[s.badge, { backgroundColor: item.actif !== false ? colors.success + '22' : colors.error + '22' }]}>
-        <Text style={[s.badgeText, { color: item.actif !== false ? colors.success : colors.error }]}>
-          {item.actif !== false ? 'Actif' : 'Inactif'}
-        </Text>
-      </View>
-      <View style={[s.badge, { marginLeft: 8, backgroundColor: item.type_livreur === 'surgele' ? '#E3F2FD' : item.type_livreur === 'frais' ? '#E8F5E9' : '#F3E5F5' }]}>
+      <View style={[s.badge, { backgroundColor: item.type_livreur === 'surgele' ? '#E3F2FD' : item.type_livreur === 'frais' ? '#E8F5E9' : '#F3E5F5' }]}>
         <Text style={[s.badgeText, { color: item.type_livreur === 'surgele' ? '#1565C0' : item.type_livreur === 'frais' ? '#2E7D32' : '#7B1FA2' }]}>
           {item.type_livreur === 'surgele' ? 'Surgelé' : item.type_livreur === 'frais' ? 'Frais' : 'Les deux'}
         </Text>
@@ -413,7 +408,6 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
           nom: editForm.nom.trim() || null,
           prenom: editForm.prenom.trim() || null,
           type_livreur: editForm.type_livreur,
-          actif: editForm.actif,
         })
         .eq('id', livreur.id)
         .select('*')
@@ -472,16 +466,7 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
                 </TouchableOpacity>
               </View>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border }}>
-              <Text style={{ fontSize: 14, color: colors.textPrimary }}>Compte actif</Text>
-              <TouchableOpacity
-                style={{ width: 50, height: 28, borderRadius: 14, backgroundColor: editForm.actif ? colors.success : colors.border, padding: 2, justifyContent: 'center', alignItems: editForm.actif ? 'flex-end' : 'flex-start' }}
-                onPress={() => setEditForm(p => ({ ...p, actif: !p.actif }))}
-                activeOpacity={0.8}
-              >
-                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', ...shadows.sm }} />
-              </TouchableOpacity>
-            </View>
+
             <Button title="Enregistrer" onPress={handleSaveEdit} loading={savingEdit} disabled={savingEdit} style={{ marginTop: spacing.md }} />
           </View>
         )}
@@ -805,7 +790,7 @@ const s = StyleSheet.create({
   rowInactive: { opacity: 0.6 },
   rowName: { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
   rowMeta: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 1 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.round, minWidth: 60, alignItems: 'center' },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.round, width: 80, alignItems: 'center' },
   badgeText: { fontSize: fontSizes.xs, fontWeight: '600' },
   arrow: { fontSize: 20, color: colors.border, marginLeft: spacing.xs },
   modalOverlay: {
