@@ -10,13 +10,13 @@ export function CartProvider({ children }) {
   const addToCart = useCallback((product, quantite = 1) => {
     const productType = product.category?.slug === 'surgele' ? 'surgele' : 'frais';
 
-    setItems((prev) => {
-      // Vérification du type de panier si le panier n'est pas vide
-      if (prev.length > 0 && cartType && cartType !== productType) {
-        // Cette erreur sera gérée dans le composant appelant pour afficher une alerte
-        throw new Error(`MIX_TYPE:${cartType}`);
-      }
+    // Vérification du type de panier si le panier n'est pas vide
+    if (items.length > 0 && cartType && cartType !== productType) {
+      // Cette erreur sera gérée dans le composant appelant pour afficher une alerte
+      throw new Error(`MIX_TYPE:${cartType}`);
+    }
 
+    setItems((prev) => {
       const existing = prev.find((i) => i.product.id === product.id);
       let newItems;
       if (existing) {
@@ -36,7 +36,7 @@ export function CartProvider({ children }) {
 
       return newItems;
     });
-  }, [cartType]);
+  }, [cartType, items]);
 
   const setQuantity = useCallback((productId, quantite) => {
     setItems((prev) => {

@@ -452,9 +452,11 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         const fetched = itemsRes.data || [];
         setItems(fetched);
         setLivreurs(livRes.data || []);
-        if (order.client) {
-          setPreviewHtml(buildOrderHtml(order, fetched, order.client));
-        }
+        const clientData = order.client || {
+          nom_societe: order.client_nom || 'Client inconnu',
+          telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
+        };
+        setPreviewHtml(buildOrderHtml(order, fetched, clientData));
       } catch (err) {
         console.error('Erreur chargement items :', err);
       } finally {
@@ -558,9 +560,11 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       onUpdated({ ...updatedOrder });
 
       // Regénérer l'aperçu PDF
-      if (order.client) {
-        setPreviewHtml(buildOrderHtml({ ...order, total_ht: newTotalHtRounded }, updatedItems, order.client));
-      }
+      const clientData = order.client || {
+        nom_societe: order.client_nom || 'Client inconnu',
+        telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
+      };
+      setPreviewHtml(buildOrderHtml({ ...order, total_ht: newTotalHtRounded }, updatedItems, clientData));
 
       setEditingQty(false);
       setDraftQty({});
@@ -594,13 +598,14 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   };
 
   const handlePdf = async () => {
-    if (!order.client) {
-      showAlert('Erreur', 'Infos client non disponibles.');
-      return;
-    }
+    const clientData = order.client || {
+      nom_societe: order.client_nom || 'Client inconnu',
+      telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
+    };
+
     setPdfLoading(true);
     try {
-      await generateOrderPdf(order, items, order.client);
+      await generateOrderPdf(order, items, clientData);
     } catch (err) {
       console.error('Erreur PDF :', err);
       showAlert('Erreur', 'Impossible de générer le bon de commande.');
