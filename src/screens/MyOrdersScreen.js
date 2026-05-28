@@ -93,7 +93,6 @@ export default function MyOrdersScreen({ navigation }) {
         </View>
       ) : displayed.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyTitle}>
             Aucune commande
           </Text>

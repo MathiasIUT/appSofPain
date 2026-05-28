@@ -224,7 +224,7 @@ export default function ClientProfileScreen({ navigation }) {
           <Text style={styles.displayName}>{displayName}</Text>
           {profile?.nom_societe && (
             <View style={styles.societeBadge}>
-              <Text style={styles.societeBadgeText}>🏢 {profile.nom_societe}</Text>
+              <Text style={styles.societeBadgeText}>{profile.nom_societe}</Text>
             </View>
           )}
           {profile?.email ? (
@@ -238,7 +238,7 @@ export default function ClientProfileScreen({ navigation }) {
               styles.statusText,
               { color: profile?.actif !== false ? colors.success : colors.error }
             ]}>
-              {profile?.actif !== false ? '✓ Compte actif' : '✗ Compte inactif'}
+              {profile?.actif !== false ? 'Compte actif' : 'Compte inactif'}
             </Text>
           </View>
         </View>
@@ -360,7 +360,7 @@ export default function ClientProfileScreen({ navigation }) {
             onPress={() => setConfirmDelete(true)}
             activeOpacity={0.8}
           >
-            <Text style={styles.deleteBtnText}>🗑 Supprimer mon compte</Text>
+            <Text style={styles.deleteBtnText}>Supprimer mon compte</Text>
           </TouchableOpacity>
         </View>
 

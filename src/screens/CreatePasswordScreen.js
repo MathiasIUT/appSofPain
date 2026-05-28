@@ -46,7 +46,6 @@ export default function CreatePasswordScreen({ navigation }) {
           <View style={s.card}>
             <BrandHeader />
             <View style={s.successBox}>
-              <Text style={s.successIcon}>🎉</Text>
               <Text style={s.title}>Bienvenue !</Text>
               <Text style={s.subtitle}>
                 Votre mot de passe a été créé avec succès.{'\n'}
@@ -74,7 +73,7 @@ export default function CreatePasswordScreen({ navigation }) {
             <BrandHeader />
 
             <View style={s.titleBlock}>
-              <Text style={s.welcomeBadge}>👋 Première connexion</Text>
+              <Text style={s.welcomeBadge}>Première connexion</Text>
               <Text style={s.title}>Bienvenue chez Sof Pain !</Text>
               <Text style={s.subtitle}>
                 Créez votre mot de passe pour accéder à votre espace commandes.

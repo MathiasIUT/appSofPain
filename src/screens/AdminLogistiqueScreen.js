@@ -545,13 +545,13 @@ function LivreurDetail({ livreur, onClose, onDeleted }) {
                                 }
                                 const confirmText = isPrinted
                                   ? `Cette sélection a bien été imprimée.\n\nVoulez-vous valider et retirer ces ${ordersToProcess.length} commandes de la liste (le statut passera à "Livré") ?`
-                                  : `⚠️ ATTENTION : La sélection N'A PAS ENCORE ÉTÉ IMPRIMÉE !\n\nSi vous la retirez par inadvertance, ces commandes passeront au statut "Livré" et il sera très difficile de les retrouver.\n\nVoulez-vous vraiment valider et retirer ces ${ordersToProcess.length} commandes ?`;
+                                  : `ATTENTION : La sélection N'A PAS ENCORE ÉTÉ IMPRIMÉE !\n\nSi vous la retirez par inadvertance, ces commandes passeront au statut "Livré" et il sera très difficile de les retrouver.\n\nVoulez-vous vraiment valider et retirer ces ${ordersToProcess.length} commandes ?`;
                                 
                                 if (Platform.OS === 'web') {
                                   if (window.confirm(confirmText)) archiverCommandes(ordersToProcess);
                                 } else {
                                   Alert.alert(
-                                    isPrinted ? 'Confirmation' : '⚠️ AVERTISSEMENT CRITIQUE',
+                                    isPrinted ? 'Confirmation' : 'AVERTISSEMENT CRITIQUE',
                                     confirmText,
                                     [
                                       { text: 'Annuler', style: 'cancel' },

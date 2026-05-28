@@ -684,7 +684,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
             {toggling
               ? <ActivityIndicator color={colors.white} size="small" />
               : <Text style={modal.toggleBtnText}>
-                {isActif ? '🔒 Désactiver le compte' : '✅ Réactiver le compte'}
+                {isActif ? 'Désactiver le compte' : 'Réactiver le compte'}
               </Text>
             }
           </TouchableOpacity>
@@ -694,7 +694,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
             onPress={() => setConfirmDelete(true)}
             activeOpacity={0.8}
           >
-            <Text style={modal.toggleBtnText}>🗑 Supprimer le compte</Text>
+            <Text style={modal.toggleBtnText}>Supprimer le compte</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -233,7 +233,7 @@ export default function LoginScreen({ navigation }) {
                   style={styles.linkBtn}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.linkText}>🔑 Mot de passe oublié</Text>
+                  <Text style={styles.linkText}>Mot de passe oublié</Text>
                 </TouchableOpacity>
                 <Text style={styles.linkSeparator}>·</Text>
                 <TouchableOpacity

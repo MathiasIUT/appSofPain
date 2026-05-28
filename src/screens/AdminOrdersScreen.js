@@ -161,7 +161,7 @@ export default function AdminOrdersScreen() {
             : 'non assignée à un livreur';
           return `• N° ${o.numero} (${livreurName})`;
         }).join('\n');
-        msg += `\n\n⚠️ ${nonTraite.length} commande(s) pas encore traitée(s) :\n${list}\n\nSupprimez quand même ?`;
+        msg += `\n\nATTENTION : ${nonTraite.length} commande(s) pas encore traitée(s) :\n${list}\n\nSupprimez quand même ?`;
       }
 
       const confirmed = await new Promise((resolve) => {
@@ -277,7 +277,6 @@ export default function AdminOrdersScreen() {
         </View>
       ) : orders.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyText}>
             Aucune commande.
           </Text>
@@ -365,6 +364,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
   const diffDays = Math.floor((new Date() - orderDate) / (1000 * 60 * 60 * 24));
   const daysLeft = Math.max(0, 45 - diffDays);
   const warningColor = daysLeft <= 7 ? colors.error : colors.textLight;
+  const noLivreur = !item.livreur_id;
 
   return (
     <View style={styles.rowWrapper}>
@@ -374,7 +374,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
         </View>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.row, { flex: 1, marginLeft: 0 }]}
+        style={[styles.row, { flex: 1, marginLeft: 0 }, noLivreur && { borderColor: colors.error, borderWidth: 1.5 }]}
         onPress={() => onPress(item)}
         activeOpacity={0.75}
       >
@@ -388,6 +388,11 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
           ) : (
             <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
               <Text style={{ color: '#2E7D32', fontSize: 10, fontWeight: '700' }}>Frais</Text>
+            </View>
+          )}
+          {noLivreur && (
+            <View style={{ backgroundColor: colors.error + '22', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 3 }}>
+              <Text style={{ color: colors.error, fontSize: 10, fontWeight: '700' }}>Sans livreur</Text>
             </View>
           )}
           <Text style={[styles.rowDeleteWarning, { color: warningColor }]}>
@@ -416,6 +421,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
     </View>
   );
 });
+
 
 // ─── Modal détail commande ───────────────────────────────────────────────────
 
@@ -696,6 +702,13 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               </View>
             ) : null}
             <Text style={[modal.sectionTitle, { marginTop: spacing.md }]}>Livreur assigné</Text>
+            {!selectedLivreur && (
+              <View style={{ backgroundColor: colors.error + '18', borderWidth: 1, borderColor: colors.error + '55', borderRadius: 8, padding: spacing.sm, marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Text style={{ flex: 1, fontSize: 12, color: colors.error, fontWeight: '600' }}>
+                  Aucun livreur assigné — cette commande n'apparaît chez aucun livreur en logistique. Sélectionnez un livreur ci-dessous et sauvegardez.
+                </Text>
+              </View>
+            )}
             <View style={modal.statutRow}>
               <TouchableOpacity
                 style={[modal.statutChip, !selectedLivreur && { backgroundColor: colors.primary, borderColor: colors.primary }]}
