@@ -56,15 +56,16 @@ const linking = {
 export default function AppNavigator() {
   useEffect(() => {
     //attendre que navigationRef soit prêt puis naviguer
-    const navigateWhenReady = (target) => {
+    const navigateWhenReady = (target, params) => {
+      const route = params ? { name: target, params } : { name: target };
       if (navigationRef.isReady()) {
-        navigationRef.reset({ index: 0, routes: [{ name: target }] });
+        navigationRef.reset({ index: 0, routes: [route] });
       } else {
         // Retry toutes les 50ms jusqu'à ce que le NavigationContainer soit monté
         const timer = setInterval(() => {
           if (navigationRef.isReady()) {
             clearInterval(timer);
-            navigationRef.reset({ index: 0, routes: [{ name: target }] });
+            navigationRef.reset({ index: 0, routes: [route] });
           }
         }, 50);
         // Sécurité : arrêter après 5s
@@ -88,6 +89,10 @@ export default function AppNavigator() {
           .then(({ error }) => {
             if (error) {
               console.error('Erreur setSession:', error.message);
+              // Lien expiré ou invalide : rediriger vers le bon écran de demande de lien
+              window.history.replaceState(null, '', currentPath);
+              const mode = currentPath.includes('create-password') ? 'first_login' : 'reset';
+              navigateWhenReady('ForgotPassword', { mode, expired: true });
               return;
             }
             // Nettoyer le hash de l'URL pour éviter une réutilisation des tokens

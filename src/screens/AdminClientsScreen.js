@@ -80,9 +80,9 @@ export default function AdminClientsScreen() {
         .select('*', { count: 'exact' })
         .eq('role', 'client')
         .order('created_at', { ascending: false })
-        .range(from, to);
+        .range(from, to);
       if (filter === 'actifs') query = query.neq('actif', false);
-      if (filter === 'inactifs') query = query.eq('actif', false);
+      if (filter === 'inactifs') query = query.eq('actif', false);
       if (debouncedSearch.trim()) {
         const q = `%${debouncedSearch.trim()}%`;
         query = query.or(`nom_societe.ilike.${q},nom.ilike.${q},prenom.ilike.${q},email.ilike.${q}`);
@@ -364,11 +364,22 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const newEmail = form.email.trim();
+      const emailChanged = newEmail && newEmail !== initial.email;
+
+      // Si l'email change, mettre à jour l'email dans auth.users via l'edge function
+      if (emailChanged) {
+        const { error: authEmailError } = await supabase.functions.invoke('update-auth-email', {
+          body: { userId: client.id, newEmail },
+        });
+        if (authEmailError) throw new Error(`Erreur mise à jour email auth: ${authEmailError.message}`);
+      }
+
       const { data, error } = await supabase.from('profiles').update({
         nom: form.nom.trim(),
         prenom: form.prenom.trim(),
         nom_societe: form.nom_societe.trim(),
-        email: form.email.trim(),
+        email: newEmail,
         telephone: form.telephone.trim(),
         adresse: form.adresse.trim(),
         code_postal: form.code_postal.trim(),
@@ -378,7 +389,9 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
       }).eq('id', client.id).select('*').single();
       if (error) throw error;
       onUpdated(data);
-      showAlert('Succès', 'Profil mis à jour.');
+      showAlert('Succès', emailChanged
+        ? 'Profil mis à jour. Le client devra utiliser le nouvel email pour se connecter.'
+        : 'Profil mis à jour.');
     } catch (err) {
       showAlert('Erreur', err.message);
     } finally { setSaving(false); }
@@ -387,11 +400,11 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const handleSelectLivreur = async (livId) => {
     setSelectedLivreur(livId);
     setSavingLivreur(true);
-    try {
+    try {
       const { data, error } = await supabase.from('profiles')
         .update({ livreur_id: livId || null })
         .eq('id', client.id).select('*').single();
-      if (error) throw error;
+      if (error) throw error;
       await supabase.from('orders')
         .update({ livreur_id: livId || null })
         .eq('client_id', client.id)
@@ -407,11 +420,11 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   const handleSelectLivreurSurgele = async (livId) => {
     setSelectedLivreurSurgele(livId);
     setSavingLivreurSurgele(true);
-    try {
+    try {
       const { data, error } = await supabase.from('profiles')
         .update({ livreur_surgele_id: livId || null })
         .eq('id', client.id).select('*').single();
-      if (error) throw error;
+      if (error) throw error;
       await supabase.from('orders')
         .update({ livreur_id: livId || null })
         .eq('client_id', client.id)

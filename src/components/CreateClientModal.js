@@ -5,7 +5,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
-import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from './Button';
 
 const showAlert = (title, msg) => {
@@ -33,7 +33,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
 
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) return;
     setForm({
       nom_societe: '', siret: '', telephone: '', adresse: '',
       code_postal: '', ville: '', email: '',
@@ -43,7 +43,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     setLivreurSurgeleId(null);
     setUseCustomPrices(false);
     setCustomPrices({});
-    setErrors({});
+    setErrors({});
     (async () => {
       const [livRes, prodRes] = await Promise.all([
         supabase.from('livreurs').select('id, nom, prenom, type_livreur').eq('actif', true),
@@ -76,16 +76,17 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      const email = form.email.trim();
+      const email = form.email.trim();
       const tempPassword = Array.from(crypto.getRandomValues(new Uint8Array(18)))
-        .map(b => b.toString(36)).join('').slice(0, 18);
+        .map(b => b.toString(36)).join('').slice(0, 18);
       const { data: sessionData } = await supabase.auth.getSession();
       const adminSession = sessionData?.session;
-      const adminUserId = adminSession?.user?.id;
+      const adminUserId = adminSession?.user?.id;
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password: tempPassword,
         options: {
+          emailRedirectTo: 'https://app.sofpain.com/create-password',
           data: {
             nom: form.nom.trim(),
             prenom: form.prenom.trim(),
@@ -93,7 +94,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
             telephone: form.telephone.trim(),
           },
         },
-      });
+      });
       if (adminSession) {
         await supabase.auth.setSession({
           access_token: adminSession.access_token,
@@ -116,7 +117,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         note_interne_admin: form.note_interne_admin.trim() || null,
       }).eq('id', userId);
 
-      if (updateError) throw updateError;
+      if (updateError) throw updateError;
       if (useCustomPrices) {
         const rows = [];
         for (const [productId, price] of Object.entries(customPrices)) {
@@ -125,7 +126,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
             rows.push({ client_id: userId, product_id: productId, prix_unitaire_ht: p });
           }
         }
-        if (rows.length > 0) {
+        if (rows.length > 0) {
           const { data: { session: currentSession } } = await supabase.auth.getSession();
           if (!currentSession || currentSession.user.id !== adminUserId) {
             await supabase.auth.setSession({
@@ -139,7 +140,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
             throw priceError;
           }
         }
-      }
+      }
       showAlert('Client créé ✓',
         `Le compte a été créé pour ${email}.\n\nLe client devra cliquer sur "Première connexion ?" sur la page de connexion pour recevoir son lien d\'accès.`
       );

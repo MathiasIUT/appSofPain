@@ -12,11 +12,12 @@ import BrandHeader from '../components/BrandHeader';
 export default function ForgotPasswordScreen({ navigation, route }) {
   const mode = route?.params?.mode || 'reset';
   const isFirstLogin = mode === 'first_login';
+  const isExpired = route?.params?.expired === true;
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(isExpired ? 'Votre lien a expiré. Veuillez en demander un nouveau.' : '');
 
   const handleSend = async () => {
     const trimmed = email.trim().toLowerCase();
@@ -29,7 +30,7 @@ export default function ForgotPasswordScreen({ navigation, route }) {
       if (!exists) {
         setError("Cet email n'est pas associé à un compte Sof Pain.");
         return;
-      }
+      }
       const { data: profile } = await supabase
         .from('profiles')
         .select('nom, prenom, nom_societe')
