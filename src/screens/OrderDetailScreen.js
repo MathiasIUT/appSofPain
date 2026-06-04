@@ -41,6 +41,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState(order);
   const { loadOrderIntoCart, reorderIntoCart } = useCart();
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         const [ownershipRes, itemsRes, profileRes] = await Promise.all([
           supabase
             .from('orders')
-            .select('id')
+            .select('*')
             .eq('id', order.id)
             .eq('client_id', user.id)
             .single(),
@@ -73,6 +74,7 @@ export default function OrderDetailScreen({ navigation, route }) {
           navigation.goBack();
           return;
         }
+        setCurrentOrder(ownershipRes.data);
         if (itemsRes.data) setItems(itemsRes.data);
         if (profileRes.data) setClient(profileRes.data);
       } catch (err) {
@@ -315,7 +317,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         />
 
         {/* ── Boutons Modifier/Supprimer ──────────────── */}
-        {order.statut === 'nouvelle' && (
+        {currentOrder.statut === 'nouvelle' && (
           <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
             <Button
               title="Modifier ma commande"

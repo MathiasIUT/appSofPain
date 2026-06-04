@@ -201,11 +201,11 @@ export default function ClientProfileScreen({ navigation }) {
         <View style={{ width: 70 }} />
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* ── Carte identité ── */}
         <View style={styles.identityCard}>
           <View style={styles.avatarCircle}>
@@ -355,7 +355,8 @@ export default function ClientProfileScreen({ navigation }) {
         </View>
 
         <View style={{ height: spacing.xxl * 2 }} />
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* ── Modal confirmation suppression ── */}
       <ConfirmModal
