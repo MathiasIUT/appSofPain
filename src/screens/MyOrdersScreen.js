@@ -87,52 +87,54 @@ export default function MyOrdersScreen({ navigation }) {
 
 
       {/* ── Contenu ────────────────────────────────────────── */}
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Chargement...</Text>
-        </View>
-      ) : displayed.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>
-            Aucune commande
-          </Text>
-          <Text style={styles.emptySubtitle}>
-            Vos commandes passées apparaîtront ici.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={displayed}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[
-            styles.list,
-            isDesktop && styles.listDesktop,
-          ]}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS === 'android' || Platform.OS === 'web'}
-          renderItem={({ item }) => <OrderCard item={item} onPress={handlePressOrder} />}
-          ListFooterComponent={hasMore ? (
-            <TouchableOpacity
-              style={styles.loadMoreBtn}
-              onPress={() => loadOrders(false)}
-              disabled={loadingMore}
-              activeOpacity={0.7}
-            >
-              {loadingMore ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Text style={styles.loadMoreText}>
-                  Charger plus ({orders.length}/{totalCount})
-                </Text>
-              )}
-            </TouchableOpacity>
-          ) : null}
-        />
-      )}
+      <View style={{ flex: 1 }}>
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Chargement...</Text>
+          </View>
+        ) : displayed.length === 0 ? (
+          <View style={styles.centered}>
+            <Text style={styles.emptyTitle}>
+              Aucune commande
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              Vos commandes passées apparaîtront ici.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={displayed}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[
+              styles.list,
+              isDesktop && styles.listDesktop,
+            ]}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
+            renderItem={({ item }) => <OrderCard item={item} onPress={handlePressOrder} />}
+            ListFooterComponent={hasMore ? (
+              <TouchableOpacity
+                style={styles.loadMoreBtn}
+                onPress={() => loadOrders(false)}
+                disabled={loadingMore}
+                activeOpacity={0.7}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={styles.loadMoreText}>
+                    Charger plus ({orders.length}/{totalCount})
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+          />
+        )}
+      </View>
 
       <ClientTabBar navigation={navigation} currentRoute="MyOrders" />
     </SafeAreaView>
