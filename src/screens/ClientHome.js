@@ -15,7 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, shadows, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
-import { useCart } from '../contexts/CartContext';
+import { useCart } from '../contexts/CartContext';
+import ClientTabBar from '../components/ClientTabBar';
 const VISIBLE_CATEGORY_SLUGS = ['frais', 'surgele'];
 
 export default function ClientHome({ navigation }) {
@@ -135,27 +136,31 @@ export default function ClientHome({ navigation }) {
             ) : null}
           </TouchableOpacity>
 
-          {/* Bouton mes commandes */}
-          <TouchableOpacity
-            style={styles.ordersButton}
-            onPress={() => navigation.navigate('MyOrders')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.ordersButtonText}>Mes commandes</Text>
-          </TouchableOpacity>
+          {isDesktop && (
+            <>
+              {/* Bouton mes commandes */}
+              <TouchableOpacity
+                style={styles.ordersButton}
+                onPress={() => navigation.navigate('MyOrders')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.ordersButtonText}>Mes commandes</Text>
+              </TouchableOpacity>
 
-          {/* Bouton profil */}
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('ClientProfile')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.profileButtonText}>Mon profil</Text>
-          </TouchableOpacity>
+              {/* Bouton profil */}
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => navigation.navigate('ClientProfile')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.profileButtonText}>Mon profil</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Déconnexion</Text>
-          </TouchableOpacity>
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Text style={styles.logoutText}>Déconnexion</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
 
@@ -248,6 +253,8 @@ export default function ClientHome({ navigation }) {
           />
         </View>
       ) : null}
+      
+      {!isDesktop && <ClientTabBar navigation={navigation} currentRoute="ClientHome" />}
     </SafeAreaView>
   );
 }

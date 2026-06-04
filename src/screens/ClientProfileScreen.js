@@ -15,6 +15,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import Button from '../components/Button';
 import ConfirmModal from '../components/ConfirmModal';
+import ClientTabBar from '../components/ClientTabBar';
 
 const showAlert = (title, msg) => {
   if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
@@ -368,6 +369,8 @@ export default function ClientProfileScreen({ navigation }) {
         onConfirm={handleDeleteAccount}
         onCancel={() => setConfirmDelete(false)}
       />
+
+      <ClientTabBar navigation={navigation} currentRoute="ClientProfile" />
     </SafeAreaView>
   );
 }

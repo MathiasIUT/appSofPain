@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
+import ClientTabBar from '../components/ClientTabBar';
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
@@ -132,6 +133,8 @@ export default function MyOrdersScreen({ navigation }) {
           ) : null}
         />
       )}
+
+      <ClientTabBar navigation={navigation} currentRoute="MyOrders" />
     </SafeAreaView>
   );
 }
