@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    aspectRatio: 1.5,
+    aspectRatio: 4 / 3,
     backgroundColor: '#F3E5D8',
     overflow: 'hidden',
   },

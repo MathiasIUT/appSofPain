@@ -16,6 +16,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Input from './Input';
 import Button from './Button';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
@@ -149,11 +150,31 @@ export default function ProductFormModal({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.7,
       });
 
       if (!result.canceled && result.assets?.[0]) {
-        setPendingImage(result.assets[0]);
+        const asset = result.assets[0];
+        // Redimensionner l'image pour uniformiser la taille
+        try {
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 600;
+          const actions = [];
+          
+          if (asset.width > MAX_WIDTH || asset.height > MAX_HEIGHT) {
+            actions.push({ resize: { width: MAX_WIDTH, height: MAX_HEIGHT } });
+          }
+
+          const manipulated = await ImageManipulator.manipulateAsync(
+            asset.uri,
+            actions,
+            { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          setPendingImage({ ...asset, uri: manipulated.uri, width: manipulated.width, height: manipulated.height, mimeType: 'image/jpeg' });
+        } catch (manipErr) {
+          console.warn('Redimensionnement échoué, utilisation de l\'image originale :', manipErr);
+          setPendingImage(asset);
+        }
       }
     } catch (err) {
       console.error('Erreur sélection image :', err);
@@ -646,9 +667,10 @@ const styles = StyleSheet.create({
   },
   imagePreview: {
     width: '100%',
-    height: 200,
+    aspectRatio: 4 / 3,
     borderRadius: borderRadius.md,
     backgroundColor: colors.background,
+    resizeMode: 'cover',
   },
   imageActions: {
     flexDirection: 'row',

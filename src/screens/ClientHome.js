@@ -662,6 +662,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 4 / 3,
     backgroundColor: colors.secondary,
+    overflow: 'hidden',
   },
   productImg: {
     width: '100%',
