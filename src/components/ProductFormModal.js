@@ -150,25 +150,24 @@ export default function ProductFormModal({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.7,
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
         // Redimensionner l'image pour uniformiser la taille
         try {
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 600;
+          const MAX_WIDTH = 1200;
           const actions = [];
           
-          if (asset.width > MAX_WIDTH || asset.height > MAX_HEIGHT) {
-            actions.push({ resize: { width: MAX_WIDTH, height: MAX_HEIGHT } });
+          if (asset.width > MAX_WIDTH) {
+            actions.push({ resize: { width: MAX_WIDTH } });
           }
 
           const manipulated = await ImageManipulator.manipulateAsync(
             asset.uri,
             actions,
-            { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+            { compress: 0.80, format: ImageManipulator.SaveFormat.JPEG }
           );
           setPendingImage({ ...asset, uri: manipulated.uri, width: manipulated.width, height: manipulated.height, mimeType: 'image/jpeg' });
         } catch (manipErr) {
@@ -667,7 +666,7 @@ const styles = StyleSheet.create({
   },
   imagePreview: {
     width: '100%',
-    aspectRatio: 4 / 3,
+    height: 220,
     borderRadius: borderRadius.md,
     backgroundColor: colors.background,
     resizeMode: 'cover',

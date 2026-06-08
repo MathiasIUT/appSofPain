@@ -383,8 +383,10 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   cartItemImage: {
-    width: 120,
+    width: 100,
+    height: 100,
     backgroundColor: colors.secondary,
+    overflow: 'hidden',
   },
   cartItemImg: {
     width: '100%',
@@ -393,6 +395,7 @@ const styles = StyleSheet.create({
   },
   cartItemImgEmpty: {
     flex: 1,
+    backgroundColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
