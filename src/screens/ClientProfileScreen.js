@@ -178,9 +178,8 @@ export default function ClientProfileScreen({ navigation }) {
     );
   }
 
-  const displayName = profile?.nom_societe
-    || [profile?.prenom, profile?.nom].filter(Boolean).join(' ')
-    || '—';
+  const userName = [profile?.prenom, profile?.nom].filter(Boolean).join(' ');
+  const displayName = userName || profile?.nom_societe || '—';
 
   const initials = (
     (profile?.prenom?.[0] || '') + (profile?.nom?.[0] || '')
@@ -208,11 +207,8 @@ export default function ClientProfileScreen({ navigation }) {
         >
         {/* ── Carte identité ── */}
         <View style={styles.identityCard}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
           <Text style={styles.displayName}>{displayName}</Text>
-          {profile?.nom_societe && (
+          {profile?.nom_societe && profile.nom_societe !== displayName && (
             <View style={styles.societeBadge}>
               <Text style={styles.societeBadgeText}>{profile.nom_societe}</Text>
             </View>
@@ -462,22 +458,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.sm,
-  },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary + '18',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    borderWidth: 2,
-    borderColor: colors.primary + '30',
-  },
-  avatarText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.primary,
   },
   displayName: {
     fontSize: fontSizes.xl,
