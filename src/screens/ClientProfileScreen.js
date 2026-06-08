@@ -354,6 +354,18 @@ export default function ClientProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+
+        {/* ── Liens Légaux ── */}
+        <View style={styles.legalFooter}>
+          <TouchableOpacity onPress={() => navigation.navigate('LegalNotice')} activeOpacity={0.7}>
+            <Text style={styles.legalLink}>Mentions légales</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalSeparator}>·</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')} activeOpacity={0.7}>
+            <Text style={styles.legalLink}>Politique de confidentialité</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={{ height: spacing.xxl * 2 }} />
         </ScrollView>
       </View>
@@ -605,5 +617,22 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSizes.sm,
     fontWeight: '700',
+  },
+  legalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    gap: spacing.sm,
+  },
+  legalLink: {
+    fontSize: fontSizes.xs,
+    color: colors.textLight,
+    textDecorationLine: 'underline',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  legalSeparator: {
+    fontSize: fontSizes.xs,
+    color: colors.textLight,
   },
 });

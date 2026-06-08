@@ -17,6 +17,8 @@ const OrderConfirmationScreen = React.lazy(() => import('../screens/OrderConfirm
 const MyOrdersScreen          = React.lazy(() => import('../screens/MyOrdersScreen'));
 const OrderDetailScreen       = React.lazy(() => import('../screens/OrderDetailScreen'));
 const ClientProfileScreen     = React.lazy(() => import('../screens/ClientProfileScreen'));
+const LegalNoticeScreen       = React.lazy(() => import('../screens/LegalNoticeScreen'));
+const PrivacyPolicyScreen     = React.lazy(() => import('../screens/PrivacyPolicyScreen'));
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -130,6 +132,10 @@ export default function AppNavigator() {
         <Stack.Screen name="ForgotPassword"  component={withSuspense(ForgotPasswordScreen)} />
         <Stack.Screen name="CreatePassword"  component={withSuspense(CreatePasswordScreen)} />
         <Stack.Screen name="ResetPassword"   component={withSuspense(ResetPasswordScreen)} />
+
+        {/* Légal */}
+        <Stack.Screen name="LegalNotice"     component={withSuspense(LegalNoticeScreen)} />
+        <Stack.Screen name="PrivacyPolicy"   component={withSuspense(PrivacyPolicyScreen)} />
 
         {/* Admin */}
         <Stack.Screen name="AdminDashboard"  component={withSuspense(AdminDashboard)} />

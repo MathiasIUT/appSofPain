@@ -244,6 +244,7 @@ export default function LoginScreen({ navigation }) {
               </View>
             </View>
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
