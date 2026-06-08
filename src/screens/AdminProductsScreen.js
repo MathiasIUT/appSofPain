@@ -190,6 +190,7 @@ export default function AdminProductsScreen() {
               <ProductCard
                 key={product.id}
                 product={product}
+                isDesktop={isDesktop}
                 onEdit={() => handleEdit(product)}
                 onDelete={() => handleDelete(product)}
               />
@@ -224,9 +225,13 @@ function FilterChip({ label, active, onPress }) {
   );
 }
 
-function ProductCard({ product, onEdit, onDelete }) {
+function ProductCard({ product, isDesktop, onEdit, onDelete }) {
   return (
-    <View style={[styles.productCard, !product.actif && styles.productCardInactive]}>
+    <View style={[
+      styles.productCard, 
+      !product.actif && styles.productCardInactive,
+      isDesktop && styles.productCardDesktop
+    ]}>
       {/* Image ou placeholder */}
       <View style={styles.productImage}>
         {product.image_url ? (
@@ -429,6 +434,12 @@ const styles = StyleSheet.create({
     minWidth: 280,
     maxWidth: 360,
     ...shadows.sm,
+  },
+  productCardDesktop: {
+    flex: 0,
+    width: 320,
+    minWidth: 280,
+    maxWidth: 360,
   },
   productCardInactive: {
     opacity: 0.6,

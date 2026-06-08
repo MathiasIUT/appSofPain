@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
   },
   productCardDesktop: {
     flex: 0,
-    width: '48%',
+    width: 320,
     minWidth: 280,
     maxWidth: 360,
   },
