@@ -208,7 +208,7 @@ export default function ClientProfileScreen({ navigation }) {
         {/* ── Carte identité ── */}
         <View style={styles.identityCard}>
           <Text style={styles.displayName}>{displayName}</Text>
-          {profile?.nom_societe && profile.nom_societe !== displayName && (
+          {profile?.nom_societe && profile.nom_societe.toLowerCase().trim() !== displayName.toLowerCase().trim() && (
             <View style={styles.societeBadge}>
               <Text style={styles.societeBadgeText}>{profile.nom_societe}</Text>
             </View>

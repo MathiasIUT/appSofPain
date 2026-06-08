@@ -28,6 +28,9 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
   const [useCustomPrices, setUseCustomPrices] = useState(false);
   const [products, setProducts] = useState([]);
   const [customPrices, setCustomPrices] = useState({});
+  const [activeTab, setActiveTab] = useState('client');
+  const [testEmail, setTestEmail] = useState('');
+  const [testPassword, setTestPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -44,6 +47,9 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     setUseCustomPrices(false);
     setCustomPrices({});
     setErrors({});
+    setActiveTab('client');
+    setTestEmail('');
+    setTestPassword('');
     (async () => {
       const [livRes, prodRes] = await Promise.all([
         supabase.from('livreurs').select('id, nom, prenom, type_livreur').eq('actif', true),
@@ -70,6 +76,48 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     if (!form.email.trim()) e.email = 'L\'email est requis pour envoyer le lien de connexion';
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const handleCreateTest = async () => {
+    if (!testEmail.trim() || !testPassword.trim()) {
+      showAlert('Erreur', 'Email et mot de passe requis.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const adminSession = sessionData?.session;
+      
+      const { error } = await supabase.auth.signUp({
+        email: testEmail.trim(),
+        password: testPassword.trim(),
+        options: {
+          data: {
+            nom_societe: 'COMPTE TEST',
+            nom: 'Test',
+            prenom: 'Compte',
+          }
+        }
+      });
+      
+      if (adminSession) {
+        await supabase.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+
+      if (error) throw error;
+      
+      showAlert('Succès', `Compte test créé.\nEmail: ${testEmail.trim()}\nMot de passe: ${testPassword.trim()}`);
+      onCreated?.();
+      onClose();
+    } catch (err) {
+      console.error(err);
+      showAlert('Erreur', err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -140,7 +188,8 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
             throw priceError;
           }
         }
-      }
+      }
+
       showAlert('Client créé ✓',
         `Le compte a été créé pour ${email}.\n\nLe client devra cliquer sur "Première connexion ?" sur la page de connexion pour recevoir son lien d\'accès.`
       );
@@ -176,15 +225,26 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         <View style={[s.box, isDesktop && s.boxDesktop]}>
           {/* Header */}
           <View style={s.header}>
-            <Text style={s.headerTitle}>Créer un client</Text>
+            <Text style={s.headerTitle}>Créer un compte</Text>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <Text style={s.closeText}>✕</Text>
             </TouchableOpacity>
           </View>
 
+          <View style={s.tabsRow}>
+            <TouchableOpacity style={[s.tab, activeTab === 'client' && s.tabActive]} onPress={() => setActiveTab('client')}>
+              <Text style={[s.tabText, activeTab === 'client' && s.tabTextActive]}>Client régulier</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.tab, activeTab === 'test' && s.tabActive]} onPress={() => setActiveTab('test')}>
+              <Text style={[s.tabText, activeTab === 'test' && s.tabTextActive]}>Compte test</Text>
+            </TouchableOpacity>
+          </View>
+
           <ScrollView style={s.body} contentContainerStyle={s.bodyContent}>
-            {/* Société */}
-            <Text style={s.sectionTitle}>Société</Text>
+            {activeTab === 'client' ? (
+              <>
+                {/* Société */}
+                <Text style={s.sectionTitle}>Société</Text>
             {renderField('nom_societe', 'Nom de société', 'Ex: Boulangerie Dupont', { required: true })}
             {renderField('siret', 'N° SIRET', '000 000 000 00000')}
             <View style={s.row}>
@@ -299,17 +359,52 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
               </View>
             ))}
 
-            {/* Submit */}
-            <View style={{ marginTop: spacing.lg }}>
-              <Button
-                title="Créer le client"
-                onPress={handleCreate}
-                loading={saving}
-                disabled={saving}
-                fullWidth
-                size="lg"
-              />
-            </View>
+                {/* Submit */}
+                <View style={{ marginTop: spacing.lg }}>
+                  <Button
+                    title="Créer le client"
+                    onPress={handleCreate}
+                    loading={saving}
+                    disabled={saving}
+                    fullWidth
+                    size="lg"
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={{ marginBottom: 15, color: colors.textSecondary, fontSize: fontSizes.sm }}>
+                  Ce compte aura le nom "COMPTE TEST". Vous pourrez l'utiliser immédiatement avec ces identifiants pour vos tests.
+                </Text>
+                <View style={s.fieldWrap}>
+                  <Text style={s.fieldLabel}>Email test *</Text>
+                  <TextInput
+                    style={s.fieldInput}
+                    value={testEmail}
+                    onChangeText={setTestEmail}
+                    placeholder="test@exemple.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    editable={!saving}
+                  />
+                </View>
+                <View style={s.fieldWrap}>
+                  <Text style={s.fieldLabel}>Mot de passe *</Text>
+                  <TextInput
+                    style={s.fieldInput}
+                    value={testPassword}
+                    onChangeText={setTestPassword}
+                    placeholder="Mot de passe"
+                    autoCapitalize="none"
+                    secureTextEntry
+                    editable={!saving}
+                  />
+                </View>
+                <View style={{ marginTop: spacing.lg }}>
+                  <Button title="Créer le compte test" onPress={handleCreateTest} loading={saving} disabled={saving} fullWidth size="lg" />
+                </View>
+              </>
+            )}
             <View style={{ height: spacing.xxl }} />
           </ScrollView>
         </View>
@@ -341,6 +436,11 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary },
   closeBtn: { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
   closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
+  tabsRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
+  tab: { flex: 1, paddingVertical: spacing.md, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent', ...Platform.select({ web: { cursor: 'pointer' } }) },
+  tabActive: { borderBottomColor: colors.primary },
+  tabText: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.textSecondary },
+  tabTextActive: { color: colors.primary },
   body: { flex: 1 },
   bodyContent: { padding: spacing.lg, gap: spacing.xs },
   sectionTitle: {
