@@ -14,7 +14,7 @@ import {
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import { generateMonthlyBonPdf, generateMonthlyBonPdfBase64 } from '../utils/generateMonthlyBonPdf';
-import { exportComptaExcel, exportMonthlyBonExcel } from '../utils/exportExcel';
+import { exportComptaExcel, exportMonthlyBonExcel, exportSage50CSV } from '../utils/exportExcel';
 import ConfirmModal from '../components/ConfirmModal';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
@@ -31,6 +31,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
 
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingSage, setExportingSage] = useState(false);
   const [search, setSearch] = useState('');
 
   const [bonClient, setBonClient] = useState(null);
@@ -101,6 +102,17 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
       console.error('Erreur export Excel compta :', err);
     } finally {
       setExportingExcel(false);
+    }
+  };
+
+  const handleExportSage = async () => {
+    setExportingSage(true);
+    try {
+      await exportSage50CSV(monthLabelCap);
+    } catch (err) {
+      console.error('Erreur export Sage 50 :', err);
+    } finally {
+      setExportingSage(false);
     }
   };
 
@@ -233,6 +245,17 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
           >
             <Text style={styles.excelBtnText}>
               {exportingExcel ? '...' : 'Excel'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.sageBtn, (exportingSage || loading) && { opacity: 0.5 }]}
+            onPress={handleExportSage}
+            disabled={exportingSage || loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.excelBtnText}>
+              {exportingSage ? '...' : 'Sage 50'}
             </Text>
           </TouchableOpacity>
 
@@ -391,7 +414,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
                   <View style={[styles.td, styles.colClient]}>
                     <Text style={styles.tdFooterText}>TOTAL GLOBAL</Text>
                   </View>
-                  {tableData.displayProducts.map(p => {
+                  {tableData.displayProducts.map(p => {
                     let totalQty = 0;
                     tableData.rows.forEach(r => {
                       if (r.productAgg[p.id]) totalQty += r.productAgg[p.id].qty;
@@ -732,6 +755,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
+  sageBtn: {
+    backgroundColor: '#0073C6',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
   excelBtnText: {
     color: '#fff',
     fontWeight: '700',
@@ -937,7 +967,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: '800',
     color: colors.primary,
-  },
+  },
   bonBtn: {
     marginTop: 6,
     paddingVertical: 4,
@@ -953,7 +983,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: colors.primary,
-  },
+  },
   bonOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -967,7 +997,7 @@ const styles = StyleSheet.create({
     maxHeight: '94%',
     ...Platform.select({ web: { borderRadius: borderRadius.xl, width: '92%', maxWidth: 760, maxHeight: '90%' } }),
   },
-});
+});
 
 const bon = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },

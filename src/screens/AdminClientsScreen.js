@@ -317,6 +317,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
     siret: client.siret || '',
     note_interne_client: client.note_interne_client || '',
     note_interne_admin: client.note_interne_admin || '',
+    code_sage: client.code_sage || '',
   };
 
   const [form, setForm] = useState(initial);
@@ -386,6 +387,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         ville: form.ville.trim(),
         siret: form.siret.trim(),
         note_interne_admin: form.note_interne_admin.trim(),
+        code_sage: form.code_sage.trim() || null,
       }).eq('id', client.id).select('*').single();
       if (error) throw error;
       onUpdated(data);
@@ -551,6 +553,16 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
             <FormField label="Code postal" value={form.code_postal} onChangeText={setField('code_postal')} placeholder="75000" keyboardType="numeric" />
             <FormField label="Ville" value={form.ville} onChangeText={setField('ville')} placeholder="Paris" />
           </View>
+        </View>
+
+        <View style={modal.section}>
+          <Text style={modal.sectionTitle}>Comptabilité</Text>
+          <FormField
+            label="Code client Sage 50"
+            value={form.code_sage}
+            onChangeText={setField('code_sage')}
+            placeholder="Ex: DUPONT ou CLI001"
+          />
         </View>
 
         <View style={modal.section}>

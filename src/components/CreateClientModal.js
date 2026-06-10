@@ -20,7 +20,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
   const [form, setForm] = useState({
     nom_societe: '', siret: '', telephone: '', adresse: '',
     code_postal: '', ville: '', email: '',
-    nom: '', prenom: '', note_interne_admin: '',
+    nom: '', prenom: '', note_interne_admin: '', code_sage: '',
   });
   const [livreurId, setLivreurId] = useState(null);
   const [livreurSurgeleId, setLivreurSurgeleId] = useState(null);
@@ -40,7 +40,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     setForm({
       nom_societe: '', siret: '', telephone: '', adresse: '',
       code_postal: '', ville: '', email: '',
-      nom: '', prenom: '', note_interne_admin: '',
+      nom: '', prenom: '', note_interne_admin: '', code_sage: '',
     });
     setLivreurId(null);
     setLivreurSurgeleId(null);
@@ -87,7 +87,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const adminSession = sessionData?.session;
-      
+
       const { error } = await supabase.auth.signUp({
         email: testEmail.trim(),
         password: testPassword.trim(),
@@ -99,7 +99,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
           }
         }
       });
-      
+
       if (adminSession) {
         await supabase.auth.setSession({
           access_token: adminSession.access_token,
@@ -108,7 +108,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
       }
 
       if (error) throw error;
-      
+
       showAlert('Succès', `Compte test créé.\nEmail: ${testEmail.trim()}\nMot de passe: ${testPassword.trim()}`);
       onCreated?.();
       onClose();
@@ -163,6 +163,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
         livreur_surgele_id: livreurSurgeleId || null,
         email: email,
         note_interne_admin: form.note_interne_admin.trim() || null,
+        code_sage: form.code_sage.trim() || null,
       }).eq('id', userId);
 
       if (updateError) throw updateError;
@@ -189,7 +190,6 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
           }
         }
       }
-
       showAlert('Client créé ✓',
         `Le compte a été créé pour ${email}.\n\nLe client devra cliquer sur "Première connexion ?" sur la page de connexion pour recevoir son lien d\'accès.`
       );
@@ -245,119 +245,123 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
               <>
                 {/* Société */}
                 <Text style={s.sectionTitle}>Société</Text>
-            {renderField('nom_societe', 'Nom de société', 'Ex: Boulangerie Dupont', { required: true })}
-            {renderField('siret', 'N° SIRET', '000 000 000 00000')}
-            <View style={s.row}>
-              {renderField('nom', 'Nom', 'Dupont')}
-              {renderField('prenom', 'Prénom', 'Jean')}
-            </View>
-
-            {/* Contact */}
-            <Text style={s.sectionTitle}>Contact</Text>
-            {renderField('telephone', 'Téléphone', '06 00 00 00 00', { required: true, inputProps: { keyboardType: 'phone-pad' } })}
-            {renderField('email', 'Email', 'contact@societe.fr', { required: true, inputProps: { keyboardType: 'email-address', autoCapitalize: 'none' } })}
-
-            {/* Adresse */}
-            <Text style={s.sectionTitle}>Adresse</Text>
-            {renderField('adresse', 'Adresse', '1 rue de la Boulangerie')}
-            <View style={s.row}>
-              {renderField('code_postal', 'Code postal', '75000', { inputProps: { keyboardType: 'numeric' } })}
-              {renderField('ville', 'Ville', 'Paris')}
-            </View>
-
-            {/* Identifiants */}
-            <Text style={s.sectionTitle}>Connexion</Text>
-            <View style={s.infoBox}>
-              <Text style={s.infoText}>
-                Un email sera envoyé au client avec un lien pour créer son propre mot de passe.
-              </Text>
-            </View>
-
-            {/* Notes */}
-            <Text style={s.sectionTitle}>Notes Internes</Text>
-            {renderField('note_interne_admin', 'Note admin (réservée à l\'équipe)', 'Ajoutez une note interne pour ce client...', {
-              inputProps: { multiline: true, style: { minHeight: 80, textAlignVertical: 'top' } }
-            })}
-
-            {/* Livreur Frais */}
-            <Text style={s.sectionTitle}>Livreur Frais assigné</Text>
-            {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').length === 0 ? (
-              <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
-            ) : (
-              <View style={s.chipsRow}>
-                <TouchableOpacity
-                  style={[s.chip, !livreurId && s.chipActive]}
-                  onPress={() => setLivreurId(null)}
-                >
-                  <Text style={[s.chipText, !livreurId && s.chipTextActive]}>Aucun</Text>
-                </TouchableOpacity>
-                {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').map(l => (
-                  <TouchableOpacity
-                    key={l.id}
-                    style={[s.chip, livreurId === l.id && s.chipActive]}
-                    onPress={() => setLivreurId(l.id)}
-                  >
-                    <Text style={[s.chipText, livreurId === l.id && s.chipTextActive]}>
-                      {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            <Text style={s.sectionTitle}>Livreur Surgelé assigné</Text>
-            {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').length === 0 ? (
-              <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
-            ) : (
-              <View style={s.chipsRow}>
-                <TouchableOpacity
-                  style={[s.chip, !livreurSurgeleId && s.chipActive]}
-                  onPress={() => setLivreurSurgeleId(null)}
-                >
-                  <Text style={[s.chipText, !livreurSurgeleId && s.chipTextActive]}>Aucun</Text>
-                </TouchableOpacity>
-                {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').map(l => (
-                  <TouchableOpacity
-                    key={l.id}
-                    style={[s.chip, livreurSurgeleId === l.id && s.chipActive]}
-                    onPress={() => setLivreurSurgeleId(l.id)}
-                  >
-                    <Text style={[s.chipText, livreurSurgeleId === l.id && s.chipTextActive]}>
-                      {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Prix */}
-            <Text style={s.sectionTitle}>Tarification</Text>
-            <TouchableOpacity
-              style={s.toggleRow}
-              onPress={() => setUseCustomPrices(!useCustomPrices)}
-            >
-              <View style={[s.checkbox, useCustomPrices && s.checkboxChecked]}>
-                {useCustomPrices && <View style={s.checkboxInner} />}
-              </View>
-              <Text style={s.toggleLabel}>Personnaliser les prix pour ce client</Text>
-            </TouchableOpacity>
-
-            {useCustomPrices && products.map(p => (
-              <View key={p.id} style={s.priceRow}>
-                <Text style={s.priceName} numberOfLines={1}>{p.nom}</Text>
-                <View style={s.priceInputWrap}>
-                  <TextInput
-                    style={s.priceInput}
-                    value={customPrices[p.id] || ''}
-                    onChangeText={v => setCustomPrices(prev => ({ ...prev, [p.id]: v }))}
-                    keyboardType="decimal-pad"
-                    placeholder={String(p.prix_unitaire_ht)}
-                    placeholderTextColor={colors.textLight}
-                  />
-                  <Text style={s.priceUnit}>€ HT</Text>
+                {renderField('nom_societe', 'Nom de société', 'Ex: Boulangerie Dupont', { required: true })}
+                {renderField('siret', 'N° SIRET', '000 000 000 00000')}
+                <View style={s.row}>
+                  {renderField('nom', 'Nom', 'Dupont')}
+                  {renderField('prenom', 'Prénom', 'Jean')}
                 </View>
-              </View>
-            ))}
+
+                {/* Contact */}
+                <Text style={s.sectionTitle}>Contact</Text>
+                {renderField('telephone', 'Téléphone', '06 00 00 00 00', { required: true, inputProps: { keyboardType: 'phone-pad' } })}
+                {renderField('email', 'Email', 'contact@societe.fr', { required: true, inputProps: { keyboardType: 'email-address', autoCapitalize: 'none' } })}
+
+                {/* Adresse */}
+                <Text style={s.sectionTitle}>Adresse</Text>
+                {renderField('adresse', 'Adresse', '1 rue de la Boulangerie')}
+                <View style={s.row}>
+                  {renderField('code_postal', 'Code postal', '75000', { inputProps: { keyboardType: 'numeric' } })}
+                  {renderField('ville', 'Ville', 'Paris')}
+                </View>
+
+                {/* Connexion */}
+                <Text style={s.sectionTitle}>Connexion</Text>
+                <View style={s.infoBox}>
+                  <Text style={s.infoText}>
+                    Un email sera envoyé au client avec un lien pour créer son propre mot de passe.
+                  </Text>
+                </View>
+
+                {/* Comptabilité */}
+                <Text style={s.sectionTitle}>Comptabilité</Text>
+                {renderField('code_sage', 'Code client Sage 50', 'Ex: DUPONT ou CLI001')}
+
+                {/* Notes */}
+                <Text style={s.sectionTitle}>Notes Internes</Text>
+                {renderField('note_interne_admin', 'Note admin (réservée à l\'équipe)', 'Ajoutez une note interne pour ce client...', {
+                  inputProps: { multiline: true, style: { minHeight: 80, textAlignVertical: 'top' } }
+                })}
+
+                {/* Livreur Frais */}
+                <Text style={s.sectionTitle}>Livreur Frais assigné</Text>
+                {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').length === 0 ? (
+                  <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
+                ) : (
+                  <View style={s.chipsRow}>
+                    <TouchableOpacity
+                      style={[s.chip, !livreurId && s.chipActive]}
+                      onPress={() => setLivreurId(null)}
+                    >
+                      <Text style={[s.chipText, !livreurId && s.chipTextActive]}>Aucun</Text>
+                    </TouchableOpacity>
+                    {livreurs.filter(l => l.type_livreur === 'frais' || l.type_livreur === 'les_deux').map(l => (
+                      <TouchableOpacity
+                        key={l.id}
+                        style={[s.chip, livreurId === l.id && s.chipActive]}
+                        onPress={() => setLivreurId(l.id)}
+                      >
+                        <Text style={[s.chipText, livreurId === l.id && s.chipTextActive]}>
+                          {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                <Text style={s.sectionTitle}>Livreur Surgelé assigné</Text>
+                {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').length === 0 ? (
+                  <Text style={s.emptyText}>Aucun livreur disponible. Créez-en un dans l'onglet Logistique.</Text>
+                ) : (
+                  <View style={s.chipsRow}>
+                    <TouchableOpacity
+                      style={[s.chip, !livreurSurgeleId && s.chipActive]}
+                      onPress={() => setLivreurSurgeleId(null)}
+                    >
+                      <Text style={[s.chipText, !livreurSurgeleId && s.chipTextActive]}>Aucun</Text>
+                    </TouchableOpacity>
+                    {livreurs.filter(l => l.type_livreur === 'surgele' || l.type_livreur === 'les_deux').map(l => (
+                      <TouchableOpacity
+                        key={l.id}
+                        style={[s.chip, livreurSurgeleId === l.id && s.chipActive]}
+                        onPress={() => setLivreurSurgeleId(l.id)}
+                      >
+                        <Text style={[s.chipText, livreurSurgeleId === l.id && s.chipTextActive]}>
+                          {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {/* Prix */}
+                <Text style={s.sectionTitle}>Tarification</Text>
+                <TouchableOpacity
+                  style={s.toggleRow}
+                  onPress={() => setUseCustomPrices(!useCustomPrices)}
+                >
+                  <View style={[s.checkbox, useCustomPrices && s.checkboxChecked]}>
+                    {useCustomPrices && <View style={s.checkboxInner} />}
+                  </View>
+                  <Text style={s.toggleLabel}>Personnaliser les prix pour ce client</Text>
+                </TouchableOpacity>
+
+                {useCustomPrices && products.map(p => (
+                  <View key={p.id} style={s.priceRow}>
+                    <Text style={s.priceName} numberOfLines={1}>{p.nom}</Text>
+                    <View style={s.priceInputWrap}>
+                      <TextInput
+                        style={s.priceInput}
+                        value={customPrices[p.id] || ''}
+                        onChangeText={v => setCustomPrices(prev => ({ ...prev, [p.id]: v }))}
+                        keyboardType="decimal-pad"
+                        placeholder={String(p.prix_unitaire_ht)}
+                        placeholderTextColor={colors.textLight}
+                      />
+                      <Text style={s.priceUnit}>€ HT</Text>
+                    </View>
+                  </View>
+                ))}
 
                 {/* Submit */}
                 <View style={{ marginTop: spacing.lg }}>

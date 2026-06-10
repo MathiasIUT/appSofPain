@@ -13,7 +13,7 @@ function setColWidths(ws, widths) {
 function downloadWb(wb, filename) {
   if (Platform.OS !== 'web') return;
   XLSX.writeFile(wb, filename);
-}
+}
 export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
   const livreurMap = Object.fromEntries(
     livreurs.map((l) => [l.id, [l.prenom, l.nom].filter(Boolean).join(' ')])
@@ -67,7 +67,7 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
   setColWidths(ws, colWidths);
   XLSX.utils.book_append_sheet(wb, ws, `Compta ${monthLabel}`);
   downloadWb(wb, `comptabilite_${monthLabel.replace(/\s+/g, '_').toLowerCase()}.xlsx`);
-}
+}
 export async function exportClientsExcel() {
   const [cliRes, livRes] = await Promise.all([
     supabase
@@ -105,7 +105,7 @@ export async function exportClientsExcel() {
   setColWidths(ws, widths);
   XLSX.utils.book_append_sheet(wb, ws, 'Clients');
   downloadWb(wb, `clients_${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
+}
 export async function exportOrdersExcel(ids = null) {
   let ordersQ = supabase
     .from('orders')
@@ -187,7 +187,59 @@ export async function exportOrdersExcel(ids = null) {
   setColWidths(ws, widths);
   XLSX.utils.book_append_sheet(wb, ws, 'Commandes');
   downloadWb(wb, `commandes_${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
+}
+export async function exportSage50CSV(monthLabel) {
+  if (Platform.OS !== 'web') return;
+
+  const now = new Date();
+  const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const month = now.getMonth() === 0 ? 12 : now.getMonth();
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select(`
+      id, numero, date_commande, total_ht, type_commande,
+      client_nom,
+      client:profiles!client_id(nom_societe, nom, prenom, code_sage)
+    `)
+    .gte('date_commande', startOfMonth.toISOString())
+    .lte('date_commande', endOfMonth.toISOString())
+    .neq('statut', 'annulee')
+    .order('date_commande', { ascending: true });
+
+  if (error) throw error;
+
+  const lines = [
+    'Date;N° Commande;Compte Client;Nom Client;Type;Montant HT'
+  ];
+
+  for (const o of (orders || [])) {
+    const date = fmt(o.date_commande);
+    const num = o.numero || o.id.slice(0, 8);
+    const codeSage = o.client?.code_sage || '';
+    const compte = codeSage ? `411${codeSage}` : '';
+    const nomClient = o.client?.nom_societe
+      || [o.client?.prenom, o.client?.nom].filter(Boolean).join(' ')
+      || o.client_nom
+      || '';
+    const type = o.type_commande === 'surgele' ? 'Surgelé' : 'Frais';
+    const ht = n2(o.total_ht);
+    lines.push(`${date};${num};${compte};${nomClient};${type};${ht}`);
+  }
+
+  const bom = '﻿';
+  const csv = bom + lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sage50_${monthLabel.replace(/\s+/g, '_').toLowerCase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
   const clientName = client.nom_societe || [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client';
   
