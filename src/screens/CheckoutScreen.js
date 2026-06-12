@@ -23,7 +23,7 @@ const showAlert = (title, message) => {
   } else {
     Alert.alert(title, message);
   }
-};
+};
 const formatDateFr = (isoDate) => {
   if (!isoDate) return '';
   const [year, month, day] = isoDate.split('-');
@@ -44,7 +44,7 @@ export default function CheckoutScreen({ navigation }) {
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   useEffect(() => {
     (async () => {
       try {
@@ -73,7 +73,7 @@ export default function CheckoutScreen({ navigation }) {
         setLoadingProfile(false);
       }
     })();
-  }, []);
+  }, []);
   useEffect(() => {
     if (items.length === 0) {
       navigation.reset({
@@ -139,7 +139,7 @@ export default function CheckoutScreen({ navigation }) {
       let orderId;
       let orderToPass;
 
-      if (editingOrder) {
+      if (editingOrder) {
         const { data: updatedOrder, error: updateError } = await supabase
           .from('orders')
           .update({
@@ -157,18 +157,23 @@ export default function CheckoutScreen({ navigation }) {
 
         if (updateError) throw updateError;
         orderId = updatedOrder.id;
-        orderToPass = updatedOrder;
+        orderToPass = updatedOrder;
         const { error: delError } = await supabase
           .from('order_items')
           .delete()
           .eq('order_id', orderId);
         if (delError) throw delError;
 
-      } else {
+      } else {
+        const clientNom = profile?.nom_societe
+          || [profile?.prenom, profile?.nom].filter(Boolean).join(' ')
+          || '';
+
         const { data: order, error: orderError } = await supabase
           .from('orders')
           .insert({
             client_id: user.id,
+            client_nom: clientNom || null,
             livreur_id: livreurId,
             statut: 'nouvelle',
             adresse_livraison: adresseComplete,
