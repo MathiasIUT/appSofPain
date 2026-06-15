@@ -236,13 +236,19 @@ export default function OrderDetailScreen({ navigation, route }) {
             </View>
           ) : null}
 
-          {order.date_livraison_souhaitee ? (
+          {order.type_commande === 'surgele' && order.date_livraison_souhaitee ? (
             <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
-              <Text style={styles.infoLabel}>
-                {order.type_commande === 'surgele' ? 'Date de livraison' : 'Date de livraison souhaitée'}
-              </Text>
+              <Text style={styles.infoLabel}>Date de livraison</Text>
               <Text style={[styles.infoValue, styles.infoValueRight]}>
                 {fmt(order.date_livraison_souhaitee)}
+              </Text>
+            </View>
+          ) : null}
+          {order.type_commande !== 'surgele' && order.date_commande ? (
+            <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
+              <Text style={styles.infoLabel}>Date de livraison</Text>
+              <Text style={[styles.infoValue, styles.infoValueRight]}>
+                {fmt(new Date(new Date(order.date_commande).getTime() + 86400000))}
               </Text>
             </View>
           ) : null}
@@ -337,7 +343,8 @@ export default function OrderDetailScreen({ navigation, route }) {
         />
 
         {/* ── Boutons Modifier/Supprimer ──────────────── */}
-        {currentOrder.statut === 'nouvelle' && (
+        {/* Pour les frais : uniquement si statut === 'nouvelle'. Pour le surgelé : idem. */}
+        {currentOrder.statut === 'nouvelle' && order.type_commande !== 'surgele' && (
           <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
             <Button
               title="Modifier ma commande"

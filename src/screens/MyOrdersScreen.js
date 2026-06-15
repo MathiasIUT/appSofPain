@@ -63,8 +63,13 @@ export default function MyOrdersScreen({ navigation }) {
   }, []);
 
 
+  // Filtrer les commandes frais annulées (ne pas les afficher au client)
+  const displayableOrders = orders.filter(
+    (o) => !(o.type_commande !== 'surgele' && o.statut === 'annulee')
+  );
+
   const hasMore = orders.length < totalCount;
-  const displayed = orders;
+  const displayed = displayableOrders;
 
   const handlePressOrder = useCallback((order) => {
     navigation.navigate('OrderDetail', { order });
@@ -173,6 +178,11 @@ const OrderCard = React.memo(({ item, onPress }) => {
       {item.type_commande === 'surgele' && item.date_livraison_souhaitee ? (
         <Text style={styles.cardDelivery}>
           Livraison prévue le {fmt(item.date_livraison_souhaitee)}
+        </Text>
+      ) : null}
+      {item.type_commande !== 'surgele' && item.date_commande ? (
+        <Text style={styles.cardDelivery}>
+          Livraison le {fmt(new Date(new Date(item.date_commande).getTime() + 86400000))}
         </Text>
       ) : null}
       {item.type_commande === 'surgele' && item.statut === 'livree' ? (
