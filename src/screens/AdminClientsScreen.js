@@ -368,14 +368,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
       const newEmail = form.email.trim();
       const emailChanged = newEmail && newEmail !== initial.email;
 
-      // Si l'email change, mettre à jour l'email dans auth.users via l'edge function
-      if (emailChanged) {
-        const { error: authEmailError } = await supabase.functions.invoke('update-auth-email', {
-          body: { userId: client.id, newEmail },
-        });
-        if (authEmailError) throw new Error(`Erreur mise à jour email auth: ${authEmailError.message}`);
-      }
-
+      // 1. Mettre à jour profiles en premier
       const { data, error } = await supabase.from('profiles').update({
         nom: form.nom.trim(),
         prenom: form.prenom.trim(),
@@ -390,6 +383,22 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
         code_sage: form.code_sage.trim() || null,
       }).eq('id', client.id).select('*').single();
       if (error) throw error;
+
+      // 2. Si l'email a changé, mettre à jour auth.users via l'edge function
+      // On le fait après profiles pour pouvoir rollback si ça échoue
+      if (emailChanged) {
+        const { error: authEmailError } = await supabase.functions.invoke('update-auth-email', {
+          body: { userId: client.id, newEmail },
+        });
+        if (authEmailError) {
+          // Rollback : remettre l'ancien email dans profiles
+          await supabase.from('profiles')
+            .update({ email: initial.email })
+            .eq('id', client.id);
+          throw new Error(`Erreur mise à jour email auth: ${authEmailError.message}`);
+        }
+      }
+
       onUpdated(data);
       showAlert('Succès', emailChanged
         ? 'Profil mis à jour. Le client devra utiliser le nouvel email pour se connecter.'
