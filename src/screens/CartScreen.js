@@ -165,7 +165,7 @@ export default function CartScreen({ navigation }) {
 function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }) {
   const { product, quantite } = item;
   const { width } = useWindowDimensions();
-  const isMobile = width < 600;
+  const isMobile = width < 900;
   const TVA = Number(product.tva_pourcent);
   const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
   const increment = Number(product.increment || 10);

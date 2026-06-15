@@ -44,6 +44,7 @@ export default function MyOrdersScreen({ navigation }) {
         .from('orders')
         .select('*', { count: 'exact' })
         .eq('client_id', user.id)
+        .neq('statut', 'annulee')
         .order('date_commande', { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -63,13 +64,8 @@ export default function MyOrdersScreen({ navigation }) {
   }, []);
 
 
-  // Filtrer les commandes frais annulées (ne pas les afficher au client)
-  const displayableOrders = orders.filter(
-    (o) => !(o.type_commande !== 'surgele' && o.statut === 'annulee')
-  );
-
   const hasMore = orders.length < totalCount;
-  const displayed = displayableOrders;
+  const displayed = orders;
 
   const handlePressOrder = useCallback((order) => {
     navigation.navigate('OrderDetail', { order });
