@@ -238,7 +238,7 @@ export default function OrderDetailScreen({ navigation, route }) {
 
           {order.type_commande === 'surgele' && order.date_livraison_souhaitee ? (
             <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
-              <Text style={styles.infoLabel}>Date de livraison</Text>
+              <Text style={styles.infoLabel}>Date de livraison estimée :</Text>
               <Text style={[styles.infoValue, styles.infoValueRight]}>
                 {fmt(order.date_livraison_souhaitee)}
               </Text>
@@ -246,7 +246,7 @@ export default function OrderDetailScreen({ navigation, route }) {
           ) : null}
           {order.type_commande !== 'surgele' && order.date_commande ? (
             <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
-              <Text style={styles.infoLabel}>Date de livraison</Text>
+              <Text style={styles.infoLabel}>Date de livraison estimée :</Text>
               <Text style={[styles.infoValue, styles.infoValueRight]}>
                 {fmt(new Date(new Date(order.date_commande).getTime() + 86400000))}
               </Text>
