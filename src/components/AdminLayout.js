@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,8 @@ const SECTIONS = [
   { key: 'orders', label: 'Commandes' },
   { key: 'clients', label: 'Clients' },
   { key: 'logistique', label: 'Logistique' },
-  { key: 'compta_frais', label: 'Comptabilité Frais' },
-  { key: 'compta_surgele', label: 'Comptabilité Surgelé' },
+  { key: 'compta_frais', label: 'ComptabilitÃ© Frais' },
+  { key: 'compta_surgele', label: 'ComptabilitÃ© SurgelÃ©' },
 ];
 
 export default function AdminLayout({
@@ -93,7 +93,7 @@ export default function AdminLayout({
 
             <View style={styles.sidebarFooter}>
               <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutText}>Déconnexion</Text>
+                <Text style={styles.logoutText}>DÃ©connexion</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -110,7 +110,7 @@ export default function AdminLayout({
                 resizeMode="contain"
               />
               <TouchableOpacity onPress={handleLogout} style={styles.mobileLogout}>
-                <Text style={styles.mobileLogoutText}>Déconnexion</Text>
+                <Text style={styles.mobileLogoutText}>DÃ©connexion</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -243,14 +243,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
     backgroundColor: colors.sidebarBg,
     borderBottomWidth: 0,
   },
   mobileLogo: {
-    width: 135,
-    height: 135,
+    width: 56,
+    height: 56,
   },
   mobileLogout: {
     paddingVertical: spacing.xs,
@@ -263,29 +263,33 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     backgroundColor: colors.sidebarBg,
     borderTopWidth: 0,
     paddingVertical: spacing.xs,
   },
   tabItem: {
-    flex: 1,
+    width: '33.33%',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     ...Platform.select({
       web: {
         cursor: 'pointer',
       },
     }),
   },
-  tabItemActive: {
+  tabItemActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primaryLight,
   },
   tabLabel: {
-    fontSize: fontSizes.xs,
+    fontSize: 11,
     color: colors.sidebarText,
     fontWeight: '500',
+    textAlign: 'center',
   },
   tabLabelActive: {
     color: colors.primaryLight,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
