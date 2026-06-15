@@ -65,7 +65,7 @@ export default function CartScreen({ navigation }) {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={[styles.contentInner, !isDesktop && styles.contentInnerMobile]}
       >
         <View style={styles.titleBlock}>
           <Text style={styles.title}>Mon panier</Text>
@@ -160,30 +160,33 @@ export default function CartScreen({ navigation }) {
       </ScrollView>
     </SafeAreaView>
   );
-}
+}
 
 function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }) {
   const { product, quantite } = item;
+  const { width } = useWindowDimensions();
+  const isMobile = width < 600;
   const TVA = Number(product.tva_pourcent);
   const prixUnitaireHt = Number(product.prix_unitaire_ht || 0);
   const increment = Number(product.increment || 10);
   const sousTotalHt = prixUnitaireHt * quantite;
   const sousTotalTtc = sousTotalHt * (1 + TVA / 100);
   const isSurgele = product.category?.slug === 'surgele';
-  const cartonsParPalette = product.cartons_par_palette || 24;
+  const cartonsParPalette = product.cartons_par_palette || 24;
   const handleManualChange = (value) => {
     const cleaned = value.replace(/[^0-9]/g, '');
     const num = parseInt(cleaned, 10);
-    if (cleaned === '' || isNaN(num)) {
+    if (cleaned === '' || isNaN(num)) {
       onSetQuantity(1);
-    } else {
+    } else {
       onSetQuantity(Math.min(num, 9999));
     }
   };
 
   return (
     <View style={styles.cartItem}>
-      <View style={styles.cartItemImage}>
+      {/* Image : plus petite sur mobile pour laisser de la place au contenu */}
+      <View style={[styles.cartItemImage, isMobile && styles.cartItemImageMobile]}>
         {product.image_url ? (
           <Image source={{ uri: product.image_url }} style={styles.cartItemImg} />
         ) : (
@@ -194,7 +197,7 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
       </View>
 
       <View style={styles.cartItemBody}>
-        <Text style={styles.cartItemName}>{product.nom}</Text>
+        <Text style={styles.cartItemName} numberOfLines={2}>{product.nom}</Text>
         <Text style={styles.cartItemPriceUnit}>
           {`${prixUnitaireHt.toFixed(2)} € HT / ${isSurgele ? 'carton' : 'unité'}`}
         </Text>
@@ -204,7 +207,8 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
           </Text>
         )}
 
-        <View style={styles.cartItemControls}>
+        {/* Sur mobile : contrôles en colonne pour éviter l'écrasement du bouton + */}
+        <View style={[styles.cartItemControls, isMobile && styles.cartItemControlsMobile]}>
           <View style={styles.cartQtyRow}>
             <TouchableOpacity
               style={styles.cartQtyBtn}
@@ -214,7 +218,7 @@ function CartItemRow({ item, onIncrement, onDecrement, onSetQuantity, onRemove }
               <Text style={styles.cartQtyBtnText}>−</Text>
             </TouchableOpacity>
             <TextInput
-              style={styles.cartQtyInput}
+              style={[styles.cartQtyInput, isMobile && styles.cartQtyInputMobile]}
               value={String(quantite)}
               onChangeText={handleManualChange}
               onBlur={() => {
@@ -261,7 +265,7 @@ function SummaryLine({ label, value, highlight }) {
       </Text>
     </View>
   );
-}
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -290,6 +294,10 @@ const styles = StyleSheet.create({
   contentInner: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+  },
+  contentInnerMobile: {
+    padding: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   titleBlock: {
     marginBottom: spacing.xl,
@@ -327,7 +335,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-  },
+  },
   emptyState: {
     alignItems: 'center',
     padding: spacing.xxl,
@@ -351,7 +359,7 @@ const styles = StyleSheet.create({
   },
   emptyAction: {
     marginTop: spacing.md,
-  },
+  },
   layout: {
     flexDirection: 'column',
     gap: spacing.lg,
@@ -372,21 +380,28 @@ const styles = StyleSheet.create({
   summaryColumnDesktop: {
     flex: 1,
     maxWidth: 360,
-  },
+  },
   cartItem: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
+    // Pas de overflow: 'hidden' — sur mobile ça coupe le bouton + et le contenu
     ...shadows.sm,
   },
   cartItemImage: {
     width: 100,
     height: 100,
     backgroundColor: colors.secondary,
+    borderTopLeftRadius: borderRadius.lg,
+    borderBottomLeftRadius: borderRadius.lg,
     overflow: 'hidden',
+    flexShrink: 0,
+  },
+  cartItemImageMobile: {
+    width: 72,
+    height: 72,
   },
   cartItemImg: {
     width: '100%',
@@ -431,17 +446,22 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  // Sur mobile : colonne pour que les boutons ne soient pas écrasés
+  cartItemControlsMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   cartQtyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
     borderRadius: borderRadius.md,
     padding: spacing.xs,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   cartQtyBtn: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.sm,
     backgroundColor: colors.primary,
     alignItems: 'center',
@@ -453,27 +473,31 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSizes.lg,
     fontWeight: 'bold',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   cartQtyInput: {
     fontSize: fontSizes.md,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    minWidth: 60,
+    width: 56,
     textAlign: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: borderRadius.sm,
     paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
-    height: 36,
+    paddingHorizontal: 4,
+    height: 40,
     ...Platform.select({
       web: {
         outlineStyle: 'none',
         cursor: 'text',
       },
     }),
+  },
+  // Sur mobile : input légèrement plus étroit pour laisser la place aux boutons
+  cartQtyInputMobile: {
+    width: 48,
   },
   cartItemTotals: {
     alignItems: 'flex-end',
@@ -501,7 +525,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
     textDecorationLine: 'underline',
-  },
+  },
   summaryCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
