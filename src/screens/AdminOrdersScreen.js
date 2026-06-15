@@ -1015,7 +1015,23 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                   {savingSurgele ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={surgeleStyles.actionBtnText}>Marquer comme livre</Text>
+                    <Text style={surgeleStyles.actionBtnText}>Marquer comme livré</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Statuts inattendus : traite ou en_livraison → bouton de secours pour ne pas bloquer l'admin */}
+              {(statut === 'traite' || statut === 'en_livraison') && (
+                <TouchableOpacity
+                  style={[surgeleStyles.actionBtn, surgeleStyles.livrBtn, savingSurgele && { opacity: 0.6 }]}
+                  onPress={handleLivrerSurgele}
+                  disabled={savingSurgele}
+                  activeOpacity={0.8}
+                >
+                  {savingSurgele ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={surgeleStyles.actionBtnText}>Marquer comme livré</Text>
                   )}
                 </TouchableOpacity>
               )}
@@ -1023,7 +1039,14 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               {/* Statut livré */}
               {statut === 'livree' && (
                 <View style={surgeleStyles.livreeBadge}>
-                  <Text style={surgeleStyles.livreeBadgeText}>Commande livree</Text>
+                  <Text style={surgeleStyles.livreeBadgeText}>Livrée</Text>
+                </View>
+              )}
+
+              {/* Statut annulé */}
+              {statut === 'annulee' && (
+                <View style={surgeleStyles.annuleeBadge}>
+                  <Text style={surgeleStyles.annuleeBadgeText}>Annulée</Text>
                 </View>
               )}
             </View>
@@ -2037,4 +2060,14 @@ const surgeleStyles = StyleSheet.create({
     alignItems: 'center',
   },
   livreeBadgeText: { color: '#2E7D32', fontWeight: '700', fontSize: fontSizes.sm },
+  annuleeBadge: {
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1.5,
+    borderColor: '#9E9E9E',
+    borderRadius: borderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+  },
+  annuleeBadgeText: { color: '#757575', fontWeight: '700', fontSize: fontSizes.sm },
 });
