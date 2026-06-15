@@ -363,10 +363,22 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
   }, [client.id]);
 
   const handleSave = async () => {
+    const newEmail = form.email.trim();
+    const emailChanged = newEmail && newEmail !== initial.email;
+
+    if (emailChanged && client.actif !== false) {
+      const msg = `Attention : ce client a peut-être déjà un compte actif.\n\nSi c'est le cas, il devra se reconnecter avec le nouvel email :\n${newEmail}\n\nConfirmer le changement ?`;
+      const confirmed = Platform.OS === 'web'
+        ? window.confirm(msg)
+        : await new Promise(resolve => Alert.alert('Changement d\'email', msg, [
+            { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Confirmer', onPress: () => resolve(true) },
+          ]));
+      if (!confirmed) return;
+    }
+
     setSaving(true);
     try {
-      const newEmail = form.email.trim();
-      const emailChanged = newEmail && newEmail !== initial.email;
 
       // 1. Mettre à jour profiles en premier
       const { data, error } = await supabase.from('profiles').update({
