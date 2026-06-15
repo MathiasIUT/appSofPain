@@ -170,13 +170,28 @@ const OrderCard = React.memo(({ item, onPress }) => {
           {Number(item.total_ht ?? 0).toFixed(2)} € HT
         </Text>
       </View>
+      {item.type_commande === 'surgele' && item.date_livraison_souhaitee ? (
+        <Text style={styles.cardDelivery}>
+          Livraison prévue le {fmt(item.date_livraison_souhaitee)}
+        </Text>
+      ) : null}
+      {item.type_commande === 'surgele' && item.statut === 'livree' ? (
+        <View style={{ backgroundColor: '#E8F5E9', borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start', marginTop: 4 }}>
+          <Text style={{ color: '#2E7D32', fontSize: 11, fontWeight: '700' }}>Livré</Text>
+        </View>
+      ) : null}
+      {item.type_commande === 'surgele' && item.statut === 'en_preparation' ? (
+        <View style={{ backgroundColor: '#E3F2FD', borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start', marginTop: 4 }}>
+          <Text style={{ color: '#1565C0', fontSize: 11, fontWeight: '700' }}>En préparation</Text>
+        </View>
+      ) : null}
       <Text style={styles.cardArrow}>›</Text>
     </TouchableOpacity>
   );
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,7 +206,7 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   backText: { color: colors.primary, fontWeight: '500', fontSize: fontSizes.sm },
-  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary },
+  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary },
   tabs: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -221,12 +236,12 @@ const styles = StyleSheet.create({
   },
   tabBadgeActive: { backgroundColor: colors.primary },
   tabBadgeText: { fontSize: fontSizes.xs - 1, fontWeight: '600', color: colors.textSecondary },
-  tabBadgeTextActive: { color: colors.white },
+  tabBadgeTextActive: { color: colors.white },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   loadingText: { marginTop: spacing.md, color: colors.textSecondary, fontSize: fontSizes.sm },
   emptyIcon: { fontSize: 40, marginBottom: spacing.md },
   emptyTitle: { fontSize: fontSizes.lg, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' },
-  emptySubtitle: { fontSize: fontSizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
+  emptySubtitle: { fontSize: fontSizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
   list: { padding: spacing.lg, paddingBottom: spacing.xxl },
   listDesktop: { maxWidth: 720, alignSelf: 'center', width: '100%' },
   loadMoreBtn: {
@@ -236,7 +251,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  loadMoreText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
+  loadMoreText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,

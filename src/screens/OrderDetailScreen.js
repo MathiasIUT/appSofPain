@@ -151,13 +151,13 @@ export default function OrderDetailScreen({ navigation, route }) {
     if (!proceed) return;
 
     setDeleting(true);
-    try {
+    try {
       const { error: itemsError } = await supabase
         .from('order_items')
         .delete()
         .eq('order_id', order.id);
 
-      if (itemsError) throw new Error('Erreur items : ' + itemsError.message);
+      if (itemsError) throw new Error('Erreur items : ' + itemsError.message);
       const { error: orderError } = await supabase
         .from('orders')
         .delete()
@@ -238,10 +238,30 @@ export default function OrderDetailScreen({ navigation, route }) {
 
           {order.date_livraison_souhaitee ? (
             <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
-              <Text style={styles.infoLabel}>Date de livraison souhaitée</Text>
+              <Text style={styles.infoLabel}>
+                {order.type_commande === 'surgele' ? 'Date de livraison' : 'Date de livraison souhaitée'}
+              </Text>
               <Text style={[styles.infoValue, styles.infoValueRight]}>
                 {fmt(order.date_livraison_souhaitee)}
               </Text>
+            </View>
+          ) : null}
+
+          {order.type_commande === 'surgele' && currentOrder.statut === 'en_preparation' ? (
+            <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
+              <Text style={styles.infoLabel}>Statut</Text>
+              <View style={{ backgroundColor: '#E3F2FD', borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8 }}>
+                <Text style={{ color: '#1565C0', fontSize: 12, fontWeight: '700' }}>En préparation</Text>
+              </View>
+            </View>
+          ) : null}
+
+          {order.type_commande === 'surgele' && currentOrder.statut === 'livree' ? (
+            <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
+              <Text style={styles.infoLabel}>Statut</Text>
+              <View style={{ backgroundColor: '#E8F5E9', borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8 }}>
+                <Text style={{ color: '#2E7D32', fontSize: 12, fontWeight: '700' }}>Livré</Text>
+              </View>
             </View>
           ) : null}
 
@@ -346,7 +366,7 @@ export default function OrderDetailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
@@ -358,15 +378,15 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  backText: { color: colors.primary, fontWeight: '500', fontSize: fontSizes.sm },
+  backText: { color: colors.primary, fontWeight: '500', fontSize: fontSizes.sm },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  errorText: { color: colors.textSecondary, fontSize: fontSizes.md },
+  errorText: { color: colors.textSecondary, fontSize: fontSizes.md },
   body: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  bodyDesktop: { maxWidth: 720, alignSelf: 'center', width: '100%' },
+  bodyDesktop: { maxWidth: 720, alignSelf: 'center', width: '100%' },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -380,7 +400,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.round,
     marginLeft: spacing.sm,
   },
-  badgeText: { fontSize: fontSizes.xs, fontWeight: '700' },
+  badgeText: { fontSize: fontSizes.xs, fontWeight: '700' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
@@ -397,7 +417,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
+  },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -406,7 +426,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: fontSizes.sm, color: colors.textSecondary, flexShrink: 0 },
   infoValue: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
-  infoValueRight: { flex: 1, textAlign: 'right' },
+  infoValueRight: { flex: 1, textAlign: 'right' },
   notesBox: {
     backgroundColor: colors.secondary,
     borderRadius: borderRadius.sm,
@@ -419,7 +439,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 2,
   },
-  notesText: { fontSize: fontSizes.sm, color: colors.textPrimary, fontStyle: 'italic' },
+  notesText: { fontSize: fontSizes.sm, color: colors.textPrimary, fontStyle: 'italic' },
   tableHead: {
     flexDirection: 'row',
     paddingVertical: spacing.xs,
@@ -442,7 +462,7 @@ const styles = StyleSheet.create({
   },
   rowAlt: { backgroundColor: colors.secondary },
   tdCell: { fontSize: fontSizes.sm, color: colors.textPrimary },
-  right: { textAlign: 'right' },
+  right: { textAlign: 'right' },
   totalsWrap: {
     marginTop: spacing.md,
     borderTopWidth: 1,

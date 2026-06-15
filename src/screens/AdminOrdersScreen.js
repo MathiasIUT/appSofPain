@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, createElement } from 'react';
+﻿import React, { useState, useEffect, useCallback, createElement } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 import { exportOrdersExcel } from '../utils/exportExcel';
 const fmt = (d) =>
-  d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'â€”';
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
 const showAlert = (title, msg) => {
@@ -40,7 +40,7 @@ export default function AdminOrdersScreen() {
   const [selectingAll, setSelectingAll] = useState(false);
   const [takeOrderVisible, setTakeOrderVisible] = useState(false);
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 900;
+  const isDesktop = width >= 900;
   const loadOrders = useCallback(async (reset = true, currentLength = 0) => {
     if (reset) setLoading(true);
     else setLoadingMore(true);
@@ -76,7 +76,7 @@ export default function AdminOrdersScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, []);
   useEffect(() => { loadOrders(true); }, []);
 
   const hasMore = orders.length < totalCount;
@@ -119,7 +119,7 @@ export default function AdminOrdersScreen() {
         .select('id');
       if (data) setSelectedIds(new Set(data.map((o) => o.id)));
     } catch (err) {
-      console.error('Erreur sélection totale :', err);
+      console.error('Erreur sÃ©lection totale :', err);
     } finally {
       setSelectingAll(false);
     }
@@ -130,42 +130,42 @@ export default function AdminOrdersScreen() {
     const ids = Array.from(selectedIds);
 
     setBulkActionLoading(true);
-    try {
+    try {
       const { data: nonTraite } = await supabase
         .from('orders')
         .select('numero, livreur_id, livreur:livreurs(nom, prenom)')
         .in('id', ids)
         .neq('statut', 'traite');
 
-      let msg = `Vous allez supprimer définitivement ${ids.length} commande(s).\nCette action est irréversible et les données seront perdues, faites un export au préalable si vous souhaitez garder ces données.`;
+      let msg = `Vous allez supprimer dÃ©finitivement ${ids.length} commande(s).\nCette action est irrÃ©versible et les donnÃ©es seront perdues, faites un export au prÃ©alable si vous souhaitez garder ces donnÃ©es.`;
 
       if (nonTraite?.length > 0) {
         const list = nonTraite.map((o) => {
           const livreurName = o.livreur
-            ? `tournée de ${[o.livreur.prenom, o.livreur.nom].filter(Boolean).join(' ')}`
-            : 'non assignée à un livreur';
-          return `• N° ${o.numero} (${livreurName})`;
+            ? `tournÃ©e de ${[o.livreur.prenom, o.livreur.nom].filter(Boolean).join(' ')}`
+            : 'non assignÃ©e Ã  un livreur';
+          return `â€¢ NÂ° ${o.numero} (${livreurName})`;
         }).join('\n');
-        msg += `\n\nATTENTION : ${nonTraite.length} commande(s) pas encore traitée(s) :\n${list}\n\nSupprimez quand même ?`;
+        msg += `\n\nATTENTION : ${nonTraite.length} commande(s) pas encore traitÃ©e(s) :\n${list}\n\nSupprimez quand mÃªme ?`;
       }
 
       const confirmed = await new Promise((resolve) => {
         if (Platform.OS === 'web') {
           resolve(window.confirm(msg));
         } else {
-          Alert.alert('Supprimer définitivement', msg, [
+          Alert.alert('Supprimer dÃ©finitivement', msg, [
             { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
             { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) },
           ]);
         }
       });
 
-      if (!confirmed) return;
+      if (!confirmed) return;
       const { error: itemsErr } = await supabase
         .from('order_items')
         .delete()
         .in('order_id', ids);
-      if (itemsErr) throw itemsErr;
+      if (itemsErr) throw itemsErr;
       const { error: ordersErr } = await supabase
         .from('orders')
         .delete()
@@ -198,7 +198,7 @@ export default function AdminOrdersScreen() {
   return (
     <View style={styles.container}>
 
-      {/* ── Barre du haut ──────────────────────────────────── */}
+      {/* â”€â”€ Barre du haut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.screenTitle}>Commandes</Text>
@@ -213,21 +213,21 @@ export default function AdminOrdersScreen() {
             <Text style={styles.takeOrderBtnText}>+ Prendre commande</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
-            <Text style={styles.refreshText}>↻ Actualiser</Text>
+            <Text style={styles.refreshText}>â†» Actualiser</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Barre d'actions en masse ──────────────────────── */}
+      {/* â”€â”€ Barre d'actions en masse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {selectedIds.size > 0 && (
         <View style={styles.bulkActionBar}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             <TouchableOpacity onPress={selectAll} style={styles.selectAllBtn} disabled={selectingAll}>
               <Text style={styles.selectAllBtnText}>
-                {selectingAll ? 'Chargement...' : selectedIds.size === totalCount ? 'Tout désélectionner' : `Tout sélectionner (${totalCount})`}
+                {selectingAll ? 'Chargement...' : selectedIds.size === totalCount ? 'Tout dÃ©sÃ©lectionner' : `Tout sÃ©lectionner (${totalCount})`}
               </Text>
             </TouchableOpacity>
-            <Text style={styles.bulkActionText}>{selectedIds.size} sélectionnée(s)</Text>
+            <Text style={styles.bulkActionText}>{selectedIds.size} sÃ©lectionnÃ©e(s)</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <Button
@@ -239,7 +239,7 @@ export default function AdminOrdersScreen() {
               disabled={bulkActionLoading}
             />
             <Button
-              title="Supprimer définitivement"
+              title="Supprimer dÃ©finitivement"
               variant="danger"
               size="sm"
               onPress={handleBulkDelete}
@@ -300,7 +300,7 @@ export default function AdminOrdersScreen() {
         />
       )}
 
-      {/* ── Modal détail ────────────────────────────────────── */}
+      {/* â”€â”€ Modal dÃ©tail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -323,7 +323,7 @@ export default function AdminOrdersScreen() {
         </View>
       </Modal>
 
-      {/* ── Modal prise de commande admin ──────────────────── */}
+      {/* â”€â”€ Modal prise de commande admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <TakeOrderModal
         visible={takeOrderVisible}
         onClose={() => setTakeOrderVisible(false)}
@@ -336,7 +336,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
   const clientName = item.client?.nom_societe
     || [item.client?.prenom, item.client?.nom].filter(Boolean).join(' ')
     || item.client_nom
-    || '— Client supprimé —';
+    || 'â€” Client supprimÃ© â€”';
 
   const orderDate = new Date(item.date_commande);
   const diffDays = Math.floor((new Date() - orderDate) / (1000 * 60 * 60 * 24));
@@ -348,7 +348,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
     <View style={styles.rowWrapper}>
       <TouchableOpacity onPress={onToggle} style={styles.checkboxContainer}>
         <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-          {selected && <Text style={styles.checkmark}>✓</Text>}
+          {selected && <Text style={styles.checkmark}>âœ“</Text>}
         </View>
       </TouchableOpacity>
       <TouchableOpacity
@@ -357,11 +357,11 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
         activeOpacity={0.75}
       >
         <View style={styles.rowCol}>
-          <Text style={styles.rowNum}>{`N° ${item.numero}`}</Text>
+          <Text style={styles.rowNum}>{`NÂ° ${item.numero}`}</Text>
           <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
           {item.type_commande === 'surgele' ? (
             <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
-              <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
+              <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>SurgelÃ©</Text>
             </View>
           ) : (
             <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
@@ -388,17 +388,17 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
 
 
         <View style={[styles.rowCol, styles.rowColRight]}>
-          <Text style={styles.rowTotal}>{`${n2(item.total_ht)} €`}</Text>
+          <Text style={styles.rowTotal}>{`${n2(item.total_ht)} â‚¬`}</Text>
           <Text style={styles.rowTotalLabel}>HT</Text>
         </View>
 
 
 
-        <Text style={styles.arrow}>›</Text>
+        <Text style={styles.arrow}>â€º</Text>
       </TouchableOpacity>
     </View>
   );
-});
+});
 
 function OrderDetailModal({ order, onClose, onUpdated }) {
   const [items, setItems] = useState([]);
@@ -409,11 +409,18 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [livreurs, setLivreurs] = useState([]);
-  const [selectedLivreur, setSelectedLivreur] = useState(order.livreur_id || null);
+  const [selectedLivreur, setSelectedLivreur] = useState(order.livreur_id || null);
   const [editingQty, setEditingQty] = useState(false);
   const [draftQty, setDraftQty] = useState({});
-  const [savingItems, setSavingItems] = useState(false);
+  const [savingItems, setSavingItems] = useState(false);
   const [localTotalHt, setLocalTotalHt] = useState(Number(order.total_ht || 0));
+  // SurgelÃ© : date de livraison assignÃ©e par l'admin
+  const [dateLivraisonAdmin, setDateLivraisonAdmin] = useState(
+    order.date_livraison_souhaitee
+      ? new Date(order.date_livraison_souhaitee).toISOString().split('T')[0]
+      : ''
+  );
+  const [savingSurgele, setSavingSurgele] = useState(false);
 
   const { width, height } = useWindowDimensions();
   const isDesktop = width >= 900;
@@ -433,7 +440,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         setLivreurs(livRes.data || []);
         const clientData = order.client || {
           nom_societe: order.client_nom || 'Client inconnu',
-          telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
+          telephone: order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim() || ''
         };
         setPreviewHtml(buildOrderHtml(order, fetched, clientData));
       } catch (err) {
@@ -442,7 +449,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         setLoadingItems(false);
       }
     })();
-  }, [order.id]);
+  }, [order.id]);
   const startEditQty = () => {
     const init = {};
     items.forEach(it => { init[it.id] = it.quantite; });
@@ -467,8 +474,8 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     if (!isNaN(parsed) && parsed >= 0) {
       setDraftQty(prev => ({ ...prev, [itemId]: parsed }));
     }
-  };
-  const handleSaveItems = async () => {
+  };
+  const handleSaveItems = async () => {
     const remaining = items.filter(it => (draftQty[it.id] ?? it.quantite) > 0);
     if (remaining.length === 0) {
       showAlert('Erreur', 'La commande doit contenir au moins un article.');
@@ -487,14 +494,14 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     }
 
     setSavingItems(true);
-    try {
+    try {
       if (toDelete.length > 0) {
         const { error: delErr } = await supabase
           .from('order_items')
           .delete()
           .in('id', toDelete.map(it => it.id));
         if (delErr) throw delErr;
-      }
+      }
       for (const it of toUpdate) {
         const newQty = draftQty[it.id];
         const newSousTotal = Number((newQty * Number(it.prix_unitaire_ht)).toFixed(2));
@@ -503,7 +510,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           .update({ quantite: newQty, sous_total_ht: newSousTotal })
           .eq('id', it.id);
         if (updErr) throw updErr;
-      }
+      }
       const updatedItems = items
         .filter(it => (draftQty[it.id] ?? it.quantite) > 0)
         .map(it => ({
@@ -521,22 +528,22 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         .eq('id', order.id)
         .select('*')
         .single();
-      if (orderErr) throw orderErr;
+      if (orderErr) throw orderErr;
       setItems(updatedItems);
       setLocalTotalHt(newTotalHtRounded);
-      onUpdated({ ...updatedOrder });
+      onUpdated({ ...updatedOrder });
       const clientData = order.client || {
         nom_societe: order.client_nom || 'Client inconnu',
-        telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
+        telephone: order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim() || ''
       };
       setPreviewHtml(buildOrderHtml({ ...order, total_ht: newTotalHtRounded }, updatedItems, clientData));
 
       setEditingQty(false);
       setDraftQty({});
-      showAlert('Succès', 'Les quantités ont été mises à jour.');
+      showAlert('SuccÃ¨s', 'Les quantitÃ©s ont Ã©tÃ© mises Ã  jour.');
     } catch (err) {
-      console.error('Erreur mise à jour quantités :', err);
-      showAlert('Erreur', 'Impossible de modifier les quantités.');
+      console.error('Erreur mise Ã  jour quantitÃ©s :', err);
+      showAlert('Erreur', 'Impossible de modifier les quantitÃ©s.');
     } finally {
       setSavingItems(false);
     }
@@ -553,19 +560,89 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         .single();
       if (error) throw error;
       onUpdated(data);
-      showAlert('Succès', 'Commande mise à jour.');
+      showAlert('SuccÃ¨s', 'Commande mise Ã  jour.');
     } catch (err) {
-      console.error('Erreur mise à jour commande :', err);
-      showAlert('Erreur', 'Impossible de mettre à jour la commande.');
+      console.error('Erreur mise Ã  jour commande :', err);
+      showAlert('Erreur', 'Impossible de mettre Ã  jour la commande.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Actions spÃ©cifiques commandes surgelÃ©es
+  const handleValiderSurgele = async () => {
+    if (order.statut !== 'nouvelle') return;
+    setSavingSurgele(true);
+    try {
+      const updateData = { statut: 'en_preparation' };
+      if (dateLivraisonAdmin) updateData.date_livraison_souhaitee = dateLivraisonAdmin;
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', order.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      setStatut('en_preparation');
+      onUpdated(data);
+      showAlert('SuccÃ¨s', 'Commande passÃ©e en prÃ©paration.');
+    } catch (err) {
+      console.error('Erreur validation surgelÃ© :', err);
+      showAlert('Erreur', 'Impossible de valider la commande.');
+    } finally {
+      setSavingSurgele(false);
+    }
+  };
+
+  const handleAssignerDateSurgele = async () => {
+    if (!dateLivraisonAdmin) {
+      showAlert('Erreur', 'Veuillez saisir une date de livraison.');
+      return;
+    }
+    setSavingSurgele(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ date_livraison_souhaitee: dateLivraisonAdmin })
+        .eq('id', order.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      onUpdated(data);
+      showAlert('SuccÃ¨s', 'Date de livraison enregistrÃ©e.');
+    } catch (err) {
+      console.error('Erreur assignation date surgelÃ© :', err);
+      showAlert('Erreur', 'Impossible d\'enregistrer la date.');
+    } finally {
+      setSavingSurgele(false);
+    }
+  };
+
+  const handleLivrerSurgele = async () => {
+    setSavingSurgele(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ statut: 'livree' })
+        .eq('id', order.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      setStatut('livree');
+      onUpdated(data);
+      showAlert('SuccÃ¨s', 'Commande marquÃ©e comme livrÃ©e.');
+    } catch (err) {
+      console.error('Erreur livraison surgelÃ© :', err);
+      showAlert('Erreur', 'Impossible de marquer la commande comme livrÃ©e.');
+    } finally {
+      setSavingSurgele(false);
     }
   };
 
   const handlePdf = async () => {
     const clientData = order.client || {
       nom_societe: order.client_nom || 'Client inconnu',
-      telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
+      telephone: order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim() || ''
     };
 
     setPdfLoading(true);
@@ -573,7 +650,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       await generateOrderPdf(order, items, clientData);
     } catch (err) {
       console.error('Erreur PDF :', err);
-      showAlert('Erreur', 'Impossible de générer le bon de commande.');
+      showAlert('Erreur', 'Impossible de gÃ©nÃ©rer le bon de commande.');
     } finally {
       setPdfLoading(false);
     }
@@ -582,25 +659,25 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const clientName = order.client?.nom_societe
     || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
     || order.client_nom
-    || '— Client supprimé —';
+    || 'â€” Client supprimÃ© â€”';
   const telephone = order.client?.telephone
-    || (order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim())
-    || '—';
+    || (order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim())
+    || 'â€”';
 
-  const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '') || selectedLivreur !== (order.livreur_id || null);
+  const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '') || selectedLivreur !== (order.livreur_id || null);
   const bodyHeight = Math.min(height * 0.88, 820) - 64;
 
   return (
     <View style={modal.container}>
 
-      {/* ── Header ─────────────────────────────────────────── */}
+      {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <View style={modal.header}>
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={modal.headerNum}>{`N° ${order.numero}`}</Text>
+            <Text style={modal.headerNum}>{`NÂ° ${order.numero}`}</Text>
             {order.type_commande === 'surgele' ? (
               <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
-                <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
+                <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>SurgelÃ©</Text>
               </View>
             ) : (
               <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
@@ -608,7 +685,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               </View>
             )}
           </View>
-          <Text style={modal.headerDate}>Passée le {fmt(order.date_commande)}</Text>
+          <Text style={modal.headerDate}>PassÃ©e le {fmt(order.date_commande)}</Text>
         </View>
         <View style={modal.headerRight}>
           <Button
@@ -620,15 +697,15 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
             disabled={pdfLoading}
           />
           <TouchableOpacity onPress={onClose} style={modal.closeBtn} activeOpacity={0.7}>
-            <Text style={modal.closeText}>✕</Text>
+            <Text style={modal.closeText}>âœ•</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Body : 2 colonnes sur desktop ──────────────────── */}
+      {/* â”€â”€ Body : 2 colonnes sur desktop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <View style={[modal.body, isDesktop && { flexDirection: 'row', height: bodyHeight }]}>
 
-        {/* ── Colonne gauche : infos ──────────────────────── */}
+        {/* â”€â”€ Colonne gauche : infos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <ScrollView
           style={[modal.leftCol, isDesktop && modal.leftColDesktop]}
           contentContainerStyle={modal.leftColContent}
@@ -638,12 +715,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           <View style={modal.section}>
             <Text style={modal.sectionTitle}>Client</Text>
             <View style={modal.infoGrid}>
-              <InfoItem label="Société" value={order.client?.nom_societe || '—'} />
+              <InfoItem label="SociÃ©tÃ©" value={order.client?.nom_societe || 'â€”'} />
               <InfoItem label="Contact" value={clientName} />
-              <InfoItem label="Email" value={order.client?.email || '—'} />
-              <InfoItem label="Téléphone" value={telephone} />
+              <InfoItem label="Email" value={order.client?.email || 'â€”'} />
+              <InfoItem label="TÃ©lÃ©phone" value={telephone} />
               {order.date_livraison_souhaitee ? (
-                <InfoItem label="Date livraison souhaitée" value={fmt(order.date_livraison_souhaitee)} />
+                <InfoItem label="Date livraison souhaitÃ©e" value={fmt(order.date_livraison_souhaitee)} />
               ) : null}
             </View>
           </View>
@@ -657,12 +734,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               </View>
             ) : null}
             <Text style={[modal.sectionTitle, { marginTop: spacing.md }]}>
-              Livreur assigné ({order.type_commande === 'surgele' ? 'Surgelé' : 'Frais'})
+              Livreur assignÃ© ({order.type_commande === 'surgele' ? 'SurgelÃ©' : 'Frais'})
             </Text>
             {!selectedLivreur && (
               <View style={{ backgroundColor: colors.error + '18', borderWidth: 1, borderColor: colors.error + '55', borderRadius: 8, padding: spacing.sm, marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={{ flex: 1, fontSize: 12, color: colors.error, fontWeight: '600' }}>
-                  Aucun livreur assigné — cette commande n'apparaît chez aucun livreur en logistique. Sélectionnez un livreur ci-dessous et sauvegardez.
+                  Aucun livreur assignÃ© â€” cette commande n'apparaÃ®t chez aucun livreur en logistique. SÃ©lectionnez un livreur ci-dessous et sauvegardez.
                 </Text>
               </View>
             )}
@@ -696,7 +773,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                       isDefault && selectedLivreur !== l.id && { color: order.type_commande === 'surgele' ? '#1565C0' : '#2E7D32', fontWeight: 'bold' }
                     ]}>
                       {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
-                      {isDefault ? ' (Défaut)' : ''}
+                      {isDefault ? ' (DÃ©faut)' : ''}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -707,14 +784,14 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           {/* Produits */}
           <View style={modal.section}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-              <Text style={[modal.sectionTitle, { marginBottom: 0, paddingBottom: 0, borderBottomWidth: 0 }]}>Produits commandés</Text>
+              <Text style={[modal.sectionTitle, { marginBottom: 0, paddingBottom: 0, borderBottomWidth: 0 }]}>Produits commandÃ©s</Text>
               {!loadingItems && !editingQty && (
                 <TouchableOpacity
                   onPress={startEditQty}
                   style={modal.editQtyBtn}
                   activeOpacity={0.7}
                 >
-                  <Text style={modal.editQtyBtnText}>Modifier les quantités</Text>
+                  <Text style={modal.editQtyBtnText}>Modifier les quantitÃ©s</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -724,7 +801,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               <>
                 <View style={modal.tableHead}>
                   <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
-                  <Text style={[modal.th, modal.right, { flex: editingQty ? 2 : 1.2 }]}>Qté</Text>
+                  <Text style={[modal.th, modal.right, { flex: editingQty ? 2 : 1.2 }]}>QtÃ©</Text>
                   {!editingQty && <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>}
                   <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
                 </View>
@@ -756,7 +833,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                             style={modal.qtyBtn}
                             activeOpacity={0.7}
                           >
-                            <Text style={modal.qtyBtnText}>−</Text>
+                            <Text style={modal.qtyBtnText}>âˆ’</Text>
                           </TouchableOpacity>
                           <TextInput
                             style={modal.qtyInput}
@@ -777,19 +854,19 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                         <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite}</Text>
                       )}
                       {!editingQty && (
-                        <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} €`}</Text>
+                        <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} â‚¬`}</Text>
                       )}
                       <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }, isDeleted && modal.tdStrike]}>
-                        {isDeleted ? '—' : `${n2(subTotal)} €`}
+                        {isDeleted ? 'â€”' : `${n2(subTotal)} â‚¬`}
                       </Text>
                     </View>
                   );
                 })}
                 <View style={modal.totals}>
-                  <TotalLine label="Total HT" value={`${n2(localTotalHt)} €`} />
+                  <TotalLine label="Total HT" value={`${n2(localTotalHt)} â‚¬`} />
                 </View>
 
-                {/* Boutons confirmation édition */}
+                {/* Boutons confirmation Ã©dition */}
                 {editingQty && (
                   <View style={modal.editQtyActions}>
                     <TouchableOpacity
@@ -808,7 +885,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                     >
                       {savingItems
                         ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={modal.editQtySaveText}>✓ Valider les quantités</Text>}
+                        : <Text style={modal.editQtySaveText}>âœ“ Valider les quantitÃ©s</Text>}
                     </TouchableOpacity>
                   </View>
                 )}
@@ -851,14 +928,115 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
             />
           ) : null}
 
+          {/* ── Section Surgelé (admin) ────────────────────── */}
+          {order.type_commande === 'surgele' && (
+            <View style={[modal.section, { marginTop: spacing.md }]}>
+              <Text style={modal.sectionTitle}>Gestion surgelé</Text>
+
+              {/* Date de livraison assignée par l'admin */}
+              <View style={{ marginBottom: spacing.md }}>
+                <Text style={{ fontSize: fontSizes.xs, color: colors.textSecondary, fontWeight: '600', marginBottom: spacing.xs }}>
+                  Date de livraison
+                </Text>
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    value={dateLivraisonAdmin}
+                    onChange={(e) => setDateLivraisonAdmin(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: 14,
+                      borderRadius: 8,
+                      border: `1.5px solid ${colors.border}`,
+                      backgroundColor: colors.background,
+                      color: colors.textPrimary,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                ) : (
+                  <TextInput
+                    style={modal.notesInput}
+                    value={dateLivraisonAdmin}
+                    onChangeText={setDateLivraisonAdmin}
+                    placeholder="AAAA-MM-JJ"
+                    placeholderTextColor={colors.textLight}
+                    keyboardType="numeric"
+                  />
+                )}
+                {dateLivraisonAdmin ? (
+                  <Text style={{ fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 4 }}>
+                    {fmt(dateLivraisonAdmin)}
+                  </Text>
+                ) : null}
+              </View>
+
+              {/* Bouton Valider (nouvelle → en_preparation) */}
+              {statut === 'nouvelle' && (
+                <TouchableOpacity
+                  style={[surgeleStyles.actionBtn, surgeleStyles.validateBtn, savingSurgele && { opacity: 0.6 }]}
+                  onPress={handleValiderSurgele}
+                  disabled={savingSurgele}
+                  activeOpacity={0.8}
+                >
+                  {savingSurgele ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={surgeleStyles.actionBtnText}>Valider la commande (En preparation)</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Bouton Assigner date (si déjà en_preparation) */}
+              {statut === 'en_preparation' && (
+                <TouchableOpacity
+                  style={[surgeleStyles.actionBtn, surgeleStyles.dateBtn, savingSurgele && { opacity: 0.6 }]}
+                  onPress={handleAssignerDateSurgele}
+                  disabled={savingSurgele}
+                  activeOpacity={0.8}
+                >
+                  {savingSurgele ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={surgeleStyles.actionBtnText}>Enregistrer la date de livraison</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Bouton Livré (en_preparation → livree) */}
+              {statut === 'en_preparation' && (
+                <TouchableOpacity
+                  style={[surgeleStyles.actionBtn, surgeleStyles.livrBtn, savingSurgele && { opacity: 0.6 }, { marginTop: spacing.sm }]}
+                  onPress={handleLivrerSurgele}
+                  disabled={savingSurgele}
+                  activeOpacity={0.8}
+                >
+                  {savingSurgele ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={surgeleStyles.actionBtnText}>Marquer comme livre</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Statut livré */}
+              {statut === 'livree' && (
+                <View style={surgeleStyles.livreeBadge}>
+                  <Text style={surgeleStyles.livreeBadgeText}>Commande livree</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={{ height: spacing.xl }} />
         </ScrollView>
 
-        {/* ── Colonne droite : aperçu PDF (desktop web only) ── */}
+        {/* â”€â”€ Colonne droite : aperÃ§u PDF (desktop web only) â”€â”€ */}
         {isDesktop && Platform.OS === 'web' && (
           <View style={modal.rightCol}>
             <View style={modal.previewHeader}>
-              <Text style={modal.sectionTitle}>Aperçu bon de commande</Text>
+              <Text style={modal.sectionTitle}>AperÃ§u bon de commande</Text>
             </View>
             <View style={modal.iframeWrap}>
               {previewHtml
@@ -871,12 +1049,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                     borderRadius: 8,
                     backgroundColor: '#fff',
                   },
-                  title: 'Aperçu bon de commande',
+                  title: 'AperÃ§u bon de commande',
                 })
                 : (
                   <View style={modal.previewLoading}>
                     <ActivityIndicator color={colors.primary} />
-                    <Text style={modal.previewLoadingText}>Génération de l'aperçu...</Text>
+                    <Text style={modal.previewLoadingText}>GÃ©nÃ©ration de l'aperÃ§u...</Text>
                   </View>
                 )
               }
@@ -911,14 +1089,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   topBarLeft: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  screenTitle: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.textPrimary },
+  screenTitle: { fontSize: fontSizes.lg, fontWeight: '800', color: colors.textPrimary },
   screenCount: { fontSize: fontSizes.sm, color: colors.textSecondary },
   refreshBtn: { ...Platform.select({ web: { cursor: 'pointer' } }) },
   refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
@@ -1064,7 +1244,7 @@ const styles = StyleSheet.create({
   },
 });
 const modal = StyleSheet.create({
-  container: { flex: 1, overflow: 'hidden' },
+  container: { flex: 1, overflow: 'hidden' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1081,11 +1261,11 @@ const modal = StyleSheet.create({
   headerDate: { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   closeBtn: { padding: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
-  closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
-  body: { flex: 1 },
+  closeText: { fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' },
+  body: { flex: 1 },
   leftCol: { flex: 1 },
   leftColDesktop: { flex: 1, borderRightWidth: 1, borderRightColor: colors.border },
-  leftColContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  leftColContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
   rightCol: {
     flex: 1,
     padding: spacing.lg,
@@ -1110,7 +1290,7 @@ const modal = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  previewLoadingText: { fontSize: fontSizes.sm, color: colors.textSecondary },
+  previewLoadingText: { fontSize: fontSizes.sm, color: colors.textSecondary },
   section: { marginBottom: spacing.lg },
   sectionTitle: {
     fontSize: fontSizes.xs,
@@ -1122,7 +1302,7 @@ const modal = StyleSheet.create({
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
+  },
   statutRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   statutChip: {
     paddingHorizontal: spacing.md,
@@ -1134,14 +1314,14 @@ const modal = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   statutChipText: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textSecondary },
-  statutChipTextActive: { color: colors.white, fontWeight: '700' },
+  statutChipTextActive: { color: colors.white, fontWeight: '700' },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   infoItem: { minWidth: 140, flex: 1, backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.sm },
   infoLabel: { fontSize: fontSizes.xs, color: colors.textLight, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  infoValue: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
+  infoValue: { fontSize: fontSizes.sm, fontWeight: '500', color: colors.textPrimary },
   addressBox: { backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.sm },
   addressLabel: { fontSize: fontSizes.xs, color: colors.textLight, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  addressText: { fontSize: fontSizes.sm, color: colors.textPrimary, lineHeight: 20 },
+  addressText: { fontSize: fontSizes.sm, color: colors.textPrimary, lineHeight: 20 },
   tableHead: {
     flexDirection: 'row',
     paddingVertical: spacing.xs,
@@ -1155,16 +1335,16 @@ const modal = StyleSheet.create({
   rowAlt: { backgroundColor: colors.secondary },
   td: { fontSize: fontSizes.sm, color: colors.textPrimary },
   right: { textAlign: 'right' },
-  bold: { fontWeight: '600' },
+  bold: { fontWeight: '600' },
   totals: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: 4 },
   totalLine: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   totalLineFinal: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.xs, paddingTop: spacing.xs },
   totalLabel: { fontSize: fontSizes.sm, color: colors.textSecondary },
   totalValue: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
   totalLabelFinal: { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary },
-  totalValueFinal: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
+  totalValueFinal: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.primary },
   rowDeleted: { opacity: 0.45, backgroundColor: '#FFE5E5' },
-  tdStrike: { textDecorationLine: 'line-through', color: colors.textLight },
+  tdStrike: { textDecorationLine: 'line-through', color: colors.textLight },
   editQtyBtn: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
@@ -1211,7 +1391,7 @@ const modal = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
-  editQtySaveText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
+  editQtySaveText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
   notesClientBox: { backgroundColor: colors.secondary, borderRadius: borderRadius.md, padding: spacing.md, borderLeftWidth: 3, borderLeftColor: colors.primary },
   notesClientText: { fontSize: fontSizes.sm, color: colors.textPrimary, fontStyle: 'italic', lineHeight: 20 },
   notesInput: {
@@ -1226,7 +1406,7 @@ const modal = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
   },
-});
+});
 
 function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const [step, setStep] = useState('client');
@@ -1356,7 +1536,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
 
   const handleSubmit = async () => {
     if (allOrderLines.length === 0) {
-      showAlert('Attention', 'Veuillez sélectionner au moins un produit.');
+      showAlert('Attention', 'Veuillez sÃ©lectionner au moins un produit.');
       return;
     }
     setSubmitting(true);
@@ -1412,12 +1592,12 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
 
       if (itemsError) throw itemsError;
 
-      showAlert('Commande créée', 'La commande a été créée avec succès.');
+      showAlert('Commande crÃ©Ã©e', 'La commande a Ã©tÃ© crÃ©Ã©e avec succÃ¨s.');
       onOrderCreated();
       onClose();
     } catch (err) {
-      console.error('Erreur création commande admin :', err);
-      showAlert('Erreur', 'Impossible de créer la commande.');
+      console.error('Erreur crÃ©ation commande admin :', err);
+      showAlert('Erreur', 'Impossible de crÃ©er la commande.');
     } finally {
       setSubmitting(false);
     }
@@ -1438,7 +1618,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               {step === 'products' && (
                 <TouchableOpacity onPress={() => setStep('client')} style={to.backBtn} activeOpacity={0.7}>
-                  <Text style={to.backText}>←</Text>
+                  <Text style={to.backText}>â†</Text>
                 </TouchableOpacity>
               )}
               <View>
@@ -1449,7 +1629,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={to.closeBtn} activeOpacity={0.7}>
-              <Text style={to.closeText}>✕</Text>
+              <Text style={to.closeText}>âœ•</Text>
             </TouchableOpacity>
           </View>
 
@@ -1458,7 +1638,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               <ActivityIndicator color={colors.primary} size="large" />
             </View>
           ) : step === 'client' ? (
-            /* ── Étape 1 : choix du client ── */
+            /* â”€â”€ Ã‰tape 1 : choix du client â”€â”€ */
             <>
               <View style={to.searchBar}>
                 <TextInput
@@ -1474,14 +1654,14 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                 keyExtractor={(c) => c.id}
                 contentContainerStyle={to.listContent}
                 ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
-                ListEmptyComponent={<Text style={to.emptyText}>Aucun client trouvé.</Text>}
+                ListEmptyComponent={<Text style={to.emptyText}>Aucun client trouvÃ©.</Text>}
                 renderItem={({ item: c }) => {
                   const name =
                     c.nom_societe ||
                     [c.prenom, c.nom].filter(Boolean).join(' ') ||
                     c.email ||
-                    '—';
-                  const sub = [c.email, c.ville].filter(Boolean).join(' · ');
+                    'â€”';
+                  const sub = [c.email, c.ville].filter(Boolean).join(' Â· ');
                   return (
                     <TouchableOpacity
                       style={to.clientRow}
@@ -1492,16 +1672,16 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                         <Text style={to.clientName}>{name}</Text>
                         {sub ? <Text style={to.clientSub} numberOfLines={1}>{sub}</Text> : null}
                       </View>
-                      <Text style={to.chevron}>›</Text>
+                      <Text style={to.chevron}>â€º</Text>
                     </TouchableOpacity>
                   );
                 }}
               />
             </>
           ) : (
-            /* ── Étape 2 : sélection produits ── */
+            /* â”€â”€ Ã‰tape 2 : sÃ©lection produits â”€â”€ */
             <>
-              {/* Tabs Frais / Surgelé */}
+              {/* Tabs Frais / SurgelÃ© */}
               <View style={{ flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                 <TouchableOpacity 
                   style={[{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 4 }, orderType === 'frais' && { backgroundColor: '#E8F5E9' }]}
@@ -1513,7 +1693,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   style={[{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 4 }, orderType === 'surgele' && { backgroundColor: '#E3F2FD' }]}
                   onPress={() => setOrderType('surgele')}
                 >
-                  <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, orderType === 'surgele' && { color: '#1565C0' }]}>Surgelé</Text>
+                  <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, orderType === 'surgele' && { color: '#1565C0' }]}>SurgelÃ©</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1530,7 +1710,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                     <View style={[to.productRow, qty > 0 && to.productRowActive]}>
                       <View style={{ flex: 1 }}>
                         <Text style={to.productName}>{p.nom}</Text>
-                        <Text style={to.productPrice}>{`${n2(prix)} €/u HT`}</Text>
+                        <Text style={to.productPrice}>{`${n2(prix)} â‚¬/u HT`}</Text>
                       </View>
                       <View style={to.stepper}>
                         <TouchableOpacity
@@ -1539,7 +1719,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                           disabled={qty === 0}
                           activeOpacity={0.7}
                         >
-                          <Text style={to.stepBtnText}>−</Text>
+                          <Text style={to.stepBtnText}>âˆ’</Text>
                         </TouchableOpacity>
                         <TextInput
                           style={[to.stepQty, to.stepQtyInput, qty > 0 && to.stepQtyActive]}
@@ -1576,7 +1756,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   );
                 }}
                 ListFooterComponent={
-                  /* ── Lignes manuelles ── */
+                  /* â”€â”€ Lignes manuelles â”€â”€ */
                   <View style={to.manualSection}>
                     <View style={to.manualHeader}>
                       <Text style={to.manualTitle}>Saisie manuelle</Text>
@@ -1588,14 +1768,14 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                       <View key={l.id} style={to.manualRow}>
                         <TextInput
                           style={[to.manualInput, { flex: 1 }]}
-                          placeholder="Libellé"
+                          placeholder="LibellÃ©"
                           placeholderTextColor={colors.textLight}
                           value={l.nom}
                           onChangeText={v => updateManualLine(l.id, 'nom', v)}
                         />
                         <TextInput
                           style={[to.manualInput, { width: 48 }]}
-                          placeholder="Qté"
+                          placeholder="QtÃ©"
                           placeholderTextColor={colors.textLight}
                           value={l.quantite}
                           onChangeText={v => updateManualLine(l.id, 'quantite', v.replace(/[^0-9]/g, ''))}
@@ -1611,7 +1791,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                           keyboardType="numeric"
                         />
                         <TouchableOpacity onPress={() => removeManualLine(l.id)} style={to.removeLineBtn} activeOpacity={0.7}>
-                          <Text style={to.removeLineBtnText}>✕</Text>
+                          <Text style={to.removeLineBtnText}>âœ•</Text>
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -1624,8 +1804,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                 <View style={{ flex: 1 }}>
                   <Text style={to.footerInfo}>
                     {allOrderLines.length > 0
-                      ? `${allOrderLines.length} ligne${allOrderLines.length > 1 ? 's' : ''} · ${n2(totalHt)} € HT`
-                      : 'Aucun produit sélectionné'}
+                      ? `${allOrderLines.length} ligne${allOrderLines.length > 1 ? 's' : ''} Â· ${n2(totalHt)} â‚¬ HT`
+                      : 'Aucun produit sÃ©lectionnÃ©'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -1831,4 +2011,30 @@ const to = StyleSheet.create({
     ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   removeLineBtnText: { fontSize: fontSizes.md, color: colors.error, fontWeight: '700' },
+});
+
+const surgeleStyles = StyleSheet.create({
+  actionBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  validateBtn: { backgroundColor: '#1565C0' },
+  dateBtn: { backgroundColor: '#0277BD' },
+  livrBtn: { backgroundColor: '#2E7D32' },
+  actionBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
+  livreeBadge: {
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1.5,
+    borderColor: '#2E7D32',
+    borderRadius: borderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+  },
+  livreeBadgeText: { color: '#2E7D32', fontWeight: '700', fontSize: fontSizes.sm },
 });
