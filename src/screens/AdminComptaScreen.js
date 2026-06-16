@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
@@ -20,6 +21,8 @@ import ConfirmModal from '../components/ConfirmModal';
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
 export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 700;
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -230,34 +233,12 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Comptabilité {fixedComptaType === 'surgele' ? 'Surgelé' : 'Frais'}</Text>
-          <Text style={styles.subtitle}>Bilan par livreur et par mois</Text>
-        </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}>
-          <TouchableOpacity
-            style={[styles.excelBtn, (exportingExcel || loading) && { opacity: 0.5 }]}
-            onPress={handleExportExcel}
-            disabled={exportingExcel || loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.excelBtnText}>
-              {exportingExcel ? '...' : 'Excel'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.sageBtn, (exportingSage || loading) && { opacity: 0.5 }]}
-            onPress={handleExportSage}
-            disabled={exportingSage || loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.excelBtnText}>
-              {exportingSage ? '...' : 'Sage 50'}
-            </Text>
-          </TouchableOpacity>
+      <View style={[styles.header, isMobile && styles.headerMobile]}>
+        <View style={[styles.headerRow1, isMobile && styles.headerRow1Mobile]}>
+          <View>
+            <Text style={styles.title}>Comptabilité {fixedComptaType === 'surgele' ? 'Surgelé' : 'Frais'}</Text>
+            {!isMobile && <Text style={styles.subtitle}>Bilan par livreur et par mois</Text>}
+          </View>
 
           <View style={styles.datePicker}>
             <TouchableOpacity style={styles.dateBtn} onPress={handlePrevMonth}>
@@ -270,6 +251,30 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
               <Text style={styles.dateBtnText}>▶</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.headerRow2}>
+          <TouchableOpacity
+            style={[styles.excelBtn, (exportingExcel || loading) && { opacity: 0.5 }, isMobile && styles.btnFlex]}
+            onPress={handleExportExcel}
+            disabled={exportingExcel || loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.excelBtnText}>
+              {exportingExcel ? '...' : 'Excel'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.sageBtn, (exportingSage || loading) && { opacity: 0.5 }, isMobile && styles.btnFlex]}
+            onPress={handleExportSage}
+            disabled={exportingSage || loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.excelBtnText}>
+              {exportingSage ? '...' : 'Sage 50'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -737,6 +742,30 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     flexWrap: 'wrap',
     gap: spacing.md,
+  },
+  headerMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: spacing.sm,
+  },
+  headerRow1: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerRow1Mobile: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerRow2: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  btnFlex: {
+    flex: 1,
+    alignItems: 'center',
   },
   title: {
     fontSize: fontSizes.xl,
