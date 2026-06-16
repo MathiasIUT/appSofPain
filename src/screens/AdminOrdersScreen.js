@@ -198,7 +198,7 @@ export default function AdminOrdersScreen() {
   return (
     <View style={styles.container}>
 
-      {/* â”€â”€ Barre du haut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Barre du haut */}
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.screenTitle}>Commandes</Text>
@@ -213,12 +213,12 @@ export default function AdminOrdersScreen() {
             <Text style={styles.takeOrderBtnText}>+ Prendre commande</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
-            <Text style={styles.refreshText}>â†» Actualiser</Text>
+            <Text style={styles.refreshText}>↻ Actualiser</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* â”€â”€ Barre d'actions en masse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Barre d'actions en masse */}
       {selectedIds.size > 0 && (
         <View style={styles.bulkActionBar}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
@@ -250,7 +250,7 @@ export default function AdminOrdersScreen() {
         </View>
       )}
 
-      {/*  Liste des commandes */}
+      {/* Liste des commandes */}
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -300,7 +300,7 @@ export default function AdminOrdersScreen() {
         />
       )}
 
-      {/* â”€â”€ Modal détail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Modal détail */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -323,7 +323,7 @@ export default function AdminOrdersScreen() {
         </View>
       </Modal>
 
-      {/* â”€â”€ Modal prise de commande admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Modal prise de commande admin */}
       <TakeOrderModal
         visible={takeOrderVisible}
         onClose={() => setTakeOrderVisible(false)}
@@ -670,7 +670,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   return (
     <View style={modal.container}>
 
-      {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Header */}
       <View style={modal.header}>
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -702,10 +702,10 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         </View>
       </View>
 
-      {/* â”€â”€ Body : 2 colonnes sur desktop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Body : 2 colonnes sur desktop */}
       <View style={[modal.body, isDesktop && { flexDirection: 'row', height: bodyHeight }]}>
 
-        {/* â”€â”€ Colonne gauche : infos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* Colonne gauche : infos */}
         <ScrollView
           style={[modal.leftCol, isDesktop && modal.leftColDesktop]}
           contentContainerStyle={modal.leftColContent}
@@ -833,7 +833,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                             style={modal.qtyBtn}
                             activeOpacity={0.7}
                           >
-                            <Text style={modal.qtyBtnText}>âˆ’</Text>
+                            <Text style={modal.qtyBtnText}>−</Text>
                           </TouchableOpacity>
                           <TextInput
                             style={modal.qtyInput}
@@ -928,7 +928,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
             />
           ) : null}
 
-          {/* ── Section Surgelé (admin) ────────────────────── */}
+          {/*Section Surgelé (admin)*/}
           {order.type_commande === 'surgele' && (
             <View style={[modal.section, { marginTop: spacing.md }]}>
               <Text style={modal.sectionTitle}>Gestion surgelé</Text>
@@ -1055,7 +1055,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           <View style={{ height: spacing.xl }} />
         </ScrollView>
 
-        {/* â”€â”€ Colonne droite : aperçu PDF (desktop web only) â”€â”€ */}
+        {/* Colonne droite : aperçu PDF (desktop web only) */}
         {isDesktop && Platform.OS === 'web' && (
           <View style={modal.rightCol}>
             <View style={modal.previewHeader}>
@@ -1644,7 +1644,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               {step === 'products' && (
                 <TouchableOpacity onPress={() => setStep('client')} style={to.backBtn} activeOpacity={0.7}>
-                  <Text style={to.backText}>â†</Text>
+                  <Text style={to.backText}>←</Text>
                 </TouchableOpacity>
               )}
               <View>
@@ -1664,7 +1664,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               <ActivityIndicator color={colors.primary} size="large" />
             </View>
           ) : step === 'client' ? (
-            /* â”€â”€ Étape 1 : choix du client â”€â”€ */
+            /*  Étape 1 : choix du client  */
             <>
               <View style={to.searchBar}>
                 <TextInput
@@ -1705,7 +1705,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               />
             </>
           ) : (
-            /* â”€â”€ Étape 2 : sélection produits â”€â”€ */
+            /*  Étape 2 : sélection produits  */
             <>
               {/* Tabs Frais / Surgelé */}
               <View style={{ flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
@@ -1745,7 +1745,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                           disabled={qty === 0}
                           activeOpacity={0.7}
                         >
-                          <Text style={to.stepBtnText}>âˆ’</Text>
+                          <Text style={to.stepBtnText}>−</Text>
                         </TouchableOpacity>
                         <TextInput
                           style={[to.stepQty, to.stepQtyInput, qty > 0 && to.stepQtyActive]}
@@ -1782,7 +1782,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   );
                 }}
                 ListFooterComponent={
-                  /* â”€â”€ Lignes manuelles â”€â”€ */
+                  /*  Lignes manuelles  */
                   <View style={to.manualSection}>
                     <View style={to.manualHeader}>
                       <Text style={to.manualTitle}>Saisie manuelle</Text>
