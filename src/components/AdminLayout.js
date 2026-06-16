@@ -18,8 +18,8 @@ const SECTIONS = [
   { key: 'orders', label: 'Commandes' },
   { key: 'clients', label: 'Clients' },
   { key: 'logistique', label: 'Logistique' },
-  { key: 'compta_frais', label: 'ComptabilitÃ© Frais' },
-  { key: 'compta_surgele', label: 'ComptabilitÃ© SurgelÃ©' },
+  { key: 'compta_frais', label: 'Comptabilité Frais' },
+  { key: 'compta_surgele', label: 'Comptabilité Surgelé' },
 ];
 
 export default function AdminLayout({
@@ -93,7 +93,7 @@ export default function AdminLayout({
 
             <View style={styles.sidebarFooter}>
               <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutText}>DÃ©connexion</Text>
+                <Text style={styles.logoutText}>Déconnexion</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -110,7 +110,7 @@ export default function AdminLayout({
                 resizeMode="contain"
               />
               <TouchableOpacity onPress={handleLogout} style={styles.mobileLogout}>
-                <Text style={styles.mobileLogoutText}>DÃ©connexion</Text>
+                <Text style={styles.mobileLogoutText}>Déconnexion</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   layoutDesktop: {
     flexDirection: 'row',
-  },
+  },
   sidebar: {
     width: 300,
     backgroundColor: colors.sidebarBg,
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(240,217,196,0.15)',
     marginBottom: spacing.lg,
-  },
+  },
   logo: {
     width: 250,
     height: 250,
@@ -232,13 +232,13 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.sidebarMuted,
     fontWeight: '500',
-  },
+  },
   content: {
     flex: 1,
   },
   childrenContainer: {
     flex: 1,
-  },
+  },
   mobileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     backgroundColor: colors.sidebarBg,
     borderBottomWidth: 0,
-  },
+  },
   mobileLogo: {
     width: 56,
     height: 56,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.sidebarText,
     fontWeight: '500',
-  },
+  },
   tabBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
