@@ -144,7 +144,7 @@ export default function AdminOrdersScreen() {
           const livreurName = o.livreur
             ? `tournée de ${[o.livreur.prenom, o.livreur.nom].filter(Boolean).join(' ')}`
             : 'non assignée à un livreur';
-          return `"¢ NÂ° ${o.numero} (${livreurName})`;
+          return `"¢ N° ${o.numero} (${livreurName})`;
         }).join('\n');
         msg += `\n\nATTENTION : ${nonTraite.length} commande(s) pas encore traitée(s) :\n${list}\n\nSupprimez quand même ?`;
       }
@@ -357,7 +357,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
         activeOpacity={0.75}
       >
         <View style={styles.rowCol}>
-          <Text style={styles.rowNum}>{`NÂ° ${item.numero}`}</Text>
+          <Text style={styles.rowNum}>{`N° ${item.numero}`}</Text>
           <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
           {item.type_commande === 'surgele' ? (
             <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
@@ -674,7 +674,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       <View style={modal.header}>
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={modal.headerNum}>{`NÂ° ${order.numero}`}</Text>
+            <Text style={modal.headerNum}>{`N° ${order.numero}`}</Text>
             {order.type_commande === 'surgele' ? (
               <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
                 <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>

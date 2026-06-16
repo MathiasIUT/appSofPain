@@ -818,11 +818,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   dateLabelWrap: {
-    minWidth: 140,
+    minWidth: 90,
     alignItems: 'center',
   },
   dateLabel: {
-    fontSize: fontSizes.md,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textPrimary,
   },
