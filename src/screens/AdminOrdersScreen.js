@@ -388,7 +388,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
 
 
         <View style={[styles.rowCol, styles.rowColRight]}>
-          <Text style={styles.rowTotal}>{`${n2(item.total_ht)} â‚¬`}</Text>
+          <Text style={styles.rowTotal}>{`${n2(item.total_ht)} €`}</Text>
           <Text style={styles.rowTotalLabel}>HT</Text>
         </View>
 
@@ -854,16 +854,16 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                         <Text style={[modal.td, modal.right, { flex: 1.2 }]}>{it.quantite}</Text>
                       )}
                       {!editingQty && (
-                        <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} â‚¬`}</Text>
+                        <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} €`}</Text>
                       )}
                       <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }, isDeleted && modal.tdStrike]}>
-                        {isDeleted ? '"”' : `${n2(subTotal)} â‚¬`}
+                        {isDeleted ? '"”' : `${n2(subTotal)} €`}
                       </Text>
                     </View>
                   );
                 })}
                 <View style={modal.totals}>
-                  <TotalLine label="Total HT" value={`${n2(localTotalHt)} â‚¬`} />
+                  <TotalLine label="Total HT" value={`${n2(localTotalHt)} €`} />
                 </View>
 
                 {/* Boutons confirmation édition */}
@@ -1684,7 +1684,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                     [c.prenom, c.nom].filter(Boolean).join(' ') ||
                     c.email ||
                     '"”';
-                  const sub = [c.email, c.ville].filter(Boolean).join(' Â· ');
+                  const sub = [c.email, c.ville].filter(Boolean).join(' · ');
                   return (
                     <TouchableOpacity
                       style={to.clientRow}
@@ -1733,7 +1733,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                     <View style={[to.productRow, qty > 0 && to.productRowActive]}>
                       <View style={{ flex: 1 }}>
                         <Text style={to.productName}>{p.nom}</Text>
-                        <Text style={to.productPrice}>{`${n2(prix)} â‚¬/u HT`}</Text>
+                        <Text style={to.productPrice}>{`${n2(prix)} €/u HT`}</Text>
                       </View>
                       <View style={to.stepper}>
                         <TouchableOpacity
@@ -1827,7 +1827,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                 <View style={{ flex: 1 }}>
                   <Text style={to.footerInfo}>
                     {allOrderLines.length > 0
-                      ? `${allOrderLines.length} ligne${allOrderLines.length > 1 ? 's' : ''} Â· ${n2(totalHt)} â‚¬ HT`
+                      ? `${allOrderLines.length} ligne${allOrderLines.length > 1 ? 's' : ''} · ${n2(totalHt)} € HT`
                       : 'Aucun produit sélectionné'}
                   </Text>
                 </View>
