@@ -42,3 +42,6 @@ yarn-error.*
 superpowers/
 .remember/
 CLAUDE.md
+
+# Notes locales
+docs/SAGE50_SETUP.md
