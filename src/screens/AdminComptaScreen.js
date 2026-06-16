@@ -235,12 +235,12 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
     <View style={styles.container}>
       <View style={[styles.header, isMobile && styles.headerMobile]}>
         <View style={[styles.headerRow1, isMobile && styles.headerRow1Mobile]}>
-          <View>
-            <Text style={styles.title}>Comptabilité {fixedComptaType === 'surgele' ? 'Surgelé' : 'Frais'}</Text>
+          <View style={isMobile && { flexShrink: 1 }}>
+            <Text style={styles.title} numberOfLines={1}>Comptabilité {fixedComptaType === 'surgele' ? 'Surgelé' : 'Frais'}</Text>
             {!isMobile && <Text style={styles.subtitle}>Bilan par livreur et par mois</Text>}
           </View>
 
-          <View style={styles.datePicker}>
+          <View style={[styles.datePicker, isMobile && { flexShrink: 0 }]}>
             <TouchableOpacity style={styles.dateBtn} onPress={handlePrevMonth}>
               <Text style={styles.dateBtnText}>◀</Text>
             </TouchableOpacity>
@@ -255,7 +255,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
 
         <View style={styles.headerRow2}>
           <TouchableOpacity
-            style={[styles.excelBtn, (exportingExcel || loading) && { opacity: 0.5 }, isMobile && styles.btnFlex]}
+            style={[styles.excelBtn, (exportingExcel || loading) && { opacity: 0.5 }]}
             onPress={handleExportExcel}
             disabled={exportingExcel || loading}
             activeOpacity={0.8}
@@ -266,7 +266,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.sageBtn, (exportingSage || loading) && { opacity: 0.5 }, isMobile && styles.btnFlex]}
+            style={[styles.sageBtn, (exportingSage || loading) && { opacity: 0.5 }]}
             onPress={handleExportSage}
             disabled={exportingSage || loading}
             activeOpacity={0.8}
@@ -758,6 +758,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.sm,
   },
   headerRow2: {
     flexDirection: 'row',
