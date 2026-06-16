@@ -19,7 +19,7 @@ import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 import { exportOrdersExcel } from '../utils/exportExcel';
 const fmt = (d) =>
-  d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'â€”';
+  d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '"”';
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
 const showAlert = (title, msg) => {
@@ -119,7 +119,7 @@ export default function AdminOrdersScreen() {
         .select('id');
       if (data) setSelectedIds(new Set(data.map((o) => o.id)));
     } catch (err) {
-      console.error('Erreur sÃ©lection totale :', err);
+      console.error('Erreur sélection totale :', err);
     } finally {
       setSelectingAll(false);
     }
@@ -137,23 +137,23 @@ export default function AdminOrdersScreen() {
         .in('id', ids)
         .neq('statut', 'traite');
 
-      let msg = `Vous allez supprimer dÃ©finitivement ${ids.length} commande(s).\nCette action est irrÃ©versible et les donnÃ©es seront perdues, faites un export au prÃ©alable si vous souhaitez garder ces donnÃ©es.`;
+      let msg = `Vous allez supprimer définitivement ${ids.length} commande(s).\nCette action est irréversible et les données seront perdues, faites un export au préalable si vous souhaitez garder ces données.`;
 
       if (nonTraite?.length > 0) {
         const list = nonTraite.map((o) => {
           const livreurName = o.livreur
-            ? `tournÃ©e de ${[o.livreur.prenom, o.livreur.nom].filter(Boolean).join(' ')}`
-            : 'non assignÃ©e Ã  un livreur';
-          return `â€¢ NÂ° ${o.numero} (${livreurName})`;
+            ? `tournée de ${[o.livreur.prenom, o.livreur.nom].filter(Boolean).join(' ')}`
+            : 'non assignée à un livreur';
+          return `"¢ NÂ° ${o.numero} (${livreurName})`;
         }).join('\n');
-        msg += `\n\nATTENTION : ${nonTraite.length} commande(s) pas encore traitÃ©e(s) :\n${list}\n\nSupprimez quand mÃªme ?`;
+        msg += `\n\nATTENTION : ${nonTraite.length} commande(s) pas encore traitée(s) :\n${list}\n\nSupprimez quand même ?`;
       }
 
       const confirmed = await new Promise((resolve) => {
         if (Platform.OS === 'web') {
           resolve(window.confirm(msg));
         } else {
-          Alert.alert('Supprimer dÃ©finitivement', msg, [
+          Alert.alert('Supprimer définitivement', msg, [
             { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
             { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) },
           ]);
@@ -224,10 +224,10 @@ export default function AdminOrdersScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             <TouchableOpacity onPress={selectAll} style={styles.selectAllBtn} disabled={selectingAll}>
               <Text style={styles.selectAllBtnText}>
-                {selectingAll ? 'Chargement...' : selectedIds.size === totalCount ? 'Tout dÃ©sÃ©lectionner' : `Tout sÃ©lectionner (${totalCount})`}
+                {selectingAll ? 'Chargement...' : selectedIds.size === totalCount ? 'Tout désélectionner' : `Tout sélectionner (${totalCount})`}
               </Text>
             </TouchableOpacity>
-            <Text style={styles.bulkActionText}>{selectedIds.size} sÃ©lectionnÃ©e(s)</Text>
+            <Text style={styles.bulkActionText}>{selectedIds.size} sélectionnée(s)</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <Button
@@ -239,7 +239,7 @@ export default function AdminOrdersScreen() {
               disabled={bulkActionLoading}
             />
             <Button
-              title="Supprimer dÃ©finitivement"
+              title="Supprimer définitivement"
               variant="danger"
               size="sm"
               onPress={handleBulkDelete}
@@ -300,7 +300,7 @@ export default function AdminOrdersScreen() {
         />
       )}
 
-      {/* â”€â”€ Modal dÃ©tail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* â”€â”€ Modal détail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -336,7 +336,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
   const clientName = item.client?.nom_societe
     || [item.client?.prenom, item.client?.nom].filter(Boolean).join(' ')
     || item.client_nom
-    || 'â€” Client supprimÃ© â€”';
+    || '"” Client supprimé "”';
 
   const orderDate = new Date(item.date_commande);
   const diffDays = Math.floor((new Date() - orderDate) / (1000 * 60 * 60 * 24));
@@ -348,7 +348,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
     <View style={styles.rowWrapper}>
       <TouchableOpacity onPress={onToggle} style={styles.checkboxContainer}>
         <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-          {selected && <Text style={styles.checkmark}>âœ“</Text>}
+          {selected && <Text style={styles.checkmark}>✓</Text>}
         </View>
       </TouchableOpacity>
       <TouchableOpacity
@@ -361,7 +361,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
           <Text style={styles.rowDate}>{fmt(item.date_commande)}</Text>
           {item.type_commande === 'surgele' ? (
             <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
-              <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>SurgelÃ©</Text>
+              <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
             </View>
           ) : (
             <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4, alignSelf: 'flex-start', marginTop: 4 }}>
@@ -394,7 +394,7 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
 
 
 
-        <Text style={styles.arrow}>â€º</Text>
+        <Text style={styles.arrow}>"º</Text>
       </TouchableOpacity>
     </View>
   );
@@ -414,7 +414,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const [draftQty, setDraftQty] = useState({});
   const [savingItems, setSavingItems] = useState(false);
   const [localTotalHt, setLocalTotalHt] = useState(Number(order.total_ht || 0));
-  // SurgelÃ© : date de livraison assignÃ©e par l'admin
+  // Surgelé : date de livraison assignée par l'admin
   const [dateLivraisonAdmin, setDateLivraisonAdmin] = useState(
     order.date_livraison_souhaitee
       ? new Date(order.date_livraison_souhaitee).toISOString().split('T')[0]
@@ -440,7 +440,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         setLivreurs(livRes.data || []);
         const clientData = order.client || {
           nom_societe: order.client_nom || 'Client inconnu',
-          telephone: order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim() || ''
+          telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
         };
         setPreviewHtml(buildOrderHtml(order, fetched, clientData));
       } catch (err) {
@@ -534,16 +534,16 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       onUpdated({ ...updatedOrder });
       const clientData = order.client || {
         nom_societe: order.client_nom || 'Client inconnu',
-        telephone: order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim() || ''
+        telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
       };
       setPreviewHtml(buildOrderHtml({ ...order, total_ht: newTotalHtRounded }, updatedItems, clientData));
 
       setEditingQty(false);
       setDraftQty({});
-      showAlert('SuccÃ¨s', 'Les quantitÃ©s ont Ã©tÃ© mises Ã  jour.');
+      showAlert('Succès', 'Les quantités ont été mises à jour.');
     } catch (err) {
-      console.error('Erreur mise Ã  jour quantitÃ©s :', err);
-      showAlert('Erreur', 'Impossible de modifier les quantitÃ©s.');
+      console.error('Erreur mise à jour quantités :', err);
+      showAlert('Erreur', 'Impossible de modifier les quantités.');
     } finally {
       setSavingItems(false);
     }
@@ -560,16 +560,16 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         .single();
       if (error) throw error;
       onUpdated(data);
-      showAlert('SuccÃ¨s', 'Commande mise Ã  jour.');
+      showAlert('Succès', 'Commande mise à jour.');
     } catch (err) {
-      console.error('Erreur mise Ã  jour commande :', err);
-      showAlert('Erreur', 'Impossible de mettre Ã  jour la commande.');
+      console.error('Erreur mise à jour commande :', err);
+      showAlert('Erreur', 'Impossible de mettre à jour la commande.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Actions spÃ©cifiques commandes surgelÃ©es
+  // Actions spécifiques commandes surgelées
   const handleValiderSurgele = async () => {
     if (order.statut !== 'nouvelle') return;
     setSavingSurgele(true);
@@ -585,9 +585,9 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       if (error) throw error;
       setStatut('en_preparation');
       onUpdated(data);
-      showAlert('SuccÃ¨s', 'Commande passÃ©e en prÃ©paration.');
+      showAlert('Succès', 'Commande passée en préparation.');
     } catch (err) {
-      console.error('Erreur validation surgelÃ© :', err);
+      console.error('Erreur validation surgelé :', err);
       showAlert('Erreur', 'Impossible de valider la commande.');
     } finally {
       setSavingSurgele(false);
@@ -609,9 +609,9 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
         .single();
       if (error) throw error;
       onUpdated(data);
-      showAlert('SuccÃ¨s', 'Date de livraison enregistrÃ©e.');
+      showAlert('Succès', 'Date de livraison enregistrée.');
     } catch (err) {
-      console.error('Erreur assignation date surgelÃ© :', err);
+      console.error('Erreur assignation date surgelé :', err);
       showAlert('Erreur', 'Impossible d\'enregistrer la date.');
     } finally {
       setSavingSurgele(false);
@@ -630,10 +630,10 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       if (error) throw error;
       setStatut('livree');
       onUpdated(data);
-      showAlert('SuccÃ¨s', 'Commande marquÃ©e comme livrÃ©e.');
+      showAlert('Succès', 'Commande marquée comme livrée.');
     } catch (err) {
-      console.error('Erreur livraison surgelÃ© :', err);
-      showAlert('Erreur', 'Impossible de marquer la commande comme livrÃ©e.');
+      console.error('Erreur livraison surgelé :', err);
+      showAlert('Erreur', 'Impossible de marquer la commande comme livrée.');
     } finally {
       setSavingSurgele(false);
     }
@@ -642,7 +642,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const handlePdf = async () => {
     const clientData = order.client || {
       nom_societe: order.client_nom || 'Client inconnu',
-      telephone: order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim() || ''
+      telephone: order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim() || ''
     };
 
     setPdfLoading(true);
@@ -650,7 +650,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       await generateOrderPdf(order, items, clientData);
     } catch (err) {
       console.error('Erreur PDF :', err);
-      showAlert('Erreur', 'Impossible de gÃ©nÃ©rer le bon de commande.');
+      showAlert('Erreur', 'Impossible de générer le bon de commande.');
     } finally {
       setPdfLoading(false);
     }
@@ -659,10 +659,10 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const clientName = order.client?.nom_societe
     || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
     || order.client_nom
-    || 'â€” Client supprimÃ© â€”';
+    || '"” Client supprimé "”';
   const telephone = order.client?.telephone
-    || (order.adresse_livraison?.match(/TÃ©l\s*:\s*(.+)/)?.[1]?.trim())
-    || 'â€”';
+    || (order.adresse_livraison?.match(/Tél\s*:\s*(.+)/)?.[1]?.trim())
+    || '"”';
 
   const changed = statut !== order.statut || notesAdmin !== (order.notes_admin || '') || selectedLivreur !== (order.livreur_id || null);
   const bodyHeight = Math.min(height * 0.88, 820) - 64;
@@ -677,7 +677,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
             <Text style={modal.headerNum}>{`NÂ° ${order.numero}`}</Text>
             {order.type_commande === 'surgele' ? (
               <View style={{ backgroundColor: '#E3F2FD', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
-                <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>SurgelÃ©</Text>
+                <Text style={{ color: '#1565C0', fontSize: 10, fontWeight: '700' }}>Surgelé</Text>
               </View>
             ) : (
               <View style={{ backgroundColor: '#E8F5E9', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 }}>
@@ -685,7 +685,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               </View>
             )}
           </View>
-          <Text style={modal.headerDate}>PassÃ©e le {fmt(order.date_commande)}</Text>
+          <Text style={modal.headerDate}>Passée le {fmt(order.date_commande)}</Text>
         </View>
         <View style={modal.headerRight}>
           <Button
@@ -697,7 +697,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
             disabled={pdfLoading}
           />
           <TouchableOpacity onPress={onClose} style={modal.closeBtn} activeOpacity={0.7}>
-            <Text style={modal.closeText}>âœ•</Text>
+            <Text style={modal.closeText}>✕</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -715,12 +715,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           <View style={modal.section}>
             <Text style={modal.sectionTitle}>Client</Text>
             <View style={modal.infoGrid}>
-              <InfoItem label="SociÃ©tÃ©" value={order.client?.nom_societe || 'â€”'} />
+              <InfoItem label="Société" value={order.client?.nom_societe || '"”'} />
               <InfoItem label="Contact" value={clientName} />
-              <InfoItem label="Email" value={order.client?.email || 'â€”'} />
-              <InfoItem label="TÃ©lÃ©phone" value={telephone} />
+              <InfoItem label="Email" value={order.client?.email || '"”'} />
+              <InfoItem label="Téléphone" value={telephone} />
               {order.date_livraison_souhaitee ? (
-                <InfoItem label="Date livraison souhaitÃ©e" value={fmt(order.date_livraison_souhaitee)} />
+                <InfoItem label="Date livraison souhaitée" value={fmt(order.date_livraison_souhaitee)} />
               ) : null}
             </View>
           </View>
@@ -734,12 +734,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               </View>
             ) : null}
             <Text style={[modal.sectionTitle, { marginTop: spacing.md }]}>
-              Livreur assignÃ© ({order.type_commande === 'surgele' ? 'SurgelÃ©' : 'Frais'})
+              Livreur assigné ({order.type_commande === 'surgele' ? 'Surgelé' : 'Frais'})
             </Text>
             {!selectedLivreur && (
               <View style={{ backgroundColor: colors.error + '18', borderWidth: 1, borderColor: colors.error + '55', borderRadius: 8, padding: spacing.sm, marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={{ flex: 1, fontSize: 12, color: colors.error, fontWeight: '600' }}>
-                  Aucun livreur assignÃ© â€” cette commande n'apparaÃ®t chez aucun livreur en logistique. SÃ©lectionnez un livreur ci-dessous et sauvegardez.
+                  Aucun livreur assigné "” cette commande n'apparaît chez aucun livreur en logistique. Sélectionnez un livreur ci-dessous et sauvegardez.
                 </Text>
               </View>
             )}
@@ -773,7 +773,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                       isDefault && selectedLivreur !== l.id && { color: order.type_commande === 'surgele' ? '#1565C0' : '#2E7D32', fontWeight: 'bold' }
                     ]}>
                       {[l.prenom, l.nom].filter(Boolean).join(' ') || 'Livreur'}
-                      {isDefault ? ' (DÃ©faut)' : ''}
+                      {isDefault ? ' (Défaut)' : ''}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -784,14 +784,14 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           {/* Produits */}
           <View style={modal.section}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-              <Text style={[modal.sectionTitle, { marginBottom: 0, paddingBottom: 0, borderBottomWidth: 0 }]}>Produits commandÃ©s</Text>
+              <Text style={[modal.sectionTitle, { marginBottom: 0, paddingBottom: 0, borderBottomWidth: 0 }]}>Produits commandés</Text>
               {!loadingItems && !editingQty && (
                 <TouchableOpacity
                   onPress={startEditQty}
                   style={modal.editQtyBtn}
                   activeOpacity={0.7}
                 >
-                  <Text style={modal.editQtyBtnText}>Modifier les quantitÃ©s</Text>
+                  <Text style={modal.editQtyBtnText}>Modifier les quantités</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -801,7 +801,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               <>
                 <View style={modal.tableHead}>
                   <Text style={[modal.th, { flex: 3 }]}>Produit</Text>
-                  <Text style={[modal.th, modal.right, { flex: editingQty ? 2 : 1.2 }]}>QtÃ©</Text>
+                  <Text style={[modal.th, modal.right, { flex: editingQty ? 2 : 1.2 }]}>Qté</Text>
                   {!editingQty && <Text style={[modal.th, modal.right, { flex: 1.5 }]}>PU HT</Text>}
                   <Text style={[modal.th, modal.right, { flex: 1.8 }]}>ST HT</Text>
                 </View>
@@ -857,7 +857,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                         <Text style={[modal.td, modal.right, { flex: 1.5 }]}>{`${n2(it.prix_unitaire_ht)} â‚¬`}</Text>
                       )}
                       <Text style={[modal.td, modal.right, modal.bold, { flex: 1.8 }, isDeleted && modal.tdStrike]}>
-                        {isDeleted ? 'â€”' : `${n2(subTotal)} â‚¬`}
+                        {isDeleted ? '"”' : `${n2(subTotal)} â‚¬`}
                       </Text>
                     </View>
                   );
@@ -866,7 +866,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                   <TotalLine label="Total HT" value={`${n2(localTotalHt)} â‚¬`} />
                 </View>
 
-                {/* Boutons confirmation Ã©dition */}
+                {/* Boutons confirmation édition */}
                 {editingQty && (
                   <View style={modal.editQtyActions}>
                     <TouchableOpacity
@@ -885,7 +885,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                     >
                       {savingItems
                         ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={modal.editQtySaveText}>âœ“ Valider les quantitÃ©s</Text>}
+                        : <Text style={modal.editQtySaveText}>✓ Valider les quantités</Text>}
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1055,11 +1055,11 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
           <View style={{ height: spacing.xl }} />
         </ScrollView>
 
-        {/* â”€â”€ Colonne droite : aperÃ§u PDF (desktop web only) â”€â”€ */}
+        {/* â”€â”€ Colonne droite : aperçu PDF (desktop web only) â”€â”€ */}
         {isDesktop && Platform.OS === 'web' && (
           <View style={modal.rightCol}>
             <View style={modal.previewHeader}>
-              <Text style={modal.sectionTitle}>AperÃ§u bon de commande</Text>
+              <Text style={modal.sectionTitle}>Aperçu bon de commande</Text>
             </View>
             <View style={modal.iframeWrap}>
               {previewHtml
@@ -1072,12 +1072,12 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                     borderRadius: 8,
                     backgroundColor: '#fff',
                   },
-                  title: 'AperÃ§u bon de commande',
+                  title: 'Aperçu bon de commande',
                 })
                 : (
                   <View style={modal.previewLoading}>
                     <ActivityIndicator color={colors.primary} />
-                    <Text style={modal.previewLoadingText}>GÃ©nÃ©ration de l'aperÃ§u...</Text>
+                    <Text style={modal.previewLoadingText}>Génération de l'aperçu...</Text>
                   </View>
                 )
               }
@@ -1559,7 +1559,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
 
   const handleSubmit = async () => {
     if (allOrderLines.length === 0) {
-      showAlert('Attention', 'Veuillez sÃ©lectionner au moins un produit.');
+      showAlert('Attention', 'Veuillez sélectionner au moins un produit.');
       return;
     }
     setSubmitting(true);
@@ -1615,12 +1615,12 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
 
       if (itemsError) throw itemsError;
 
-      showAlert('Commande crÃ©Ã©e', 'La commande a Ã©tÃ© crÃ©Ã©e avec succÃ¨s.');
+      showAlert('Commande créée', 'La commande a été créée avec succès.');
       onOrderCreated();
       onClose();
     } catch (err) {
-      console.error('Erreur crÃ©ation commande admin :', err);
-      showAlert('Erreur', 'Impossible de crÃ©er la commande.');
+      console.error('Erreur création commande admin :', err);
+      showAlert('Erreur', 'Impossible de créer la commande.');
     } finally {
       setSubmitting(false);
     }
@@ -1652,7 +1652,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={to.closeBtn} activeOpacity={0.7}>
-              <Text style={to.closeText}>âœ•</Text>
+              <Text style={to.closeText}>✕</Text>
             </TouchableOpacity>
           </View>
 
@@ -1661,7 +1661,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               <ActivityIndicator color={colors.primary} size="large" />
             </View>
           ) : step === 'client' ? (
-            /* â”€â”€ Ã‰tape 1 : choix du client â”€â”€ */
+            /* â”€â”€ Étape 1 : choix du client â”€â”€ */
             <>
               <View style={to.searchBar}>
                 <TextInput
@@ -1677,13 +1677,13 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                 keyExtractor={(c) => c.id}
                 contentContainerStyle={to.listContent}
                 ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
-                ListEmptyComponent={<Text style={to.emptyText}>Aucun client trouvÃ©.</Text>}
+                ListEmptyComponent={<Text style={to.emptyText}>Aucun client trouvé.</Text>}
                 renderItem={({ item: c }) => {
                   const name =
                     c.nom_societe ||
                     [c.prenom, c.nom].filter(Boolean).join(' ') ||
                     c.email ||
-                    'â€”';
+                    '"”';
                   const sub = [c.email, c.ville].filter(Boolean).join(' Â· ');
                   return (
                     <TouchableOpacity
@@ -1695,16 +1695,16 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                         <Text style={to.clientName}>{name}</Text>
                         {sub ? <Text style={to.clientSub} numberOfLines={1}>{sub}</Text> : null}
                       </View>
-                      <Text style={to.chevron}>â€º</Text>
+                      <Text style={to.chevron}>"º</Text>
                     </TouchableOpacity>
                   );
                 }}
               />
             </>
           ) : (
-            /* â”€â”€ Ã‰tape 2 : sÃ©lection produits â”€â”€ */
+            /* â”€â”€ Étape 2 : sélection produits â”€â”€ */
             <>
-              {/* Tabs Frais / SurgelÃ© */}
+              {/* Tabs Frais / Surgelé */}
               <View style={{ flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                 <TouchableOpacity 
                   style={[{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 4 }, orderType === 'frais' && { backgroundColor: '#E8F5E9' }]}
@@ -1716,7 +1716,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   style={[{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 4 }, orderType === 'surgele' && { backgroundColor: '#E3F2FD' }]}
                   onPress={() => setOrderType('surgele')}
                 >
-                  <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, orderType === 'surgele' && { color: '#1565C0' }]}>SurgelÃ©</Text>
+                  <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, orderType === 'surgele' && { color: '#1565C0' }]}>Surgelé</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1791,14 +1791,14 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                       <View key={l.id} style={to.manualRow}>
                         <TextInput
                           style={[to.manualInput, { flex: 1 }]}
-                          placeholder="LibellÃ©"
+                          placeholder="Libellé"
                           placeholderTextColor={colors.textLight}
                           value={l.nom}
                           onChangeText={v => updateManualLine(l.id, 'nom', v)}
                         />
                         <TextInput
                           style={[to.manualInput, { width: 48 }]}
-                          placeholder="QtÃ©"
+                          placeholder="Qté"
                           placeholderTextColor={colors.textLight}
                           value={l.quantite}
                           onChangeText={v => updateManualLine(l.id, 'quantite', v.replace(/[^0-9]/g, ''))}
@@ -1814,7 +1814,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                           keyboardType="numeric"
                         />
                         <TouchableOpacity onPress={() => removeManualLine(l.id)} style={to.removeLineBtn} activeOpacity={0.7}>
-                          <Text style={to.removeLineBtnText}>âœ•</Text>
+                          <Text style={to.removeLineBtnText}>✕</Text>
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -1828,7 +1828,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   <Text style={to.footerInfo}>
                     {allOrderLines.length > 0
                       ? `${allOrderLines.length} ligne${allOrderLines.length > 1 ? 's' : ''} Â· ${n2(totalHt)} â‚¬ HT`
-                      : 'Aucun produit sÃ©lectionnÃ©'}
+                      : 'Aucun produit sélectionné'}
                   </Text>
                 </View>
                 <TouchableOpacity

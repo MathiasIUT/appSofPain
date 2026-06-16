@@ -234,13 +234,33 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
   return (
     <View style={styles.container}>
       <View style={[styles.header, isMobile && styles.headerMobile]}>
-        <View style={[styles.headerRow1, isMobile && styles.headerRow1Mobile]}>
-          <View style={isMobile && { flexShrink: 1 }}>
-            <Text style={styles.title} numberOfLines={1}>Comptabilité {fixedComptaType === 'surgele' ? 'Surgelé' : 'Frais'}</Text>
-            {!isMobile && <Text style={styles.subtitle}>Bilan par livreur et par mois</Text>}
+        <View>
+          <Text style={styles.title}>Comptabilité {fixedComptaType === 'surgele' ? 'Surgelé' : 'Frais'}</Text>
+          {!isMobile && <Text style={styles.subtitle}>Bilan par livreur et par mois</Text>}
+        </View>
+
+        <View style={[styles.headerRow2, isMobile && styles.headerRow2Mobile]}>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <TouchableOpacity
+              style={[styles.excelBtn, (exportingExcel || loading) && { opacity: 0.5 }]}
+              onPress={handleExportExcel}
+              disabled={exportingExcel || loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.excelBtnText}>{exportingExcel ? '...' : 'Excel'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.sageBtn, (exportingSage || loading) && { opacity: 0.5 }]}
+              onPress={handleExportSage}
+              disabled={exportingSage || loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.excelBtnText}>{exportingSage ? '...' : 'Sage 50'}</Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={[styles.datePicker, isMobile && { flexShrink: 0 }]}>
+          <View style={styles.datePicker}>
             <TouchableOpacity style={styles.dateBtn} onPress={handlePrevMonth}>
               <Text style={styles.dateBtnText}>◀</Text>
             </TouchableOpacity>
@@ -251,30 +271,6 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
               <Text style={styles.dateBtnText}>▶</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.headerRow2}>
-          <TouchableOpacity
-            style={[styles.excelBtn, (exportingExcel || loading) && { opacity: 0.5 }]}
-            onPress={handleExportExcel}
-            disabled={exportingExcel || loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.excelBtnText}>
-              {exportingExcel ? '...' : 'Excel'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.sageBtn, (exportingSage || loading) && { opacity: 0.5 }]}
-            onPress={handleExportSage}
-            disabled={exportingSage || loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.excelBtnText}>
-              {exportingSage ? '...' : 'Sage 50'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -748,25 +744,13 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: spacing.sm,
   },
-  headerRow1: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flex: 1,
-  },
-  headerRow1Mobile: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   headerRow2: {
     flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  btnFlex: {
-    flex: 1,
     alignItems: 'center',
+    gap: spacing.md,
+  },
+  headerRow2Mobile: {
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: fontSizes.xl,
