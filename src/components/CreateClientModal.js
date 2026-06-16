@@ -221,7 +221,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={s.overlay}>
+      <View style={[s.overlay, isDesktop && s.overlayDesktop]}>
         <View style={[s.box, isDesktop && s.boxDesktop]}>
           {/* Header */}
           <View style={s.header}>
@@ -421,7 +421,9 @@ const s = StyleSheet.create({
   overlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
-    ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
+  },
+  overlayDesktop: {
+    justifyContent: 'center', alignItems: 'center',
   },
   box: {
     backgroundColor: colors.surface,

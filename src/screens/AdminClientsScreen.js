@@ -248,7 +248,7 @@ export default function AdminClientsScreen() {
         transparent={true}
         onRequestClose={closeModal}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, isDesktop && styles.modalOverlayDesktop]}>
           <View style={[styles.modalBox, isDesktop && styles.modalBoxDesktop]}>
             {selectedClient && (
               <ClientDetailModal
@@ -892,7 +892,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
-    ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
+  },
+  modalOverlayDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBox: {
     backgroundColor: colors.surface,

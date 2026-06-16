@@ -307,7 +307,7 @@ export default function AdminOrdersScreen() {
         transparent={true}
         onRequestClose={closeModal}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, isDesktop && styles.modalOverlayDesktop]}>
           <View style={[
             styles.modalBox,
             isDesktop && styles.modalBoxDesktop,
@@ -1250,7 +1250,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
-    ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
+  },
+  modalOverlayDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBox: {
     backgroundColor: colors.surface,
@@ -1634,7 +1637,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={to.overlay}>
+      <View style={[to.overlay, isDesktop && to.overlayDesktop]}>
         <View style={[to.box, isDesktop && to.boxDesktop]}>
           {/* Header */}
           <View style={to.header}>
@@ -1856,7 +1859,10 @@ const to = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
-    ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
+  },
+  overlayDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   box: {
     backgroundColor: colors.surface,

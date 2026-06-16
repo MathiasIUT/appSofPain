@@ -95,7 +95,7 @@ export default function AdminLogistiqueScreen() {
       <CreateLivreurModal visible={createVisible} onClose={() => setCreateVisible(false)} onCreated={load} />
 
       <Modal visible={detailVisible} animationType="slide" transparent onRequestClose={() => setDetailVisible(false)}>
-        <View style={s.modalOverlay}>
+        <View style={[s.modalOverlay, isDesktop && s.modalOverlayDesktop]}>
           <View style={[s.modalBox, isDesktop && s.modalBoxDesktop]}>
             {selected && <LivreurDetail livreur={selected} onClose={() => { setDetailVisible(false); setSelected(null); }}
               onUpdated={(updatedLivreur) => { setLivreurs(prev => prev.map(l => l.id === updatedLivreur.id ? updatedLivreur : l)); setSelected(updatedLivreur); }}
@@ -153,7 +153,7 @@ function CreateLivreurModal({ visible, onClose, onCreated }) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={s.modalOverlay}>
+      <View style={[s.modalOverlay, isDesktop && s.modalOverlayDesktop]}>
         <View style={[s.modalBox, isDesktop && s.modalBoxDesktop]}>
           <View style={s.modalHeader}>
             <Text style={s.modalHeaderTitle}>Ajouter un livreur</Text>
@@ -756,6 +756,7 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   topBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexWrap: 'wrap', gap: spacing.sm,
     paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
     backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
@@ -795,7 +796,9 @@ const s = StyleSheet.create({
   arrow: { fontSize: 20, color: colors.border, marginLeft: spacing.xs },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end',
-    ...Platform.select({ web: { justifyContent: 'center', alignItems: 'center' } }),
+  },
+  modalOverlayDesktop: {
+    justifyContent: 'center', alignItems: 'center',
   },
   modalBox: {
     backgroundColor: colors.surface, borderTopLeftRadius: borderRadius.xl,
@@ -842,13 +845,13 @@ const s = StyleSheet.create({
   orderNum: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
   orderClient: { fontSize: fontSizes.xs, color: colors.textSecondary },
   orderAddress: { fontSize: fontSizes.xs, color: colors.textLight, fontStyle: 'italic' },
-  orderAmount: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary, minWidth: 60, textAlign: 'right' },
+  orderAmount: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.primary, minWidth: 60, textAlign: 'right' },
   tourBadge: {
     width: 26, height: 26, borderRadius: 13,
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  tourBadgeText: { fontSize: fontSizes.xs, fontWeight: '800' },
+  tourBadgeText: { fontSize: fontSizes.xs, fontWeight: '800' },
   reorderBtns: { flexDirection: 'column', gap: 2, flexShrink: 0 },
   reorderBtn: {
     width: 28, height: 22, borderRadius: 4,
