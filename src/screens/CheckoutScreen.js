@@ -16,6 +16,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { useCart } from '../contexts/CartContext';
+import { DEFAULT_HORAIRES, fetchHorairesCommande, computeDateCommande, isHorsCreneau } from '../utils/orderSchedule';
 
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
@@ -45,6 +46,10 @@ export default function CheckoutScreen({ navigation }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [horaires, setHoraires] = useState(DEFAULT_HORAIRES);
+  useEffect(() => {
+    fetchHorairesCommande().then(setHoraires);
+  }, []);
   useEffect(() => {
     (async () => {
       try {
@@ -147,7 +152,7 @@ export default function CheckoutScreen({ navigation }) {
             total_ht: totals.totalHt,
             total_tva: totals.totalTva,
             total_ttc: totals.totalTtc,
-            date_commande: new Date().toISOString(), // Règle de minuit : réinitialise la date
+            date_commande: computeDateCommande(horaires), // Report auto au jour suivant après l'heure de fermeture
             type_commande: cartType || 'frais',
             date_livraison_souhaitee: dateLivraison,
           })
@@ -176,6 +181,7 @@ export default function CheckoutScreen({ navigation }) {
             client_nom: clientNom || null,
             livreur_id: livreurId,
             statut: 'nouvelle',
+            date_commande: computeDateCommande(horaires),
             adresse_livraison: adresseComplete,
             total_ht: totals.totalHt,
             total_tva: totals.totalTva,
@@ -266,6 +272,13 @@ export default function CheckoutScreen({ navigation }) {
               <View style={styles.surgeleBanner}>
                 <Text style={styles.surgeleBannerText}>
                   Commande surgelé — Livraison estimée sous 7 jours
+                </Text>
+              </View>
+            )}
+            {cartType !== 'surgele' && isHorsCreneau(horaires) && (
+              <View style={styles.horsCreneauBanner}>
+                <Text style={styles.horsCreneauBannerText}>
+                  {`Commande passée après ${horaires.fermeture}h — elle sera prise en compte pour le jour suivant.`}
                 </Text>
               </View>
             )}
@@ -450,6 +463,20 @@ const styles = StyleSheet.create({
   },
   surgeleBannerText: {
     color: '#1565C0',
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  horsCreneauBanner: {
+    backgroundColor: '#FFF3E0',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#FFCC80',
+  },
+  horsCreneauBannerText: {
+    color: '#E65100',
     fontSize: fontSizes.sm,
     fontWeight: '600',
     textAlign: 'center',

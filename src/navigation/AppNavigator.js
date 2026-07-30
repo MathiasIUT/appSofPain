@@ -10,6 +10,7 @@ const ForgotPasswordScreen    = React.lazy(() => import('../screens/ForgotPasswo
 const CreatePasswordScreen    = React.lazy(() => import('../screens/CreatePasswordScreen'));
 const ResetPasswordScreen     = React.lazy(() => import('../screens/ResetPasswordScreen'));
 const AdminDashboard          = React.lazy(() => import('../screens/AdminDashboard'));
+const LivreurDashboard        = React.lazy(() => import('../screens/LivreurDashboard'));
 const ClientHome              = React.lazy(() => import('../screens/ClientHome'));
 const CartScreen              = React.lazy(() => import('../screens/CartScreen'));
 const CheckoutScreen          = React.lazy(() => import('../screens/CheckoutScreen'));
@@ -44,6 +45,7 @@ const linking = {
       CreatePassword: 'create-password',
       ResetPassword: 'reset-password',
       AdminDashboard: 'admin',
+      LivreurDashboard: 'livreur',
       ClientHome: 'home',
       Cart: 'cart',
       Checkout: 'checkout',
@@ -139,6 +141,9 @@ export default function AppNavigator() {
 
         {/* Admin */}
         <Stack.Screen name="AdminDashboard"  component={withSuspense(AdminDashboard)} />
+
+        {/* Livreur */}
+        <Stack.Screen name="LivreurDashboard" component={withSuspense(LivreurDashboard)} />
 
         {/* Client */}
         <Stack.Screen name="ClientHome"         component={withSuspense(ClientHome)} />

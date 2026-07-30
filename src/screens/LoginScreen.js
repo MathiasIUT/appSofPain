@@ -52,6 +52,8 @@ export default function LoginScreen({ navigation }) {
 
         if (profile?.role === 'admin') {
           navigation.reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
+        } else if (profile?.role === 'livreur') {
+          navigation.reset({ index: 0, routes: [{ name: 'LivreurDashboard' }] });
         } else if (profile?.role) {
           navigation.reset({ index: 0, routes: [{ name: 'ClientHome' }] });
         }
@@ -107,7 +109,7 @@ export default function LoginScreen({ navigation }) {
         .eq('id', authData.user.id)
         .single();
 
-      if (profileError || !profile) {
+      if (profileError || !profile) {
         await supabase.auth.signOut();
         showAlert(
           'Compte supprimé',
@@ -129,6 +131,11 @@ export default function LoginScreen({ navigation }) {
         navigation.reset({
           index: 0,
           routes: [{ name: 'AdminDashboard' }],
+        });
+      } else if (profile.role === 'livreur') {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'LivreurDashboard' }],
         });
       } else {
         navigation.reset({

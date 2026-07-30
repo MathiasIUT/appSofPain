@@ -18,6 +18,7 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 import { exportOrdersExcel } from '../utils/exportExcel';
+import { DEFAULT_HORAIRES, fetchHorairesCommande, computeDateCommande } from '../utils/orderSchedule';
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '"”';
 const n2 = (v) => Number(v ?? 0).toFixed(2);
@@ -39,6 +40,7 @@ export default function AdminOrdersScreen() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [selectingAll, setSelectingAll] = useState(false);
   const [takeOrderVisible, setTakeOrderVisible] = useState(false);
+  const [horairesVisible, setHorairesVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
   const loadOrders = useCallback(async (reset = true, currentLength = 0) => {
@@ -204,13 +206,16 @@ export default function AdminOrdersScreen() {
           <Text style={styles.screenTitle}>Commandes</Text>
           <Text style={styles.screenCount}>{`${orders.length} / ${totalCount}`}</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
           <TouchableOpacity
             onPress={() => setTakeOrderVisible(true)}
             style={styles.takeOrderBtn}
             activeOpacity={0.8}
           >
             <Text style={styles.takeOrderBtnText}>+ Prendre commande</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setHorairesVisible(true)} style={styles.refreshBtn} activeOpacity={0.7}>
+            <Text style={styles.refreshText}>Horaires</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
             <Text style={styles.refreshText}>↻ Actualiser</Text>
@@ -329,7 +334,102 @@ export default function AdminOrdersScreen() {
         onClose={() => setTakeOrderVisible(false)}
         onOrderCreated={() => loadOrders(true)}
       />
+
+      {/* Modal réglage des horaires de commande */}
+      <HorairesModal
+        visible={horairesVisible}
+        onClose={() => setHorairesVisible(false)}
+      />
     </View>
+  );
+}
+
+/* Réglage des horaires de commande (app_settings.horaires_commande) */
+function HorairesModal({ visible, onClose }) {
+  const [ouverture, setOuverture] = useState(String(DEFAULT_HORAIRES.ouverture));
+  const [fermeture, setFermeture] = useState(String(DEFAULT_HORAIRES.fermeture));
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    setLoading(true);
+    fetchHorairesCommande()
+      .then((h) => {
+        setOuverture(String(h.ouverture));
+        setFermeture(String(h.fermeture));
+      })
+      .finally(() => setLoading(false));
+  }, [visible]);
+
+  const handleSave = async () => {
+    const o = parseInt(ouverture, 10);
+    const f = parseInt(fermeture, 10);
+    if (isNaN(o) || isNaN(f) || o < 0 || o > 23 || f < 1 || f > 24 || o >= f) {
+      showAlert('Erreur', 'Horaires invalides. L\'ouverture doit être avant la fermeture (ex : 9 et 20).');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({ key: 'horaires_commande', value: { ouverture: o, fermeture: f } });
+      if (error) throw error;
+      showAlert('Succès', `Horaires enregistrés : ${o}h - ${f}h.\n\nToute commande passée après ${f}h sera automatiquement reportée au jour suivant.`);
+      onClose();
+    } catch (err) {
+      console.error('Erreur sauvegarde horaires :', err);
+      showAlert('Erreur', 'Impossible d\'enregistrer les horaires.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={[styles.modalOverlay, { justifyContent: 'center', alignItems: 'center', padding: spacing.md }]}>
+        <View style={{ backgroundColor: colors.surface, borderRadius: borderRadius.xl, width: '100%', maxWidth: 420, padding: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <Text style={{ fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary }}>Horaires de commande</Text>
+            <TouchableOpacity onPress={onClose} style={{ padding: spacing.xs }}>
+              <Text style={{ fontSize: fontSizes.lg, color: colors.textSecondary, fontWeight: '600' }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={{ fontSize: fontSizes.sm, color: colors.textSecondary, marginBottom: spacing.md }}>
+            Les clients peuvent commander pour le jour même entre ces horaires. Après la fermeture, la commande est automatiquement reportée au jour suivant.
+          </Text>
+          {loading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
+          ) : (
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: fontSizes.xs, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: 4 }}>Ouverture (h)</Text>
+                <TextInput
+                  style={{ backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: fontSizes.md, color: colors.textPrimary }}
+                  value={ouverture}
+                  onChangeText={(v) => setOuverture(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  keyboardType="numeric"
+                  placeholder="9"
+                  placeholderTextColor={colors.textLight}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: fontSizes.xs, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: 4 }}>Fermeture (h)</Text>
+                <TextInput
+                  style={{ backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: fontSizes.md, color: colors.textPrimary }}
+                  value={fermeture}
+                  onChangeText={(v) => setFermeture(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  keyboardType="numeric"
+                  placeholder="20"
+                  placeholderTextColor={colors.textLight}
+                />
+              </View>
+            </View>
+          )}
+          <Button title="Enregistrer" onPress={handleSave} loading={saving} disabled={saving || loading} fullWidth />
+        </View>
+      </View>
+    </Modal>
   );
 }
 const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) => {
@@ -421,6 +521,11 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
       : ''
   );
   const [savingSurgele, setSavingSurgele] = useState(false);
+  // Date de tournée (frais) : l'admin peut déplacer la commande vers un autre jour
+  const [dateTournee, setDateTournee] = useState(
+    order.date_commande ? new Date(order.date_commande).toISOString().split('T')[0] : ''
+  );
+  const [savingDateTournee, setSavingDateTournee] = useState(false);
 
   const { width, height } = useWindowDimensions();
   const isDesktop = width >= 900;
@@ -639,6 +744,32 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     }
   };
 
+  const handleSaveDateTournee = async () => {
+    if (!dateTournee) {
+      showAlert('Erreur', 'Veuillez saisir une date de tournée.');
+      return;
+    }
+    setSavingDateTournee(true);
+    try {
+      // 12h pour que la date (UTC) reste sur le bon jour de tournée
+      const newDate = new Date(`${dateTournee}T12:00:00`);
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ date_commande: newDate.toISOString() })
+        .eq('id', order.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      onUpdated(data);
+      showAlert('Succès', `La commande a été déplacée vers la tournée du ${fmt(dateTournee)}.`);
+    } catch (err) {
+      console.error('Erreur changement date tournée :', err);
+      showAlert('Erreur', 'Impossible de changer la date de tournée.');
+    } finally {
+      setSavingDateTournee(false);
+    }
+  };
+
   const handlePdf = async () => {
     const clientData = order.client || {
       nom_societe: order.client_nom || 'Client inconnu',
@@ -780,6 +911,57 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               })}
             </View>
           </View>
+
+          {/* Date de tournée (frais) : déplacer la commande vers un autre jour */}
+          {order.type_commande !== 'surgele' && (
+            <View style={modal.section}>
+              <Text style={modal.sectionTitle}>Date de tournée</Text>
+              <Text style={{ fontSize: fontSizes.xs, color: colors.textSecondary, marginBottom: spacing.sm }}>
+                Déplacez cette commande vers la tournée d'un autre jour si nécessaire.
+              </Text>
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={dateTournee}
+                  onChange={(e) => setDateTournee(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: 14,
+                    borderRadius: 8,
+                    border: `1.5px solid ${colors.border}`,
+                    backgroundColor: colors.background,
+                    color: colors.textPrimary,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              ) : (
+                <TextInput
+                  style={modal.notesInput}
+                  value={dateTournee}
+                  onChangeText={setDateTournee}
+                  placeholder="AAAA-MM-JJ"
+                  placeholderTextColor={colors.textLight}
+                  keyboardType="numeric"
+                />
+              )}
+              {dateTournee !== (order.date_commande ? new Date(order.date_commande).toISOString().split('T')[0] : '') && (
+                <TouchableOpacity
+                  style={[surgeleStyles.actionBtn, surgeleStyles.dateBtn, { marginTop: spacing.sm }, savingDateTournee && { opacity: 0.6 }]}
+                  onPress={handleSaveDateTournee}
+                  disabled={savingDateTournee}
+                  activeOpacity={0.8}
+                >
+                  {savingDateTournee ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={surgeleStyles.actionBtnText}>Déplacer vers cette tournée</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Produits */}
           <View style={modal.section}>
@@ -1447,6 +1629,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const [qtyDraft, setQtyDraft] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [orderType, setOrderType] = useState('frais');
+  // Tournée sur laquelle placer la commande (par défaut : selon les horaires de commande)
+  const [dateTournee, setDateTournee] = useState('');
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -1460,10 +1644,13 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     setQtyDraft({});
     setSearch('');
     setLoading(true);
+    fetchHorairesCommande().then((h) => {
+      setDateTournee(computeDateCommande(h).split('T')[0]);
+    });
     Promise.all([
       supabase
         .from('profiles')
-        .select('id, nom, prenom, nom_societe, email, telephone, ville, livreur_id, livreur_surgele_id')
+        .select('id, nom, prenom, nom_societe, email, telephone, adresse, code_postal, ville, livreur_id, livreur_surgele_id')
         .eq('role', 'client')
         .order('nom_societe', { ascending: true }),
       supabase
@@ -1567,7 +1754,13 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     }
     setSubmitting(true);
     try {
-      const adresse = selectedClient.ville || 'Commande prise par admin';
+      // Adresse complète du client (même format que le checkout client)
+      const adresseParts = [
+        selectedClient.adresse?.trim(),
+        [selectedClient.code_postal?.trim(), selectedClient.ville?.trim()].filter(Boolean).join(' '),
+        selectedClient.telephone?.trim() ? `Tél : ${selectedClient.telephone.trim()}` : null,
+      ].filter(Boolean);
+      const adresse = adresseParts.length > 0 ? adresseParts.join('\n') : 'Adresse non renseignée';
 
       let dateLivraison = null;
       if (orderType === 'surgele') {
@@ -1582,6 +1775,9 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
           client_id: selectedClient.id,
           livreur_id: orderType === 'surgele' ? (selectedClient.livreur_surgele_id || null) : (selectedClient.livreur_id || null),
           statut: 'nouvelle',
+          date_commande: (orderType !== 'surgele' && dateTournee)
+            ? new Date(`${dateTournee}T12:00:00`).toISOString()
+            : new Date().toISOString(),
           adresse_livraison: adresse,
           total_ht: totalHt,
           total_tva: totalTva,
@@ -1722,6 +1918,39 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                   <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }, orderType === 'surgele' && { color: '#1565C0' }]}>Surgelé</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Date de tournée (frais uniquement) */}
+              {orderType !== 'surgele' && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <Text style={{ fontSize: fontSizes.xs, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase' }}>Tournée du</Text>
+                  {Platform.OS === 'web' ? (
+                    <input
+                      type="date"
+                      value={dateTournee}
+                      onChange={(e) => setDateTournee(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        fontSize: 13,
+                        borderRadius: 6,
+                        border: `1.5px solid ${colors.border}`,
+                        backgroundColor: colors.background,
+                        color: colors.textPrimary,
+                        outline: 'none',
+                      }}
+                    />
+                  ) : (
+                    <TextInput
+                      style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: 8, fontSize: 13, color: colors.textPrimary }}
+                      value={dateTournee}
+                      onChangeText={setDateTournee}
+                      placeholder="AAAA-MM-JJ"
+                      placeholderTextColor={colors.textLight}
+                      keyboardType="numeric"
+                    />
+                  )}
+                </View>
+              )}
 
               <FlatList
                 data={products.filter(p => p.category?.slug === orderType)}

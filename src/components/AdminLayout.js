@@ -4,6 +4,7 @@ import {
   Text,
   Image,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
   Platform,
   useWindowDimensions,
@@ -87,9 +88,9 @@ export default function AdminLayout({
               <Text style={styles.brandRole}>Espace Administrateur</Text>
             </View>
 
-            <View style={styles.sidebarNav}>
+            <ScrollView style={styles.sidebarNav} contentContainerStyle={styles.sidebarNavContent}>
               {SECTIONS.map(renderNavItem)}
-            </View>
+            </ScrollView>
 
             <View style={styles.sidebarFooter}>
               <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -158,8 +159,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   logo: {
-    width: 250,
-    height: 250,
+    width: 130,
+    height: 130,
     marginBottom: spacing.sm,
   },
   brandRole: {
@@ -171,6 +172,9 @@ const styles = StyleSheet.create({
   },
   sidebarNav: {
     flex: 1,
+  },
+  sidebarNavContent: {
+    paddingBottom: spacing.md,
   },
   sidebarItem: {
     flexDirection: 'row',

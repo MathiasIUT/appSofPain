@@ -219,6 +219,95 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
     actif: livreur.actif !== false,
   });
 
+  // Compte de connexion du livreur
+  const [account, setAccount] = useState(null);
+  const [loadingAccount, setLoadingAccount] = useState(true);
+  const [accountEmail, setAccountEmail] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [creatingAccount, setCreatingAccount] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!livreur.user_id) { setAccount(null); setLoadingAccount(false); return; }
+      setLoadingAccount(true);
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, actif')
+          .eq('id', livreur.user_id)
+          .single();
+        setAccount(data || null);
+      } catch (err) { console.error(err); }
+      finally { setLoadingAccount(false); }
+    })();
+  }, [livreur.user_id]);
+
+  const handleCreateAccount = async () => {
+    const email = accountEmail.trim().toLowerCase();
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      showAlert('Erreur', 'Identifiant invalide. Utilisez un format email, ex : livreur@tournee1.fr');
+      return;
+    }
+    if (accountPassword.length < 6) {
+      showAlert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
+    setCreatingAccount(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const adminSession = sessionData?.session;
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password: accountPassword,
+        options: {
+          data: {
+            nom: livreur.nom || '',
+            prenom: livreur.prenom || '',
+            nom_societe: `Livreur — ${[livreur.prenom, livreur.nom].filter(Boolean).join(' ')}`,
+          },
+        },
+      });
+
+      // Restaurer la session admin (signUp bascule la session sur le nouveau compte)
+      if (adminSession) {
+        await supabase.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+
+      if (authError) throw authError;
+      const userId = authData.user?.id;
+      if (!userId) throw new Error('Erreur lors de la création du compte.');
+
+      const { error: roleError } = await supabase
+        .from('profiles')
+        .update({ role: 'livreur', email })
+        .eq('id', userId);
+      if (roleError) throw roleError;
+
+      const { data: updatedLivreur, error: linkError } = await supabase
+        .from('livreurs')
+        .update({ user_id: userId })
+        .eq('id', livreur.id)
+        .select('*')
+        .single();
+      if (linkError) throw linkError;
+
+      setAccount({ id: userId, email, actif: true });
+      setAccountEmail('');
+      setAccountPassword('');
+      onUpdated?.(updatedLivreur);
+      showAlert('Compte créé ✓', `Le livreur peut se connecter avec :\n\nIdentifiant : ${email}\nMot de passe : ${accountPassword}\n\nIl ne verra que ses tournées.`);
+    } catch (err) {
+      console.error('Erreur création compte livreur :', err);
+      showAlert('Erreur', err.message || 'Impossible de créer le compte.');
+    } finally {
+      setCreatingAccount(false);
+    }
+  };
+
   const getWeekBoundaries = (dateStr) => {
     const d = new Date(dateStr);
     if (isNaN(d)) return { monIso: dateStr, sunIso: dateStr, monDisp: dateStr, sunDisp: dateStr };
@@ -470,6 +559,54 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
             <Button title="Enregistrer" onPress={handleSaveEdit} loading={savingEdit} disabled={savingEdit} style={{ marginTop: spacing.md }} />
           </View>
         )}
+
+        {/* Compte de connexion livreur */}
+        <View style={{ backgroundColor: colors.surface, padding: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: colors.border, gap: spacing.sm }}>
+          <Text style={[s.sectionTitle, { borderBottomWidth: 0, paddingBottom: 0, marginTop: 0 }]}>Compte de connexion</Text>
+          {loadingAccount ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
+          ) : account ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: fontSizes.sm, color: colors.textPrimary, fontWeight: '600' }}>{account.email}</Text>
+                <Text style={{ fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                  Ce livreur peut se connecter et voir uniquement ses tournées.
+                </Text>
+              </View>
+              <View style={{ backgroundColor: '#E8F5E9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#2E7D32' }}>Actif</Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <Text style={{ fontSize: fontSizes.xs, color: colors.textSecondary }}>
+                Créez un identifiant pour que ce livreur accède à ses tournées (ex : livreur@tournee1.fr).
+              </Text>
+              <Field
+                label="Identifiant (format email)"
+                value={accountEmail}
+                onChangeText={setAccountEmail}
+                placeholder="livreur@tournee1.fr"
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <Field
+                label="Mot de passe (6 caractères min.)"
+                value={accountPassword}
+                onChangeText={setAccountPassword}
+                placeholder="Mot de passe"
+                autoCapitalize="none"
+              />
+              <Button
+                title="Créer le compte livreur"
+                onPress={handleCreateAccount}
+                loading={creatingAccount}
+                disabled={creatingAccount}
+                size="sm"
+              />
+            </>
+          )}
+        </View>
 
         <TouchableOpacity onPress={handleToggleClients} style={s.accordionHeader}>
           <Text style={[s.sectionTitle, { borderBottomWidth: 0, paddingBottom: 0, marginTop: 0 }]}>

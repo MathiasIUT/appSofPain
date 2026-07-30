@@ -111,7 +111,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   };
 
   const handleEditOrder = () => {
-    const msg = "Attention, en modifiant cette commande, sa date d'enregistrement sera mise à jour.\n\nToute modification après minuit décalera automatiquement la livraison au jour suivant.\n\nSouhaitez-vous continuer ?";
+    const msg = "Attention, en modifiant cette commande, sa date d'enregistrement sera mise à jour.\n\nToute modification après l'heure limite de commande décalera automatiquement la livraison au jour suivant.\n\nSouhaitez-vous continuer ?";
     if (Platform.OS === 'web') {
       if (window.confirm(msg)) {
         loadOrderIntoCart(order, items);
