@@ -20,7 +20,7 @@ import { useCart } from '../contexts/CartContext';
 
 
 const fmt = (d) =>
-  new Date(d).toLocaleDateString('fr-FR', {
+  new Date(/^\d{4}-\d{2}-\d{2}$/.test(d || '') ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
@@ -220,7 +220,7 @@ export default function OrderDetailScreen({ navigation, route }) {
                 </View>
               )}
             </View>
-            <Text style={styles.dateText}>Passée le {fmt(order.date_commande)}</Text>
+            <Text style={styles.dateText}>Passée le {fmt(order.created_at || order.date_commande)}</Text>
           </View>
         </View>
 
@@ -248,7 +248,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
               <Text style={styles.infoLabel}>Date de livraison estimée :</Text>
               <Text style={[styles.infoValue, styles.infoValueRight]}>
-                {fmt(new Date(new Date(order.date_commande).getTime() + 86400000))}
+                {fmt(order.date_livraison_souhaitee || new Date(new Date(order.date_commande).getTime() + 86400000))}
               </Text>
             </View>
           ) : null}

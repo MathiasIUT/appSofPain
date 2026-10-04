@@ -18,7 +18,7 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 import { exportOrdersExcel } from '../utils/exportExcel';
-import { DEFAULT_HORAIRES, fetchHorairesCommande, computeDateCommande } from '../utils/orderSchedule';
+import { DEFAULT_HORAIRES, fetchHorairesCommande, computeDateLivraisonFrais, getDateTourneeFrais } from '../utils/orderSchedule';
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '"”';
 const n2 = (v) => Number(v ?? 0).toFixed(2);
@@ -53,7 +53,7 @@ export default function AdminOrdersScreen() {
       const { data, error, count } = await supabase
         .from('orders')
         .select(`
-          id, numero, client_id, client_nom, statut, date_commande,
+          id, numero, client_id, client_nom, statut, date_commande, created_at, date_livraison_souhaitee,
           total_ht, total_tva, total_ttc, livreur_id, notes_client, notes_admin,
           adresse_livraison, type_commande,
           client:profiles!client_id(
@@ -375,7 +375,7 @@ function HorairesModal({ visible, onClose }) {
         .from('app_settings')
         .upsert({ key: 'horaires_commande', value: { ouverture: o, fermeture: f } });
       if (error) throw error;
-      showAlert('Succès', `Horaires enregistrés : ${o}h - ${f}h.\n\nToute commande passée après ${f}h sera automatiquement reportée au jour suivant.`);
+      showAlert('Succès', `Horaires enregistrés : ${o}h - ${f}h.\n\nLes commandes frais restent affectées à la tournée du lendemain. Ces horaires déterminent le report des commandes surgelées.`);
       onClose();
     } catch (err) {
       console.error('Erreur sauvegarde horaires :', err);
@@ -396,7 +396,7 @@ function HorairesModal({ visible, onClose }) {
             </TouchableOpacity>
           </View>
           <Text style={{ fontSize: fontSizes.sm, color: colors.textSecondary, marginBottom: spacing.md }}>
-            Les clients peuvent commander pour le jour même entre ces horaires. Après la fermeture, la commande est automatiquement reportée au jour suivant.
+            Les commandes frais sont affectées à la tournée du lendemain. Ces horaires déterminent le report des commandes surgelées.
           </Text>
           {loading ? (
             <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
@@ -516,9 +516,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
   const [localTotalHt, setLocalTotalHt] = useState(Number(order.total_ht || 0));
   // Surgelé : date de livraison assignée par l'admin
   const [dateLivraisonAdmin, setDateLivraisonAdmin] = useState(
-    order.date_livraison_souhaitee
-      ? new Date(order.date_livraison_souhaitee).toISOString().split('T')[0]
-      : ''
+    getDateTourneeFrais(order)
   );
   const [savingSurgele, setSavingSurgele] = useState(false);
   // Date de tournée (frais) : l'admin peut déplacer la commande vers un autre jour
@@ -752,10 +750,9 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     setSavingDateTournee(true);
     try {
       // 12h pour que la date (UTC) reste sur le bon jour de tournée
-      const newDate = new Date(`${dateTournee}T12:00:00`);
       const { data, error } = await supabase
         .from('orders')
-        .update({ date_commande: newDate.toISOString() })
+        .update({ date_livraison_souhaitee: dateTournee })
         .eq('id', order.id)
         .select('*')
         .single();
@@ -816,7 +813,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
               </View>
             )}
           </View>
-          <Text style={modal.headerDate}>Passée le {fmt(order.date_commande)}</Text>
+          <Text style={modal.headerDate}>Passée le {fmt(order.created_at || order.date_commande)}</Text>
         </View>
         <View style={modal.headerRight}>
           <Button
@@ -946,7 +943,7 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                   keyboardType="numeric"
                 />
               )}
-              {dateTournee !== (order.date_commande ? new Date(order.date_commande).toISOString().split('T')[0] : '') && (
+              {dateTournee !== getDateTourneeFrais(order) && (
                 <TouchableOpacity
                   style={[surgeleStyles.actionBtn, surgeleStyles.dateBtn, { marginTop: spacing.sm }, savingDateTournee && { opacity: 0.6 }]}
                   onPress={handleSaveDateTournee}
@@ -1644,9 +1641,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     setQtyDraft({});
     setSearch('');
     setLoading(true);
-    fetchHorairesCommande().then((h) => {
-      setDateTournee(computeDateCommande(h).split('T')[0]);
-    });
+    setDateTournee(computeDateLivraisonFrais());
     Promise.all([
       supabase
         .from('profiles')
@@ -1775,15 +1770,13 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
           client_id: selectedClient.id,
           livreur_id: orderType === 'surgele' ? (selectedClient.livreur_surgele_id || null) : (selectedClient.livreur_id || null),
           statut: 'nouvelle',
-          date_commande: (orderType !== 'surgele' && dateTournee)
-            ? new Date(`${dateTournee}T12:00:00`).toISOString()
-            : new Date().toISOString(),
+          date_commande: new Date().toISOString(),
           adresse_livraison: adresse,
           total_ht: totalHt,
           total_tva: totalTva,
           total_ttc: totalTtc,
           type_commande: orderType,
-          date_livraison_souhaitee: dateLivraison,
+          date_livraison_souhaitee: orderType === 'surgele' ? dateLivraison : dateTournee,
         })
         .select('*')
         .single();

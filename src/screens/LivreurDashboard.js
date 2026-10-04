@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
+import { getDateTourneeFrais } from '../utils/orderSchedule';
 
 const showAlert = (t, m) => {
   if (Platform.OS === 'web') window.alert(`${t}\n\n${m}`);
@@ -122,7 +123,7 @@ export default function LivreurDashboard({ navigation }) {
       const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
       return `${w.monIso}_${w.sunIso}_surgele`;
     }
-    return `${(o.date_commande || '').split('T')[0]}_frais`;
+    return `${getDateTourneeFrais(o)}_frais`;
   }))].sort((a, b) => {
     const sa = a.endsWith('_surgele');
     const sb = b.endsWith('_surgele');
@@ -141,7 +142,7 @@ export default function LivreurDashboard({ navigation }) {
     }
     const [isoDate] = groupKey.split('_');
     return orders.filter(o =>
-      o.type_commande !== 'surgele' && (o.date_commande || '').split('T')[0] === isoDate
+      o.type_commande !== 'surgele' && getDateTourneeFrais(o) === isoDate
     );
   };
 

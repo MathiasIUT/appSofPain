@@ -106,7 +106,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
           {/* Infos commande */}
           <View style={styles.infoBox}>
             <InfoLine label="Numéro de commande" value={order.numero} highlight />
-            <InfoLine label="Date de commande" value={formatDate(order.date_commande)} />
+            <InfoLine label="Date de commande" value={formatDate(order.created_at || order.date_commande)} />
             <InfoLine
               label="Total HT"
               value={`${Number(order.total_ht).toFixed(2)} €`}

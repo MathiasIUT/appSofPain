@@ -38,6 +38,22 @@ export function computeDateCommande(horaires = DEFAULT_HORAIRES, now = new Date(
   return d.toISOString();
 }
 
+// Les commandes frais passées aujourd'hui sont livrées sur la tournée de demain.
+// La colonne date_livraison_souhaitee est de type `date` : conserver une date locale.
+export function computeDateLivraisonFrais(now = new Date()) {
+  const d = new Date(now);
+  d.setDate(d.getDate() + 1);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Les anciennes commandes frais utilisaient date_commande comme date de tournée.
+export function getDateTourneeFrais(order) {
+  return order?.date_livraison_souhaitee || (order?.date_commande || '').split('T')[0];
+}
+
 // true si la commande passée maintenant sera reportée au jour suivant
 export function isHorsCreneau(horaires = DEFAULT_HORAIRES, now = new Date()) {
   return now.getHours() >= horaires.fermeture;

@@ -74,7 +74,9 @@ export async function generateMultipleOrdersPdf(ordersList) {
 }
 
 function buildOrderBody(order, items, client) {
-  const dateCommande = fmt(order.date_commande ?? new Date());
+  const dateCommande = fmt(order.created_at ?? order.date_commande ?? new Date());
+  const dateLivraisonFrais = order.date_livraison_souhaitee
+    || (order.date_commande ? new Date(new Date(order.date_commande).getTime() + 86400000) : null);
   const nomClient = [client?.prenom, client?.nom].filter(Boolean).join(' ');
   const logoUri = 'https://zoemyisrqqfybgfnnlay.supabase.co/storage/v1/object/public/products/logo1.png';
 
@@ -123,7 +125,7 @@ function buildOrderBody(order, items, client) {
   <div class="info-block">
     <h3>Livraison</h3>
     ${adresseHtml ? `<p>${adresseHtml}</p>` : '<p class="muted">Adresse non renseignée</p>'}
-    ${order.date_livraison_souhaitee && order.type_commande !== 'surgele' ? `<p class="delivery-date" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Livraison souhaitée le ${fmt(order.date_livraison_souhaitee)}</p>` : ''}
+    ${order.type_commande !== 'surgele' && dateLivraisonFrais ? `<p class="delivery-date" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Livraison prévue le ${fmt(dateLivraisonFrais)}</p>` : ''}
   </div>
 </div>
 
@@ -367,4 +369,4 @@ ${content}
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const fmt = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const fmt = (d) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(d || '') ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });

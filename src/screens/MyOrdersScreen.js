@@ -15,7 +15,7 @@ import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import ClientTabBar from '../components/ClientTabBar';
 
-const fmt = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+const fmt = (d) => d ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
 const PAGE_SIZE = 20;
 
@@ -165,7 +165,7 @@ const OrderCard = React.memo(({ item, onPress }) => {
       </View>
       <View style={styles.cardBottom}>
         <Text style={styles.cardDate}>
-          {fmt(item.date_commande)}
+          {fmt(item.created_at || item.date_commande)}
         </Text>
         <Text style={styles.cardTotal}>
           {Number(item.total_ht ?? 0).toFixed(2)} € HT
@@ -178,7 +178,7 @@ const OrderCard = React.memo(({ item, onPress }) => {
       ) : null}
       {item.type_commande !== 'surgele' && item.date_commande ? (
         <Text style={styles.cardDelivery}>
-          Livraison le {fmt(new Date(new Date(item.date_commande).getTime() + 86400000))}
+          Livraison le {fmt(item.date_livraison_souhaitee || new Date(new Date(item.date_commande).getTime() + 86400000))}
         </Text>
       ) : null}
       {item.type_commande === 'surgele' && item.statut === 'livree' ? (

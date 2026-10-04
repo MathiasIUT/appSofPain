@@ -16,7 +16,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../config/theme';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { useCart } from '../contexts/CartContext';
-import { DEFAULT_HORAIRES, fetchHorairesCommande, computeDateCommande, isHorsCreneau } from '../utils/orderSchedule';
+import { DEFAULT_HORAIRES, fetchHorairesCommande, computeDateCommande, computeDateLivraisonFrais } from '../utils/orderSchedule';
 
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
@@ -139,6 +139,8 @@ export default function CheckoutScreen({ navigation }) {
         const d = new Date();
         d.setDate(d.getDate() + 7);
         dateLivraison = d.toISOString().split('T')[0];
+      } else {
+        dateLivraison = computeDateLivraisonFrais();
       }
 
       let orderId;
@@ -152,7 +154,7 @@ export default function CheckoutScreen({ navigation }) {
             total_ht: totals.totalHt,
             total_tva: totals.totalTva,
             total_ttc: totals.totalTtc,
-            date_commande: computeDateCommande(horaires), // Report auto au jour suivant après l'heure de fermeture
+            date_commande: cartType === 'surgele' ? computeDateCommande(horaires) : new Date().toISOString(),
             type_commande: cartType || 'frais',
             date_livraison_souhaitee: dateLivraison,
           })
@@ -181,7 +183,7 @@ export default function CheckoutScreen({ navigation }) {
             client_nom: clientNom || null,
             livreur_id: livreurId,
             statut: 'nouvelle',
-            date_commande: computeDateCommande(horaires),
+            date_commande: cartType === 'surgele' ? computeDateCommande(horaires) : new Date().toISOString(),
             adresse_livraison: adresseComplete,
             total_ht: totals.totalHt,
             total_tva: totals.totalTva,
@@ -275,10 +277,10 @@ export default function CheckoutScreen({ navigation }) {
                 </Text>
               </View>
             )}
-            {cartType !== 'surgele' && isHorsCreneau(horaires) && (
+            {cartType !== 'surgele' && (
               <View style={styles.horsCreneauBanner}>
                 <Text style={styles.horsCreneauBannerText}>
-                  {`Commande passée après ${horaires.fermeture}h — elle sera prise en compte pour le jour suivant.`}
+                  'Les commandes frais passées aujourd’hui sont prévues sur la tournée de demain.'
                 </Text>
               </View>
             )}

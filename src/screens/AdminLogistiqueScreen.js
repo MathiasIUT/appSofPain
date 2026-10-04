@@ -8,6 +8,7 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 import Button from '../components/Button';
 import useDebounce from '../hooks/useDebounce';
 import { generateDriverTourPdf } from '../utils/generateDriverTourPdf';
+import { getDateTourneeFrais } from '../utils/orderSchedule';
 
 const showAlert = (t, m) => {
   if (Platform.OS === 'web') window.alert(`${t}\n\n${m}`);
@@ -337,7 +338,7 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
     } else {
       const [isoDate, typeCmd] = groupKey.split('_');
       groupOrders = allOrders.filter(o => 
-        (o.date_commande || '').split('T')[0] === isoDate && 
+        getDateTourneeFrais(o) === isoDate &&
         (o.type_commande === 'surgele' ? 'surgele' : 'frais') === typeCmd
       );
     }
@@ -428,7 +429,7 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
             const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
             groupsSet.add(`${w.monIso}_${w.sunIso}_surgele`);
           } else {
-            groupsSet.add(`${(o.date_commande || '').split('T')[0]}_frais`);
+            groupsSet.add(`${getDateTourneeFrais(o)}_frais`);
           }
         });
         const groups = [...groupsSet];
@@ -443,7 +444,7 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
           } else {
             const [isoDate] = groupKey.split('_');
             newOrderMap[groupKey] = fetched
-              .filter(o => o.type_commande !== 'surgele' && (o.date_commande || '').split('T')[0] === isoDate)
+              .filter(o => o.type_commande !== 'surgele' && getDateTourneeFrais(o) === isoDate)
               .map(o => o.id);
           }
         });
@@ -680,7 +681,7 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
                     const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
                     return `${w.monIso}_${w.sunIso}_surgele`;
                   }
-                  return `${(o.date_commande || '').split('T')[0]}_frais`;
+                  return `${getDateTourneeFrais(o)}_frais`;
                 }))]
                   .sort((a, b) => {
                     const isSurgeleA = a.endsWith('_surgele');
