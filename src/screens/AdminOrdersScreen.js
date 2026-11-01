@@ -19,9 +19,16 @@ import Button from '../components/Button';
 import { generateOrderPdf, buildOrderHtml } from '../utils/generateOrderPdf';
 import { exportOrdersExcel } from '../utils/exportExcel';
 import { DEFAULT_HORAIRES, fetchHorairesCommande, computeDateLivraisonFrais, getDateTourneeFrais } from '../utils/orderSchedule';
+import RecurringOrdersModal from '../components/RecurringOrdersModal';
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '"”';
 const n2 = (v) => Number(v ?? 0).toFixed(2);
+const isValidDateInput = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+};
 
 const showAlert = (title, msg) => {
   if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
@@ -40,6 +47,8 @@ export default function AdminOrdersScreen() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [selectingAll, setSelectingAll] = useState(false);
   const [takeOrderVisible, setTakeOrderVisible] = useState(false);
+  const [takeOrderRecurring, setTakeOrderRecurring] = useState(false);
+  const [recurringOrdersVisible, setRecurringOrdersVisible] = useState(false);
   const [horairesVisible, setHorairesVisible] = useState(false);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
@@ -214,7 +223,23 @@ export default function AdminOrdersScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
           <TouchableOpacity
-            onPress={() => setTakeOrderVisible(true)}
+            onPress={() => {
+              setTakeOrderRecurring(true);
+              setTakeOrderVisible(true);
+            }}
+            style={styles.takeOrderBtn}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.takeOrderBtnText}>+ Programmer une commande</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setRecurringOrdersVisible(true)} style={styles.refreshBtn} activeOpacity={0.7}>
+            <Text style={styles.refreshText}>Programmations</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setTakeOrderRecurring(false);
+              setTakeOrderVisible(true);
+            }}
             style={styles.takeOrderBtn}
             activeOpacity={0.8}
           >
@@ -337,8 +362,14 @@ export default function AdminOrdersScreen() {
       {/* Modal prise de commande admin */}
       <TakeOrderModal
         visible={takeOrderVisible}
+        recurring={takeOrderRecurring}
         onClose={() => setTakeOrderVisible(false)}
         onOrderCreated={() => loadOrders(true)}
+      />
+
+      <RecurringOrdersModal
+        visible={recurringOrdersVisible}
+        onClose={() => setRecurringOrdersVisible(false)}
       />
 
       {/* Modal réglage des horaires de commande */}
@@ -1635,7 +1666,7 @@ const modal = StyleSheet.create({
   },
 });
 
-function TakeOrderModal({ visible, onClose, onOrderCreated }) {
+function TakeOrderModal({ visible, onClose, onOrderCreated, recurring = false }) {
   const [step, setStep] = useState('client');
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
@@ -1650,6 +1681,8 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
   const [orderType, setOrderType] = useState('frais');
   // Tournée sur laquelle placer la commande (par défaut : selon les horaires de commande)
   const [dateTournee, setDateTournee] = useState('');
+  const [recurrenceStartsOn, setRecurrenceStartsOn] = useState('');
+  const [recurrenceEndsOn, setRecurrenceEndsOn] = useState('');
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -1664,6 +1697,10 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
     setSearch('');
     setLoading(true);
     setDateTournee(computeDateLivraisonFrais());
+    const today = new Date();
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    setRecurrenceStartsOn(todayString);
+    setRecurrenceEndsOn(todayString);
     Promise.all([
       supabase
         .from('profiles')
@@ -1769,6 +1806,16 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
       showAlert('Attention', 'Veuillez sélectionner au moins un produit.');
       return;
     }
+    if (recurring) {
+      const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+      if (!isValidDateInput(recurrenceStartsOn)
+        || !isValidDateInput(recurrenceEndsOn)
+        || recurrenceStartsOn < today
+        || recurrenceEndsOn < recurrenceStartsOn) {
+        showAlert('Dates invalides', 'La date de début doit être aujourd’hui ou ultérieure, et la date de fin doit être égale ou ultérieure à la date de début.');
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       // Adresse complète du client (même format que le checkout client)
@@ -1778,6 +1825,38 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
         selectedClient.telephone?.trim() ? `Tél : ${selectedClient.telephone.trim()}` : null,
       ].filter(Boolean);
       const adresse = adresseParts.length > 0 ? adresseParts.join('\n') : 'Adresse non renseignée';
+
+      if (recurring) {
+        const clientNom = selectedClient.nom_societe
+          || [selectedClient.prenom, selectedClient.nom].filter(Boolean).join(' ')
+          || selectedClient.email
+          || null;
+        const { error: scheduleError } = await supabase.rpc('create_order_schedule', {
+          p_client_id: selectedClient.id,
+          p_livreur_id: orderType === 'surgele'
+            ? (selectedClient.livreur_surgele_id || null)
+            : (selectedClient.livreur_id || null),
+          p_client_nom: clientNom,
+          p_adresse_livraison: adresse,
+          p_type_commande: orderType,
+          p_starts_on: recurrenceStartsOn,
+          p_ends_on: recurrenceEndsOn,
+          p_items: allOrderLines.map((line) => ({
+            product_id: line.manual ? null : line.product.id,
+            product_nom: line.manual ? line.nom : line.product.nom,
+            quantite: line.quantite,
+            increment: line.manual ? 1 : (line.product.increment || 1),
+            prix_unitaire_ht: line.prix,
+            tva_pourcent: line.manual ? line.tva : line.product.tva_pourcent,
+          })),
+        });
+        if (scheduleError) throw scheduleError;
+
+        showAlert('Programmation créée', `La commande sera générée chaque jour du ${recurrenceStartsOn} au ${recurrenceEndsOn}.`);
+        onOrderCreated();
+        onClose();
+        return;
+      }
 
       let dateLivraison = null;
       if (orderType === 'surgele') {
@@ -1859,7 +1938,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                 </TouchableOpacity>
               )}
               <View>
-                <Text style={to.headerTitle}>Prendre une commande</Text>
+                <Text style={to.headerTitle}>{recurring ? 'Programmer une commande' : 'Prendre une commande'}</Text>
                 {step === 'products' && clientName ? (
                   <Text style={to.headerSub}>{clientName}</Text>
                 ) : null}
@@ -1918,6 +1997,67 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
           ) : (
             /*  Étape 2 : sélection produits  */
             <>
+              {recurring ? (
+                <View style={to.recurrenceDates}>
+                  <Text style={to.recurrenceInfo}>Même commande chaque jour sur l’intervalle choisi</Text>
+                  <View style={to.recurrenceDateRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={to.recurrenceLabel}>Du</Text>
+                      {Platform.OS === 'web' ? (
+                        <input
+                          type="date"
+                          min={`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`}
+                          value={recurrenceStartsOn}
+                          onChange={(event) => {
+                            const date = event.target.value;
+                            setRecurrenceStartsOn(date);
+                            if (isValidDateInput(date) && date > recurrenceEndsOn) setRecurrenceEndsOn(date);
+                          }}
+                          style={{ width: '100%', padding: 8, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.textPrimary }}
+                        />
+                      ) : (
+                        <TextInput
+                          style={to.recurrenceInput}
+                          value={recurrenceStartsOn}
+                          onChangeText={(date) => {
+                            const minimum = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+                            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= minimum) {
+                              setRecurrenceStartsOn(date);
+                              if (isValidDateInput(date) && date > recurrenceEndsOn) setRecurrenceEndsOn(date);
+                            }
+                          }}
+                          placeholder="AAAA-MM-JJ"
+                        />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={to.recurrenceLabel}>Au</Text>
+                      {Platform.OS === 'web' ? (
+                        <input
+                          type="date"
+                          min={recurrenceStartsOn}
+                          value={recurrenceEndsOn}
+                          onChange={(event) => {
+                            const date = event.target.value;
+                            if (!date || date >= recurrenceStartsOn) setRecurrenceEndsOn(date);
+                          }}
+                          style={{ width: '100%', padding: 8, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.textPrimary }}
+                        />
+                      ) : (
+                        <TextInput
+                          style={to.recurrenceInput}
+                          value={recurrenceEndsOn}
+                          onChangeText={(date) => {
+                            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= recurrenceStartsOn) setRecurrenceEndsOn(date);
+                          }}
+                          placeholder="AAAA-MM-JJ"
+                        />
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+
               {/* Tabs Frais / Surgelé */}
               <View style={{ flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                 <TouchableOpacity 
@@ -1935,7 +2075,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
               </View>
 
               {/* Date de tournée (frais uniquement) */}
-              {orderType !== 'surgele' && (
+              {!recurring && orderType !== 'surgele' && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                   <Text style={{ fontSize: fontSizes.xs, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase' }}>Tournée du</Text>
                   {Platform.OS === 'web' ? (
@@ -2086,7 +2226,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated }) {
                 >
                   {submitting
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={to.submitBtnText}>Valider la commande</Text>
+                    : <Text style={to.submitBtnText}>{recurring ? 'Programmer' : 'Valider la commande'}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -2154,6 +2294,25 @@ const to = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: fontSizes.md,
+    color: colors.textPrimary,
+  },
+  recurrenceDates: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.xs,
+  },
+  recurrenceInfo: { color: colors.textSecondary, fontSize: fontSizes.xs, fontWeight: '600' },
+  recurrenceDateRow: { flexDirection: 'row', gap: spacing.sm },
+  recurrenceLabel: { color: colors.textSecondary, fontSize: fontSizes.xs, marginBottom: 4 },
+  recurrenceInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
     color: colors.textPrimary,
   },
   listContent: { padding: spacing.md },
