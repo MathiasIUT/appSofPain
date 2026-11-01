@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { getAccountingDate } from './accountingDate';
 
 export async function generateMonthlyBonPdf(client, date, orders) {
   const html = buildHtml(client, date, orders);
@@ -113,7 +114,7 @@ function buildHtml(client, date, orders) {
                 <table width="100%" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="font-size:11px;font-weight:bold;color:#1A1A1A;">Commande N° ${esc(o.numero)}</td>
-                    <td align="right" style="font-size:10px;color:#666;font-weight:bold;">${fmtDate(o.date_commande)}</td>
+                    <td align="right" style="font-size:10px;color:#666;font-weight:bold;">${fmtDate(getAccountingDate(o))}</td>
                   </tr>
                 </table>
               </td>

@@ -1,6 +1,11 @@
 import * as XLSX from 'xlsx';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
+import {
+  applyAccountingMonthFilter,
+  filterOrdersByAccountingMonth,
+  getAccountingDate,
+} from './accountingDate';
 
 const n2 = (v) => parseFloat(Number(v ?? 0).toFixed(2));
 const fmt = (d) =>
@@ -188,35 +193,33 @@ export async function exportOrdersExcel(ids = null) {
   XLSX.utils.book_append_sheet(wb, ws, 'Commandes');
   downloadWb(wb, `commandes_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
-export async function exportSage50CSV(monthLabel) {
+export async function exportSage50CSV(monthLabel, periodDate = new Date()) {
   if (Platform.OS !== 'web') return;
 
-  const now = new Date();
-  const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  const month = now.getMonth() === 0 ? 12 : now.getMonth();
-  const startOfMonth = new Date(year, month - 1, 1);
-  const endOfMonth = new Date(year, month, 0, 23, 59, 59);
-
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select(`
-      id, numero, date_commande, total_ht, type_commande,
-      client_nom,
-      client:profiles!client_id(nom_societe, nom, prenom, code_sage)
-    `)
-    .gte('date_commande', startOfMonth.toISOString())
-    .lte('date_commande', endOfMonth.toISOString())
-    .neq('statut', 'annulee')
-    .order('date_commande', { ascending: true });
+  const monthDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
+  const query = applyAccountingMonthFilter(
+    supabase
+      .from('orders')
+      .select(`
+        id, numero, date_commande, date_livraison_souhaitee, date_livraison_reelle,
+        total_ht, type_commande, client_nom,
+        client:profiles!client_id(nom_societe, nom, prenom, code_sage)
+      `)
+      .neq('statut', 'annulee'),
+    monthDate
+  );
+  const { data, error } = await query;
 
   if (error) throw error;
+  const orders = filterOrdersByAccountingMonth(data || [], monthDate)
+    .sort((a, b) => new Date(getAccountingDate(a)) - new Date(getAccountingDate(b)));
 
   const lines = [
     'Date;N° Commande;Compte Client;Nom Client;Type;Montant HT'
   ];
 
-  for (const o of (orders || [])) {
-    const date = fmt(o.date_commande);
+  for (const o of orders) {
+    const date = fmt(getAccountingDate(o));
     const num = o.numero || o.id.slice(0, 8);
     const codeSage = o.client?.code_sage || '';
     const compte = codeSage ? `411${codeSage}` : '';
@@ -258,7 +261,7 @@ export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
 
   const dataRows = orders.map(o => {
     const cells = [
-      fmt(o.date_commande),
+      fmt(getAccountingDate(o)),
       o.numero || ''
     ];
     
@@ -313,4 +316,3 @@ export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
   XLSX.utils.book_append_sheet(wb, ws, 'Bon Mensuel');
   downloadWb(wb, `bon_mensuel_${clientName.replace(/\s+/g, '_').toLowerCase()}_${monthLabel.replace(/\s+/g, '_').toLowerCase()}.xlsx`);
 }
-

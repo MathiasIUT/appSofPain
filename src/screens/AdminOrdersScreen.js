@@ -54,8 +54,9 @@ export default function AdminOrdersScreen() {
         .from('orders')
         .select(`
           id, numero, client_id, client_nom, statut, date_commande, created_at, date_livraison_souhaitee,
-          total_ht, total_tva, total_ttc, livreur_id, notes_client, notes_admin,
+          total_ht, total_tva, total_ttc, livreur_id, notes_client,
           adresse_livraison, type_commande,
+          order_admin_notes(note),
           client:profiles!client_id(
             id, nom, prenom, nom_societe, email, telephone
           )
@@ -65,10 +66,15 @@ export default function AdminOrdersScreen() {
 
       if (error) throw error;
 
+      const ordersWithNotes = (data || []).map(order => ({
+        ...order,
+        notes_admin: order.order_admin_notes?.note || '',
+      }));
+
       if (reset) {
-        setOrders(data || []);
+        setOrders(ordersWithNotes);
       } else {
-        setOrders((prev) => [...prev, ...(data || [])]);
+        setOrders((prev) => [...prev, ...ordersWithNotes]);
       }
       setTotalCount(count ?? 0);
     } catch (err) {
@@ -483,6 +489,11 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
           {item.client?.email ? (
             <Text style={styles.rowEmail} numberOfLines={1}>{item.client.email}</Text>
           ) : null}
+          {item.notes_admin ? (
+            <Text style={styles.rowEmail} numberOfLines={2}>
+              Note interne : {item.notes_admin}
+            </Text>
+          ) : null}
         </View>
 
 
@@ -657,12 +668,23 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .update({ statut, notes_admin: notesAdmin || null, livreur_id: selectedLivreur || null })
+        .update({ statut, livreur_id: selectedLivreur || null })
         .eq('id', order.id)
         .select('*')
         .single();
       if (error) throw error;
-      onUpdated(data);
+
+      const noteQuery = notesAdmin.trim()
+        ? supabase.from('order_admin_notes').upsert({
+          order_id: order.id,
+          note: notesAdmin.trim(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'order_id' })
+        : supabase.from('order_admin_notes').delete().eq('order_id', order.id);
+      const { error: noteError } = await noteQuery;
+      if (noteError) throw noteError;
+
+      onUpdated({ ...data, notes_admin: notesAdmin.trim() });
       showAlert('Succès', 'Commande mise à jour.');
     } catch (err) {
       console.error('Erreur mise à jour commande :', err);

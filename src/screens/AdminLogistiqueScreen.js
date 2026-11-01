@@ -409,10 +409,13 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
       setLoadingOrders(true);
       try {
         const { data } = await supabase
-          .from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*)')
+          .from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*), order_admin_notes(note)')
           .eq('livreur_id', livreur.id).in('statut', ['nouvelle'])
           .order('numero', { ascending: true });
-        const fetched = data || [];
+        const fetched = (data || []).map(order => ({
+          ...order,
+          notes_admin: order.order_admin_notes?.note || '',
+        }));
         
         fetched.sort((a, b) => {
           const ordreA = a.client?.ordre_tournee || 0;

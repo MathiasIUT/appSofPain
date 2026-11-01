@@ -17,6 +17,11 @@ import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/the
 import { generateMonthlyBonPdf, generateMonthlyBonPdfBase64 } from '../utils/generateMonthlyBonPdf';
 import { exportComptaExcel, exportMonthlyBonExcel, exportSage50CSV } from '../utils/exportExcel';
 import ConfirmModal from '../components/ConfirmModal';
+import {
+  applyAccountingMonthFilter,
+  filterOrdersByAccountingMonth,
+  getAccountingDate,
+} from '../utils/accountingDate';
 
 const n2 = (v) => Number(v ?? 0).toFixed(2);
 
@@ -50,20 +55,20 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+      const accountingOrdersQuery = applyAccountingMonthFilter(
+        supabase
+          .from('orders')
+          .select('id, client_id, client_nom, client_uuid_snapshot, total_ht, type_commande, date_commande, date_livraison_souhaitee, date_livraison_reelle, order_items(product_id, quantite, prix_unitaire_ht)')
+          .neq('statut', 'annulee'),
+        currentDate
+      );
 
       const [livRes, prodRes, cliRes, pricesRes, ordRes] = await Promise.all([
         supabase.from('livreurs').select('*').eq('actif', true),
         supabase.from('products').select('*, category:categories(slug)').eq('actif', true).order('nom'),
         supabase.from('profiles').select('*').eq('role', 'client'),
         supabase.from('client_prices').select('*'),
-        supabase
-          .from('orders')
-          .select('id, client_id, client_nom, client_uuid_snapshot, total_ht, type_commande, order_items(product_id, quantite, prix_unitaire_ht)')
-          .gte('date_commande', startOfMonth.toISOString())
-          .lte('date_commande', endOfMonth.toISOString())
-          .neq('statut', 'annulee')
+        accountingOrdersQuery
       ]);
 
       if (livRes.error) throw livRes.error;
@@ -76,7 +81,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
       setProducts(prodRes.data || []);
       setClients(cliRes.data || []);
       setClientPrices(pricesRes.data || []);
-      setOrders(ordRes.data || []);
+      setOrders(filterOrdersByAccountingMonth(ordRes.data || [], currentDate));
 
     } catch (err) {
       console.error('Erreur chargement compta:', err);
@@ -111,7 +116,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
   const handleExportSage = async () => {
     setExportingSage(true);
     try {
-      await exportSage50CSV(monthLabelCap);
+      await exportSage50CSV(monthLabelCap, currentDate);
     } catch (err) {
       console.error('Erreur export Sage 50 :', err);
     } finally {
@@ -489,17 +494,14 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
     (async () => {
       setLoading(true);
       try {
-        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
-
-        let query = supabase
-          .from('orders')
-          .select('id, numero, date_commande, total_ht, order_items(product_id, quantite, prix_unitaire_ht, products(nom))')
-          .gte('date_commande', startOfMonth.toISOString())
-          .lte('date_commande', endOfMonth.toISOString())
-          .neq('statut', 'annulee')
-          .eq('type_commande', comptaType)
-          .order('date_commande', { ascending: true });
+        let query = applyAccountingMonthFilter(
+          supabase
+            .from('orders')
+            .select('id, numero, date_commande, date_livraison_souhaitee, date_livraison_reelle, total_ht, order_items(product_id, quantite, prix_unitaire_ht, products(nom))')
+            .neq('statut', 'annulee')
+            .eq('type_commande', comptaType),
+          currentDate
+        );
 
         if (isOrphan) {
           if (client._orphan_uuid) {
@@ -513,7 +515,9 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
 
         const { data, error } = await query;
         if (error) throw error;
-        setOrders(data || []);
+        setOrders(filterOrdersByAccountingMonth(data || [], currentDate).sort((a, b) => (
+          new Date(getAccountingDate(a)) - new Date(getAccountingDate(b))
+        )));
       } catch (err) {
         console.error('Erreur chargement bon mensuel:', err);
       } finally {
@@ -670,7 +674,7 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
               <View key={o.id} style={bon.orderCard}>
                 <View style={bon.orderCardHeader}>
                   <Text style={bon.orderNum}>Commande N° {o.numero}</Text>
-                  <Text style={bon.orderDate}>{fmtDate(o.date_commande)}</Text>
+                  <Text style={bon.orderDate}>{fmtDate(getAccountingDate(o))}</Text>
                 </View>
                 <View style={bon.itemsTable}>
                   <View style={bon.itemsTableHeader}>

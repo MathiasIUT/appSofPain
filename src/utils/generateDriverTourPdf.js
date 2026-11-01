@@ -71,6 +71,7 @@ function buildHtml(livreur, orders, tourDate, typeLabel) {
       const itemsStr = (o.order_items || []).map(it => {
         return `• <b>${esc(it.product_nom)}</b> : ${esc(String(it.quantite))} pcs.`;
       }).join('<br>');
+      const noteInterne = esc(o.notes_admin || '').replace(/\n/g, '<br>');
 
       return `
         <tr>
@@ -81,6 +82,7 @@ function buildHtml(livreur, orders, tourDate, typeLabel) {
           </td>
           <td class="col-adresse">${adresse || '<i>Non renseignée</i>'}</td>
           <td class="col-produits">${itemsStr}</td>
+          <td class="col-note">${noteInterne}</td>
         </tr>
       `;
     }).join('');
@@ -94,6 +96,7 @@ function buildHtml(livreur, orders, tourDate, typeLabel) {
             <th class="col-client">Client / Tél.</th>
             <th class="col-adresse">Adresse</th>
             <th class="col-produits">Produits (Qté)</th>
+            <th class="col-note">Note interne</th>
           </tr>
         </thead>
         <tbody>
@@ -158,10 +161,11 @@ function buildHtml(livreur, orders, tourDate, typeLabel) {
   th { background: #f4f4f4; text-transform: uppercase; font-size: 10px; color: #333; text-align: left; }
   
   /* Largeurs des colonnes adaptées au mode portrait */
-  .col-num { width: 8%; font-weight: bold; text-align: center; }
-  .col-client { width: 22%; }
-  .col-adresse { width: 30%; }
-  .col-produits { width: 25%; }
+  .col-num { width: 7%; font-weight: bold; text-align: center; }
+  .col-client { width: 19%; }
+  .col-adresse { width: 25%; }
+  .col-produits { width: 27%; }
+  .col-note { width: 22%; color: #8A4B08; font-size: 11px; }
   
   /* Impressions PDF */
   @media print {

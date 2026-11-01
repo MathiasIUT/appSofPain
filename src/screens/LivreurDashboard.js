@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import { getDateTourneeFrais } from '../utils/orderSchedule';
+import { toLocalIsoDate } from '../utils/accountingDate';
 
 const showAlert = (t, m) => {
   if (Platform.OS === 'web') window.alert(`${t}\n\n${m}`);
@@ -162,7 +163,7 @@ export default function LivreurDashboard({ navigation }) {
 
     setValidating(groupKey);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalIsoDate();
       const { error } = await supabase
         .from('orders')
         .update({ statut: 'livree', date_livraison_reelle: today })

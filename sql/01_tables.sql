@@ -69,7 +69,6 @@ create table if not exists public.orders (
   total_tva numeric(10, 2) not null default 0 check (total_tva >= 0),
   total_ttc numeric(10, 2) not null default 0 check (total_ttc >= 0),
   notes_client text,
-  notes_admin text,
   adresse_livraison text,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
