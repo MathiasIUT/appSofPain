@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
-  ActivityIndicator, Platform, Alert, useWindowDimensions, RefreshControl,
+  ActivityIndicator, Platform, Alert, Modal, useWindowDimensions, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
@@ -43,6 +43,7 @@ export default function LivreurDashboard({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [validating, setValidating] = useState(null);
+  const [orderToValidate, setOrderToValidate] = useState(null);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
@@ -84,17 +85,27 @@ export default function LivreurDashboard({ navigation }) {
       }
       setLivreur(livreurRow);
 
-      // Ses commandes à livrer
-      const { data: fetched, error: ordersError } = await supabase
-        .from('orders')
-        .select('*, client:profiles!client_id(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*)')
-        .eq('livreur_id', livreurRow.id)
-        .is('deleted_at', null)
-        .in('statut', ['nouvelle', 'traite', 'en_preparation', 'en_livraison'])
-        .order('date_commande', { ascending: true });
-      if (ordersError) throw ordersError;
+      const orderSelect = '*, client:profiles!client_id(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*)';
+      const [activeResult, deliveredResult] = await Promise.all([
+        supabase
+          .from('orders')
+          .select(orderSelect)
+          .eq('livreur_id', livreurRow.id)
+          .is('deleted_at', null)
+          .in('statut', ['nouvelle', 'traite', 'en_preparation', 'en_livraison'])
+          .order('date_commande', { ascending: true }),
+        supabase
+          .from('orders')
+          .select(orderSelect)
+          .eq('livreur_id', livreurRow.id)
+          .is('deleted_at', null)
+          .eq('statut', 'livree')
+          .order('date_commande', { ascending: true }),
+      ]);
+      if (activeResult.error) throw activeResult.error;
+      if (deliveredResult.error) throw deliveredResult.error;
 
-      const list = fetched || [];
+      const list = [...(activeResult.data || []), ...(deliveredResult.data || [])];
       list.sort((a, b) => {
         const oa = a.client?.ordre_tournee || 0;
         const ob = b.client?.ordre_tournee || 0;
@@ -124,7 +135,11 @@ export default function LivreurDashboard({ navigation }) {
   };
 
   // Groupes : frais par jour de tournée, surgelé par semaine
-  const groupKeys = [...new Set(orders.map(o => {
+  const pendingOrders = orders.filter(order => order.statut !== 'livree');
+  const validatedOrders = orders
+    .filter(order => order.statut === 'livree')
+    .sort((a, b) => (b.delivered_at || b.date_commande).localeCompare(a.delivered_at || a.date_commande));
+  const groupKeys = [...new Set(pendingOrders.map(o => {
     if (o.type_commande === 'surgele') {
       const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
       return `${w.monIso}_${w.sunIso}_surgele`;
@@ -134,38 +149,31 @@ export default function LivreurDashboard({ navigation }) {
     const sa = a.endsWith('_surgele');
     const sb = b.endsWith('_surgele');
     if (sa !== sb) return sa ? 1 : -1; // frais d'abord
-    return a.split('_')[0].localeCompare(b.split('_')[0]); // plus ancien en premier
+    return b.split('_')[0].localeCompare(a.split('_')[0]); // plus récent en premier
   });
 
   const getGroupOrders = (groupKey) => {
     if (groupKey.endsWith('_surgele')) {
       const [monIso, sunIso] = groupKey.split('_');
-      return orders.filter(o => {
+      return pendingOrders.filter(o => {
         if (o.type_commande !== 'surgele') return false;
         const w = getWeekBoundaries((o.date_commande || '').split('T')[0]);
         return w.monIso === monIso && w.sunIso === sunIso;
       });
     }
     const [isoDate] = groupKey.split('_');
-    return orders.filter(o =>
+    return pendingOrders.filter(o =>
       o.type_commande !== 'surgele' && getDateTourneeFrais(o) === isoDate
     );
   };
 
   const handleValiderCommande = async (order) => {
-    const clientName = order.client?.nom_societe
-      || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
-      || order.client_nom
-      || 'Client';
-    const msg = `Valider la livraison de la commande N° ${order.numero} pour ${clientName} ?\n\nLe bon sera enregistré dans l’application et envoyé à l’adresse e-mail vérifiée du client.`;
-    const confirmed = await new Promise((resolve) => {
-      if (Platform.OS === 'web') resolve(window.confirm(msg));
-      else Alert.alert('Valider la livraison', msg, [
-        { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Valider la commande', onPress: () => resolve(true) },
-      ]);
-    });
-    if (!confirmed) return;
+    setOrderToValidate(order);
+  };
+
+  const confirmValiderCommande = async () => {
+    const order = orderToValidate;
+    if (!order || validating) return;
 
     setValidating(order.id);
     const storagePath = `${order.id}/delivery-note.pdf`;
@@ -187,13 +195,15 @@ export default function LivreurDashboard({ navigation }) {
       if (uploadError) throw uploadError;
       uploaded = true;
 
-      const { error: deliveryError } = await supabase.rpc('complete_order_delivery', {
+      const { data: deliveryAt, error: deliveryError } = await supabase.rpc('complete_order_delivery', {
         p_order_id: order.id,
         p_storage_path: storagePath,
       });
       if (deliveryError) throw deliveryError;
       deliveryRecorded = true;
-      setOrders(prev => prev.filter(o => o.id !== order.id));
+      setOrders(prev => prev.map(o => o.id === order.id
+        ? { ...o, statut: 'livree', delivered_at: deliveryAt || new Date().toISOString() }
+        : o));
 
       const { error: emailError } = await supabase.functions.invoke('send-delivery-note', {
         body: { order_id: order.id },
@@ -220,7 +230,9 @@ export default function LivreurDashboard({ navigation }) {
           console.error('Impossible de vérifier si le bon a été enregistré :', noteCheckError);
         } else if (savedNote) {
           deliveryRecorded = true;
-          setOrders(prev => prev.filter(o => o.id !== order.id));
+          setOrders(prev => prev.map(o => o.id === order.id
+            ? { ...o, statut: 'livree' }
+            : o));
         } else {
           const { error: cleanupError } = await supabase.storage
             .from('delivery-notes')
@@ -236,6 +248,7 @@ export default function LivreurDashboard({ navigation }) {
       );
     } finally {
       setValidating(null);
+      setOrderToValidate(null);
     }
   };
 
@@ -354,7 +367,7 @@ export default function LivreurDashboard({ navigation }) {
                           {validating === o.id ? (
                             <ActivityIndicator size="small" color="#fff" />
                           ) : (
-                            <Text style={s.validateBtnText}>✓ Valider cette livraison</Text>
+                            <Text style={s.validateBtnText}>Valider cette livraison</Text>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -364,9 +377,98 @@ export default function LivreurDashboard({ navigation }) {
               );
             })
           )}
+
+          <View style={s.validatedSection}>
+            <View style={s.validatedHeader}>
+              <Text style={s.validatedTitle}>Livraisons validées</Text>
+              <View style={s.validatedCountBadge}>
+                <Text style={s.validatedCountText}>
+                  {validatedOrders.length} commande{validatedOrders.length > 1 ? 's' : ''}
+                </Text>
+              </View>
+            </View>
+            {validatedOrders.length === 0 ? (
+              <Text style={s.emptyText}>Aucune livraison validée.</Text>
+            ) : validatedOrders.map(order => {
+              const clientName = order.client?.nom_societe
+                || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
+                || order.client_nom
+                || 'Client';
+              const deliveredDate = new Date(order.delivered_at || order.date_commande);
+              const deliveredLabel = isNaN(deliveredDate)
+                ? 'Date inconnue'
+                : deliveredDate.toLocaleString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+              return (
+                <View key={order.id} style={s.validatedOrder}>
+                  <View style={s.validatedOrderText}>
+                    <Text style={s.validatedClient} numberOfLines={1}>{clientName}</Text>
+                    <Text style={s.validatedDetails}>{`N° ${order.numero} · Validée le ${deliveredLabel}`}</Text>
+                  </View>
+                  <View style={s.validatedStatus}>
+                    <Text style={s.validatedStatusText}>Validée</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
           <View style={{ height: spacing.xxl }} />
         </ScrollView>
       )}
+      <Modal
+        visible={!!orderToValidate}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!validating) setOrderToValidate(null);
+        }}
+      >
+        <View style={s.confirmOverlay}>
+          <View style={[s.confirmModal, isDesktop && s.confirmModalDesktop]}>
+            <Text style={s.confirmTitle}>Valider la livraison ?</Text>
+            {orderToValidate && (
+              <>
+                <Text style={s.confirmClient}>
+                  {orderToValidate.client?.nom_societe
+                    || [orderToValidate.client?.prenom, orderToValidate.client?.nom].filter(Boolean).join(' ')
+                    || orderToValidate.client_nom
+                    || 'Client'}
+                </Text>
+                <Text style={s.confirmMessage}>
+                  {`Commande N° ${orderToValidate.numero}\n\nLa livraison sera marquée comme validée. Le bon sera enregistré dans l’application et envoyé au client.`}
+                </Text>
+              </>
+            )}
+            <View style={s.confirmActions}>
+              <TouchableOpacity
+                onPress={() => setOrderToValidate(null)}
+                disabled={!!validating}
+                style={[s.confirmCancelBtn, validating && { opacity: 0.5 }]}
+                activeOpacity={0.8}
+              >
+                <Text style={s.confirmCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmValiderCommande}
+                disabled={!!validating}
+                style={[s.confirmValidateBtn, validating && { opacity: 0.7 }]}
+                activeOpacity={0.8}
+              >
+                {validating ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={s.confirmValidateText}>Confirmer la livraison</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -416,6 +518,57 @@ const s = StyleSheet.create({
   groupTitle: { fontSize: fontSizes.md, fontWeight: '700', color: '#2E7D32', textTransform: 'capitalize', flexShrink: 1 },
   groupRefreshBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
   groupRefreshText: { fontSize: fontSizes.xs, color: '#2E7D32', fontWeight: '700' },
+  validatedSection: {
+    backgroundColor: '#F3F8F3', borderRadius: borderRadius.lg,
+    borderWidth: 1, borderColor: '#C8E6C9', padding: spacing.md,
+    marginTop: spacing.sm, marginBottom: spacing.lg,
+  },
+  validatedHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: spacing.sm, flexWrap: 'wrap', gap: spacing.xs,
+  },
+  validatedTitle: { fontSize: fontSizes.md, fontWeight: '700', color: '#2E7D32' },
+  validatedCountBadge: { backgroundColor: '#E8F5E9', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.round },
+  validatedCountText: { fontSize: fontSizes.xs, fontWeight: '700', color: '#2E7D32' },
+  validatedOrder: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface, borderRadius: borderRadius.md,
+    padding: spacing.md, borderWidth: 1, borderColor: '#E8F5E9', gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  validatedOrderText: { flex: 1 },
+  validatedClient: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
+  validatedDetails: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
+  validatedStatus: { backgroundColor: '#E8F5E9', borderRadius: borderRadius.round, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  validatedStatusText: { fontSize: fontSizes.xs, fontWeight: '700', color: '#2E7D32' },
+  confirmOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center', padding: spacing.lg,
+  },
+  confirmModal: {
+    width: '100%', maxWidth: 480, backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg, padding: spacing.lg, ...shadows.lg,
+  },
+  confirmModalDesktop: { width: '80%' },
+  confirmTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.sm },
+  confirmClient: { fontSize: fontSizes.md, fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.xs },
+  confirmMessage: { fontSize: fontSizes.sm, color: colors.textSecondary, lineHeight: 22 },
+  confirmActions: {
+    flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap',
+    gap: spacing.sm, marginTop: spacing.lg,
+  },
+  confirmCancelBtn: {
+    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border,
+  },
+  confirmCancelText: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.textPrimary },
+  confirmValidateBtn: {
+    backgroundColor: '#2E7D32', paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md, borderRadius: borderRadius.md,
+    minWidth: 165, alignItems: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  confirmValidateText: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.white },
   countBadge: { backgroundColor: '#E8F5E9', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.round },
   countBadgeText: { fontSize: fontSizes.xs, fontWeight: '700', color: '#2E7D32' },
   orderCard: {

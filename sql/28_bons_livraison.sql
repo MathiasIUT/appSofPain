@@ -264,3 +264,33 @@ $$;
 
 revoke all on function public.complete_order_delivery(uuid, text) from public, anon;
 grant execute on function public.complete_order_delivery(uuid, text) to authenticated;
+
+create extension if not exists pg_cron;
+
+create or replace function public.delete_old_orders()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.orders
+  where deleted_at < now() - interval '7 days'
+    or (
+      deleted_at is null
+      and date_commande < now() - interval '45 days'
+    );
+end;
+$$;
+
+revoke all on function public.delete_old_orders() from public, anon, authenticated;
+
+select cron.unschedule(jobid)
+from cron.job
+where jobname = 'delete_old_orders_job';
+
+select cron.schedule(
+  'delete_old_orders_job',
+  '0 0 * * *',
+  'select public.delete_old_orders();'
+);
