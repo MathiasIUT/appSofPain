@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,6 +43,9 @@ export default function OrderDetailScreen({ navigation, route }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(order);
+  const [deliveryNote, setDeliveryNote] = useState(null);
+  const [openingDeliveryNote, setOpeningDeliveryNote] = useState(false);
+  const [resendingDeliveryNote, setResendingDeliveryNote] = useState(false);
   const { loadOrderIntoCart, reorderIntoCart } = useCart();
 
   useEffect(() => {
@@ -51,7 +55,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { navigation.reset({ index: 0, routes: [{ name: 'Login' }] }); return; }
 
-        const [ownershipRes, itemsRes, profileRes] = await Promise.all([
+        const [ownershipRes, itemsRes, profileRes, deliveryNoteRes] = await Promise.all([
           supabase
             .from('orders')
             .select('*')
@@ -69,8 +73,17 @@ export default function OrderDetailScreen({ navigation, route }) {
             .select('*')
             .eq('id', user.id)
             .single(),
+          supabase
+            .from('delivery_notes')
+            .select('storage_path, created_at, email_sent_at, email_error')
+            .eq('order_id', order.id)
+            .maybeSingle(),
         ]);
 
+        if (ownershipRes.error) throw ownershipRes.error;
+        if (itemsRes.error) throw itemsRes.error;
+        if (profileRes.error) throw profileRes.error;
+        if (deliveryNoteRes.error) throw deliveryNoteRes.error;
         if (!ownershipRes.data) {
           navigation.goBack();
           return;
@@ -78,6 +91,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         setCurrentOrder(ownershipRes.data);
         if (itemsRes.data) setItems(itemsRes.data);
         if (profileRes.data) setClient(profileRes.data);
+        setDeliveryNote(deliveryNoteRes.data);
       } catch (err) {
         console.error('Erreur chargement détail commande :', err);
       } finally {
@@ -99,6 +113,45 @@ export default function OrderDetailScreen({ navigation, route }) {
       showAlert('Erreur', 'Impossible de générer le bon de commande.');
     } finally {
       setPdfLoading(false);
+    }
+  };
+
+  const handleOpenDeliveryNote = async () => {
+    if (!deliveryNote?.storage_path) return;
+    setOpeningDeliveryNote(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('delivery-notes')
+        .createSignedUrl(deliveryNote.storage_path, 300);
+      if (error) throw error;
+      if (Platform.OS === 'web') window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+      else await Linking.openURL(data.signedUrl);
+    } catch (err) {
+      console.error('Erreur ouverture bon de livraison :', err);
+      showAlert('Erreur', 'Impossible d’ouvrir le bon de livraison.');
+    } finally {
+      setOpeningDeliveryNote(false);
+    }
+  };
+
+  const handleResendDeliveryNote = async () => {
+    setResendingDeliveryNote(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-delivery-note', {
+        body: { order_id: currentOrder.id },
+      });
+      if (error) throw error;
+      setDeliveryNote((previous) => ({
+        ...previous,
+        email_sent_at: new Date().toISOString(),
+        email_error: null,
+      }));
+      showAlert('E-mail envoyé', 'Le bon de livraison a été envoyé à votre adresse e-mail vérifiée.');
+    } catch (err) {
+      console.error('Erreur nouvel envoi du bon de livraison :', err);
+      showAlert('Erreur', 'Impossible d’envoyer le bon de livraison. Réessayez plus tard.');
+    } finally {
+      setResendingDeliveryNote(false);
     }
   };
 
@@ -255,11 +308,18 @@ export default function OrderDetailScreen({ navigation, route }) {
             </View>
           ) : null}
 
-          {order.type_commande === 'surgele' && currentOrder.statut === 'livree' ? (
+          {currentOrder.statut === 'livree' ? (
             <View style={[styles.infoRow, { marginTop: spacing.xs }]}>
               <Text style={styles.infoLabel}>Statut</Text>
-              <View style={{ backgroundColor: '#E8F5E9', borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8 }}>
-                <Text style={{ color: '#2E7D32', fontSize: 12, fontWeight: '700' }}>Livré</Text>
+              <View>
+                <View style={{ backgroundColor: '#E8F5E9', borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8 }}>
+                  <Text style={{ color: '#2E7D32', fontSize: 12, fontWeight: '700' }}>Livré</Text>
+                </View>
+                {currentOrder.delivered_at ? (
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSizes.xs, marginTop: 4 }}>
+                    {`Le ${new Date(currentOrder.delivered_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`}
+                  </Text>
+                ) : null}
               </View>
             </View>
           ) : null}
@@ -271,6 +331,42 @@ export default function OrderDetailScreen({ navigation, route }) {
             </View>
           ) : null}
         </View>
+
+        {currentOrder.statut === 'livree' && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Bon de livraison</Text>
+            {deliveryNote ? (
+              <>
+                <Text style={styles.deliveryNoteText}>
+                  {deliveryNote.email_sent_at
+                    ? 'Le bon est disponible ici et a été envoyé à votre adresse e-mail vérifiée.'
+                    : 'Le bon est disponible ici. Son envoi par e-mail est à relancer.'}
+                </Text>
+                <Button
+                  title="Consulter le bon de livraison"
+                  onPress={handleOpenDeliveryNote}
+                  loading={openingDeliveryNote}
+                  disabled={openingDeliveryNote || resendingDeliveryNote}
+                  fullWidth
+                  size="lg"
+                />
+                {!deliveryNote.email_sent_at && (
+                  <Button
+                    title="Renvoyer le bon par e-mail"
+                    onPress={handleResendDeliveryNote}
+                    loading={resendingDeliveryNote}
+                    disabled={openingDeliveryNote || resendingDeliveryNote}
+                    fullWidth
+                    size="lg"
+                    variant="outline"
+                  />
+                )}
+              </>
+            ) : (
+              <Text style={styles.deliveryNoteText}>Le bon de livraison n’est pas encore disponible.</Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Produits commandés</Text>
@@ -417,6 +513,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  deliveryNoteText: {
+    color: colors.textSecondary,
+    fontSize: fontSizes.sm,
+    marginBottom: spacing.md,
+    lineHeight: 20,
   },
   infoRow: {
     flexDirection: 'row',

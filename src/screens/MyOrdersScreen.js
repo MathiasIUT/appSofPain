@@ -182,9 +182,13 @@ const OrderCard = React.memo(({ item, onPress }) => {
           Livraison le {fmt(item.date_livraison_souhaitee || new Date(new Date(item.date_commande).getTime() + 86400000))}
         </Text>
       ) : null}
-      {item.type_commande === 'surgele' && item.statut === 'livree' ? (
+      {item.statut === 'livree' ? (
         <View style={{ backgroundColor: '#E8F5E9', borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start', marginTop: 4 }}>
-          <Text style={{ color: '#2E7D32', fontSize: 11, fontWeight: '700' }}>Livré</Text>
+          <Text style={{ color: '#2E7D32', fontSize: 11, fontWeight: '700' }}>
+            {item.delivered_at
+              ? `Livré le ${new Date(item.delivered_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })} · bon disponible dans le détail`
+              : 'Livré'}
+          </Text>
         </View>
       ) : null}
       {item.type_commande === 'surgele' && item.statut === 'en_preparation' ? (

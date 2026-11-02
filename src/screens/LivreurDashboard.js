@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../config/supabase';
 import { colors, spacing, fontSizes, borderRadius, shadows } from '../config/theme';
 import { getDateTourneeFrais } from '../utils/orderSchedule';
-import { toLocalIsoDate } from '../utils/accountingDate';
+import { generateDeliveryNotePdfBytes } from '../utils/generateDeliveryNotePdf';
 
 const showAlert = (t, m) => {
   if (Platform.OS === 'web') window.alert(`${t}\n\n${m}`);
@@ -42,25 +42,27 @@ export default function LivreurDashboard({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [validating, setValidating] = useState(null); // groupKey en cours de validation
+  const [validating, setValidating] = useState(null);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
       if (!user) {
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         return;
       }
 
       // Vérifier le rôle livreur
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role, actif')
         .eq('id', user.id)
         .single();
+      if (profileError) throw profileError;
       if (!profile || profile.role !== 'livreur' || profile.actif === false) {
         await supabase.auth.signOut();
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -68,11 +70,12 @@ export default function LivreurDashboard({ navigation }) {
       }
 
       // Récupérer la fiche livreur liée à ce compte
-      const { data: livreurRow } = await supabase
+      const { data: livreurRow, error: livreurError } = await supabase
         .from('livreurs')
         .select('*')
         .eq('user_id', user.id)
         .single();
+      if (livreurError && livreurError.code !== 'PGRST116') throw livreurError;
       if (!livreurRow) {
         showAlert('Erreur', 'Aucune tournée associée à ce compte. Contactez l\'administrateur.');
         setLivreur(null);
@@ -82,13 +85,14 @@ export default function LivreurDashboard({ navigation }) {
       setLivreur(livreurRow);
 
       // Ses commandes à livrer
-      const { data: fetched } = await supabase
+      const { data: fetched, error: ordersError } = await supabase
         .from('orders')
         .select('*, client:profiles!client_id(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*)')
         .eq('livreur_id', livreurRow.id)
         .is('deleted_at', null)
         .in('statut', ['nouvelle', 'traite', 'en_preparation', 'en_livraison'])
         .order('date_commande', { ascending: true });
+      if (ordersError) throw ordersError;
 
       const list = fetched || [];
       list.sort((a, b) => {
@@ -148,33 +152,88 @@ export default function LivreurDashboard({ navigation }) {
     );
   };
 
-  const handleValiderTournee = async (groupKey) => {
-    const groupOrders = getGroupOrders(groupKey);
-    if (groupOrders.length === 0) return;
-
-    const msg = `Valider cette tournée ?\n\n${groupOrders.length} commande(s) seront marquées comme livrées.`;
+  const handleValiderCommande = async (order) => {
+    const clientName = order.client?.nom_societe
+      || [order.client?.prenom, order.client?.nom].filter(Boolean).join(' ')
+      || order.client_nom
+      || 'Client';
+    const msg = `Valider la livraison de la commande N° ${order.numero} pour ${clientName} ?\n\nLe bon sera enregistré dans l’application et envoyé à l’adresse e-mail vérifiée du client.`;
     const confirmed = await new Promise((resolve) => {
       if (Platform.OS === 'web') resolve(window.confirm(msg));
-      else Alert.alert('Valider la tournée', msg, [
+      else Alert.alert('Valider la livraison', msg, [
         { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Valider', onPress: () => resolve(true) },
+        { text: 'Valider la commande', onPress: () => resolve(true) },
       ]);
     });
     if (!confirmed) return;
 
-    setValidating(groupKey);
+    setValidating(order.id);
+    const storagePath = `${order.id}/delivery-note.pdf`;
+    let uploaded = false;
+    let deliveryRecorded = false;
     try {
-      const today = toLocalIsoDate();
-      const { error } = await supabase
-        .from('orders')
-        .update({ statut: 'livree', date_livraison_reelle: today })
-        .in('id', groupOrders.map(o => o.id));
-      if (error) throw error;
-      setOrders(prev => prev.filter(o => !groupOrders.find(g => g.id === o.id)));
-      showAlert('Tournée validée ✓', 'Les commandes ont été marquées comme livrées.');
+      const pdfBytes = await generateDeliveryNotePdfBytes(
+        order,
+        order.order_items || [],
+        order.client,
+        new Date()
+      );
+      const { error: uploadError } = await supabase.storage
+        .from('delivery-notes')
+        .upload(storagePath, pdfBytes, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+      if (uploadError) throw uploadError;
+      uploaded = true;
+
+      const { error: deliveryError } = await supabase.rpc('complete_order_delivery', {
+        p_order_id: order.id,
+        p_storage_path: storagePath,
+      });
+      if (deliveryError) throw deliveryError;
+      deliveryRecorded = true;
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+
+      const { error: emailError } = await supabase.functions.invoke('send-delivery-note', {
+        body: { order_id: order.id },
+      });
+      if (emailError) {
+        console.error('Livraison enregistrée, mais e-mail non envoyé :', emailError);
+        showAlert(
+          'Livraison validée',
+          'Le bon est enregistré dans l’application, mais son e-mail n’a pas pu être envoyé. Le client pourra le consulter et demander un nouvel envoi depuis le détail de sa commande.'
+        );
+        return;
+      }
+
+      showAlert('Livraison validée', 'Le bon a été enregistré dans l’application et envoyé au client.');
     } catch (err) {
-      console.error('Erreur validation tournée :', err);
-      showAlert('Erreur', 'Impossible de valider la tournée.');
+      console.error('Erreur validation livraison :', err);
+      if (uploaded && !deliveryRecorded) {
+        const { data: savedNote, error: noteCheckError } = await supabase
+          .from('delivery_notes')
+          .select('order_id')
+          .eq('order_id', order.id)
+          .maybeSingle();
+        if (noteCheckError) {
+          console.error('Impossible de vérifier si le bon a été enregistré :', noteCheckError);
+        } else if (savedNote) {
+          deliveryRecorded = true;
+          setOrders(prev => prev.filter(o => o.id !== order.id));
+        } else {
+          const { error: cleanupError } = await supabase.storage
+            .from('delivery-notes')
+            .remove([storagePath]);
+          if (cleanupError) console.error('Erreur nettoyage du PDF non associé :', cleanupError);
+        }
+      }
+      showAlert(
+        deliveryRecorded ? 'Livraison enregistrée' : 'Erreur',
+        deliveryRecorded
+          ? 'La livraison et son bon sont enregistrés, mais la confirmation a été interrompue. Vérifiez le statut du courriel dans le détail de la commande.'
+          : 'Impossible de valider cette livraison et d’enregistrer son bon.'
+      );
     } finally {
       setValidating(null);
     }
@@ -227,19 +286,31 @@ export default function LivreurDashboard({ navigation }) {
                 const w = getWeekBoundaries(groupKey.split('_')[0]);
                 title = `Surgelé — semaine du ${w.monDisp} au ${w.sunDisp}`;
               } else {
-                title = `Tournée du ${fmtDate(groupKey.split('_')[0])}`;
+                title = `Tournée frais — ${fmtDate(groupKey.split('_')[0])}`;
               }
-              const isValidating = validating === groupKey;
-
               return (
                 <View key={groupKey} style={[s.groupCard, isSurgele && s.groupCardSurgele]}>
                   <View style={s.groupHeader}>
-                    <Text style={[s.groupTitle, isSurgele && { color: '#1565C0' }]}>{title}</Text>
-                    <View style={[s.countBadge, isSurgele && { backgroundColor: '#E3F2FD' }]}>
-                      <Text style={[s.countBadgeText, isSurgele && { color: '#1565C0' }]}>
-                        {groupOrders.length} commande{groupOrders.length > 1 ? 's' : ''}
-                      </Text>
+                    <View style={s.groupHeading}>
+                      <Text style={[s.groupTitle, isSurgele && { color: '#1565C0' }]}>{title}</Text>
+                      <View style={[s.countBadge, isSurgele && { backgroundColor: '#E3F2FD' }]}>
+                        <Text style={[s.countBadgeText, isSurgele && { color: '#1565C0' }]}>
+                          {groupOrders.length} commande{groupOrders.length > 1 ? 's' : ''}
+                        </Text>
+                      </View>
                     </View>
+                    <TouchableOpacity
+                      onPress={handleRefresh}
+                      disabled={refreshing}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Actualiser la tournée ${title}`}
+                      style={[s.groupRefreshBtn, refreshing && { opacity: 0.5 }]}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[s.groupRefreshText, isSurgele && { color: '#1565C0' }]}>
+                        {refreshing ? 'Actualisation…' : '↻ Actualiser'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
                   {groupOrders.map((o, idx) => {
@@ -274,22 +345,21 @@ export default function LivreurDashboard({ navigation }) {
                         {o.notes_client ? (
                           <Text style={s.notes}>{`Note : ${o.notes_client}`}</Text>
                         ) : null}
+                        <TouchableOpacity
+                          style={[s.validateBtn, validating === o.id && { opacity: 0.6 }]}
+                          onPress={() => handleValiderCommande(o)}
+                          disabled={validating !== null}
+                          activeOpacity={0.8}
+                        >
+                          {validating === o.id ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Text style={s.validateBtnText}>✓ Valider cette livraison</Text>
+                          )}
+                        </TouchableOpacity>
                       </View>
                     );
                   })}
-
-                  <TouchableOpacity
-                    style={[s.validateBtn, isValidating && { opacity: 0.6 }]}
-                    onPress={() => handleValiderTournee(groupKey)}
-                    disabled={isValidating}
-                    activeOpacity={0.8}
-                  >
-                    {isValidating ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={s.validateBtnText}>✓ Valider la tournée</Text>
-                    )}
-                  </TouchableOpacity>
                 </View>
               );
             })
@@ -342,7 +412,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: spacing.md, flexWrap: 'wrap', gap: spacing.xs,
   },
+  groupHeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
   groupTitle: { fontSize: fontSizes.md, fontWeight: '700', color: '#2E7D32', textTransform: 'capitalize', flexShrink: 1 },
+  groupRefreshBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, ...Platform.select({ web: { cursor: 'pointer' } }) },
+  groupRefreshText: { fontSize: fontSizes.xs, color: '#2E7D32', fontWeight: '700' },
   countBadge: { backgroundColor: '#E8F5E9', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.round },
   countBadgeText: { fontSize: fontSizes.xs, fontWeight: '700', color: '#2E7D32' },
   orderCard: {
