@@ -132,10 +132,9 @@ export default function RecurringOrdersModal({ visible, onClose }) {
     const performCancel = async () => {
       setSaving(true);
       try {
-        const { error } = await supabase
-          .from('order_schedules')
-          .update({ statut: 'annulee' })
-          .eq('id', schedule.id);
+        const { error } = await supabase.rpc('cancel_order_schedule', {
+          p_schedule_id: schedule.id,
+        });
         if (error) throw error;
         await loadSchedules();
       } catch (error) {
@@ -146,7 +145,7 @@ export default function RecurringOrdersModal({ visible, onClose }) {
         setSaving(false);
       }
     };
-    const message = 'Les commandes déjà créées restent inchangées. Les prochaines commandes ne seront plus générées.';
+    const message = 'Les commandes déjà créées qui ne sont pas livrées ou traitées seront annulées et retirées de la compta. Les commandes terminées restent conservées. Aucune prochaine commande ne sera générée.';
     if (Platform.OS === 'web') {
       if (window.confirm(`Annuler la programmation ?\n\n${message}`)) await performCancel();
     } else {
