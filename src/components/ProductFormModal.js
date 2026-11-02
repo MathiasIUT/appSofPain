@@ -264,6 +264,16 @@ export default function ProductFormModal({
           .eq('id', product.id);
         if (error) throw error;
       } else {
+        const { data: lastProduct, error: orderError } = await supabase
+          .from('products')
+          .select('ordre')
+          .eq('category_id', form.category_id)
+          .order('ordre', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (orderError) throw orderError;
+        payload.ordre = (lastProduct?.ordre ?? 0) + 1;
+
         const { error } = await supabase.from('products').insert(payload);
         if (error) throw error;
       }

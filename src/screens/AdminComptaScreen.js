@@ -40,6 +40,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
   const [selectedLivreurId, setSelectedLivreurId] = useState('all');
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingSage, setExportingSage] = useState(false);
+  const [orderingProductId, setOrderingProductId] = useState(null);
   const [search, setSearch] = useState('');
 
   const [bonClient, setBonClient] = useState(null);
@@ -65,7 +66,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
 
       const [livRes, prodRes, cliRes, pricesRes, ordRes] = await Promise.all([
         supabase.from('livreurs').select('*').eq('actif', true),
-        supabase.from('products').select('*, category:categories(slug)').eq('actif', true).order('nom'),
+        supabase.from('products').select('*, category:categories(slug)').eq('actif', true).order('ordre', { ascending: true }).order('nom'),
         supabase.from('profiles').select('*').eq('role', 'client'),
         supabase.from('client_prices').select('*'),
         accountingOrdersQuery
@@ -104,12 +105,38 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
   const handleExportExcel = async () => {
     setExportingExcel(true);
     try {
-      const displayProducts = products.filter(p => (p.category?.slug || 'frais') === fixedComptaType);
-      exportComptaExcel(tableData.rows, displayProducts, monthLabelCap, livreurs);
+      exportComptaExcel(tableData.rows, tableData.displayProducts, monthLabelCap, livreurs);
     } catch (err) {
       console.error('Erreur export Excel compta :', err);
     } finally {
       setExportingExcel(false);
+    }
+  };
+
+  const handleMoveProduct = async (product, direction) => {
+    if (orderingProductId) return;
+    setOrderingProductId(product.id);
+    try {
+      const { error } = await supabase.rpc('move_product_order', {
+        p_product_id: product.id,
+        p_direction: direction,
+      });
+      if (error) throw error;
+
+      const { data, error: productsError } = await supabase
+        .from('products')
+        .select('*, category:categories(slug)')
+        .eq('actif', true)
+        .order('ordre', { ascending: true })
+        .order('nom');
+      if (productsError) throw productsError;
+      setProducts(data || []);
+    } catch (err) {
+      const message = err.message || "Impossible de modifier l'ordre des produits.";
+      if (Platform.OS === 'web') window.alert(`Erreur\n\n${message}`);
+      else Alert.alert('Erreur', message);
+    } finally {
+      setOrderingProductId(null);
     }
   };
 
@@ -143,6 +170,24 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
         const name = [c.nom_societe, c.prenom, c.nom].filter(Boolean).join(' ').toLowerCase();
         return name.includes(q);
       });
+    }
+
+    const clientsByLivreur = new Map();
+    for (const client of clients) {
+      const livreurId = client[targetLivreurField];
+      if (!livreurId) continue;
+      if (!clientsByLivreur.has(livreurId)) clientsByLivreur.set(livreurId, []);
+      clientsByLivreur.get(livreurId).push(client);
+    }
+
+    const tourneeNumbers = new Map();
+    for (const routeClients of clientsByLivreur.values()) {
+      routeClients.sort((a, b) => {
+        const orderDifference = (a.ordre_tournee || 0) - (b.ordre_tournee || 0);
+        if (orderDifference) return orderDifference;
+        return (a.nom_societe || a.nom || '').localeCompare(b.nom_societe || b.nom || '');
+      });
+      routeClients.forEach((client, index) => tourneeNumbers.set(client.id, index + 1));
     }
 
     const result = [];
@@ -218,13 +263,37 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
     }
 
     result.sort((a, b) => {
+      if (selectedLivreurId === 'all') {
+        const livreurA = a.client[targetLivreurField];
+        const livreurB = b.client[targetLivreurField];
+        if (livreurA && livreurB && livreurA !== livreurB) {
+          const nameA = livreurs.find(l => l.id === livreurA);
+          const nameB = livreurs.find(l => l.id === livreurB);
+          const routeNameDifference = [nameA?.prenom, nameA?.nom].filter(Boolean).join(' ')
+            .localeCompare([nameB?.prenom, nameB?.nom].filter(Boolean).join(' '));
+          if (routeNameDifference) return routeNameDifference;
+        } else if (livreurA && !livreurB) {
+          return -1;
+        } else if (!livreurA && livreurB) {
+          return 1;
+        }
+      }
+
+      const numberA = tourneeNumbers.get(a.client.id);
+      const numberB = tourneeNumbers.get(b.client.id);
+      if (numberA !== undefined && numberB !== undefined && numberA !== numberB) {
+        return numberA - numberB;
+      }
+      if (numberA !== undefined && numberB === undefined) return -1;
+      if (numberA === undefined && numberB !== undefined) return 1;
+
       const nameA = a.client.nom_societe || a.client.nom || '';
       const nameB = b.client.nom_societe || b.client.nom || '';
       return nameA.localeCompare(nameB);
     });
 
-    return { rows: result, globalTotalHt, displayProducts };
-  }, [clients, orders, selectedLivreurId, search, fixedComptaType, products]);
+    return { rows: result, globalTotalHt, displayProducts, tourneeNumbers };
+  }, [clients, orders, selectedLivreurId, search, fixedComptaType, products, livreurs]);
 
   const getDisplayPrice = (productId, clientId, aggregatedPrice) => {
     if (aggregatedPrice !== undefined) return aggregatedPrice;
@@ -356,9 +425,37 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
                   <View style={[styles.th, styles.colClient]}>
                     <Text style={styles.thText}>Client</Text>
                   </View>
-                  {tableData.displayProducts.map(p => (
+                  <View style={[styles.th, styles.colSage]}>
+                    <Text style={styles.thText}>Code Sage</Text>
+                  </View>
+                  {tableData.displayProducts.map((p, index) => (
                     <View key={p.id} style={[styles.th, styles.colProduct]}>
                       <Text style={styles.thText} numberOfLines={2}>{p.nom}</Text>
+                      <View style={styles.productOrderControls}>
+                        <TouchableOpacity
+                          onPress={() => handleMoveProduct(p, -1)}
+                          disabled={index === 0 || orderingProductId !== null}
+                          accessibilityLabel={`Monter ${p.nom} dans la compta`}
+                          style={[
+                            styles.productOrderButton,
+                            (index === 0 || orderingProductId !== null) && styles.productOrderButtonDisabled,
+                          ]}
+                        >
+                          <Text style={styles.productOrderButtonText}>▲</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleMoveProduct(p, 1)}
+                          disabled={index === tableData.displayProducts.length - 1 || orderingProductId !== null}
+                          accessibilityLabel={`Descendre ${p.nom} dans la compta`}
+                          style={[
+                            styles.productOrderButton,
+                            (index === tableData.displayProducts.length - 1 || orderingProductId !== null)
+                              && styles.productOrderButtonDisabled,
+                          ]}
+                        >
+                          <Text style={styles.productOrderButtonText}>▼</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))}
                   <View style={[styles.th, styles.colTotal]}>
@@ -369,11 +466,22 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
                 {/* Lignes clients */}
                 {tableData.rows.map((row, idx) => {
                   const clientName = row.client.nom_societe || [row.client.prenom, row.client.nom].filter(Boolean).join(' ') || 'Client sans nom';
+                  const tourneeNumber = tableData.tourneeNumbers.get(row.client.id);
+                  const routeLivreurId = row.client[fixedComptaType === 'surgele' ? 'livreur_surgele_id' : 'livreur_id'];
+                  const routeLivreur = livreurs.find(l => l.id === routeLivreurId);
+                  const routeLivreurName = [routeLivreur?.prenom, routeLivreur?.nom].filter(Boolean).join(' ');
 
                   return (
                     <View key={row.client.id} style={[styles.tableRow, idx % 2 === 1 && styles.rowAlt]}>
                       <View style={[styles.td, styles.colClient]}>
                         <Text style={styles.tdClientText} numberOfLines={2}>{clientName}</Text>
+                        {tourneeNumber ? (
+                          <Text style={styles.tdClientSub}>
+                            {selectedLivreurId === 'all' && routeLivreurName
+                              ? `${routeLivreurName} · tournée n° ${tourneeNumber}`
+                              : `Tournée n° ${tourneeNumber}`}
+                          </Text>
+                        ) : null}
                         <Text style={styles.tdClientSub} numberOfLines={1}>{row.client.ville || ''}</Text>
                         {!row.client[fixedComptaType === 'surgele' ? 'livreur_surgele_id' : 'livreur_id'] && !String(row.client.id).startsWith('deleted-') && (
                           <View style={{ backgroundColor: '#FFEBEE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, alignSelf: 'flex-start' }}>
@@ -387,6 +495,11 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
                         >
                           <Text style={styles.bonBtnText}>Voir le détail →</Text>
                         </TouchableOpacity>
+                      </View>
+                      <View style={[styles.td, styles.colSage]}>
+                        <Text style={styles.tdSageText} numberOfLines={2}>
+                          {row.client.code_sage || '—'}
+                        </Text>
                       </View>
 
                       {tableData.displayProducts.map(p => {
@@ -420,6 +533,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
                   <View style={[styles.td, styles.colClient]}>
                     <Text style={styles.tdFooterText}>TOTAL GLOBAL</Text>
                   </View>
+                  <View style={[styles.td, styles.colSage]} />
                   {tableData.displayProducts.map(p => {
                     let totalQty = 0;
                     tableData.rows.forEach(r => {
@@ -944,9 +1058,37 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     backgroundColor: colors.surface,
   },
+  colSage: {
+    width: 100,
+    flexShrink: 0,
+    backgroundColor: colors.surface,
+  },
   colProduct: {
     minWidth: 90,
     flex: 1,
+  },
+  productOrderControls: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  productOrderButton: {
+    width: 26,
+    height: 24,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  productOrderButtonDisabled: {
+    opacity: 0.35,
+  },
+  productOrderButtonText: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '700',
   },
   colTotal: {
     width: 120,
@@ -962,6 +1104,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textLight,
     marginTop: 2,
+  },
+  tdSageText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
   },
   tdQtyText: {
     fontSize: fontSizes.md,

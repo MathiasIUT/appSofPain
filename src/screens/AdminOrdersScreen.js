@@ -1711,6 +1711,7 @@ function TakeOrderModal({ visible, onClose, onOrderCreated, recurring = false })
         .from('products')
         .select('id, nom, prix_unitaire_ht, increment, tva_pourcent, category:categories(id, slug)')
         .eq('actif', true)
+        .order('ordre', { ascending: true })
         .order('nom'),
     ]).then(([cliRes, prodRes]) => {
       setClients(cliRes.data || []);

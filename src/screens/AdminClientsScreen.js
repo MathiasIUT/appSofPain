@@ -348,7 +348,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
       try {
         const [livRes, prodRes, pricesRes] = await Promise.all([
           supabase.from('livreurs').select('id, nom, prenom, type_livreur').eq('actif', true),
-          supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('nom'),
+          supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('ordre').order('nom'),
           supabase.from('client_prices').select('*').eq('client_id', client.id),
         ]);
         setLivreurs(livRes.data || []);

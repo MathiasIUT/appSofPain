@@ -24,8 +24,8 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
     livreurs.map((l) => [l.id, [l.prenom, l.nom].filter(Boolean).join(' ')])
   );
 
-  const headers = ['Client', 'Ville', 'Livreur'];
-  const colWidths = [28, 18, 20];
+  const headers = ['Client', 'Code Sage', 'Ville', 'Livreur'];
+  const colWidths = [28, 18, 18, 20];
   products.forEach((p) => {
     headers.push(`${p.nom} (Qté)`);
     headers.push(`${p.nom} (PU €)`);
@@ -42,6 +42,7 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
       'Client';
     const cells = [
       clientName,
+      row.client.code_sage || '',
       row.client.ville || '',
       livreurMap[row.client.livreur_id] || '',
     ];
@@ -58,7 +59,7 @@ export function exportComptaExcel(rows, products, monthLabel, livreurs = []) {
     return cells;
   });
 
-  const totalRow = ['TOTAL GLOBAL', '', ''];
+  const totalRow = ['TOTAL GLOBAL', '', '', ''];
   products.forEach((p) => {
     let totalQty = 0;
     rows.forEach((r) => { if (r.productAgg[p.id]) totalQty += r.productAgg[p.id].qty; });
@@ -131,7 +132,7 @@ export async function exportOrdersExcel(ids = null) {
   const [ordRes, itemsRes, prodRes, livRes] = await Promise.all([
     ordersQ,
     itemsQ,
-    supabase.from('products').select('id, nom').eq('actif', true).order('nom'),
+    supabase.from('products').select('id, nom').eq('actif', true).order('ordre').order('nom'),
     supabase.from('livreurs').select('id, nom, prenom'),
   ]);
 

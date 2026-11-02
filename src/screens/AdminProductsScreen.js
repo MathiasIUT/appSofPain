@@ -25,7 +25,7 @@ export default function AdminProductsScreen() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState('all');
-  const [showInactive, setShowInactive] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
@@ -38,7 +38,9 @@ export default function AdminProductsScreen() {
         supabase
           .from('products')
           .select('*, category:categories(id, nom, slug)')
-          .order('created_at', { ascending: false }),
+          .order('category_id')
+          .order('ordre')
+          .order('nom'),
       ]);
 
       if (catRes.error) throw catRes.error;
@@ -108,6 +110,11 @@ export default function AdminProductsScreen() {
     if (!showInactive && !p.actif) return false;
     if (filterCategory !== 'all' && p.category_id !== filterCategory) return false;
     return true;
+  }).sort((a, b) => {
+    const categoryA = categories.findIndex(c => c.id === a.category_id);
+    const categoryB = categories.findIndex(c => c.id === b.category_id);
+    if (categoryA !== categoryB) return categoryA - categoryB;
+    return (a.ordre || 0) - (b.ordre || 0) || a.nom.localeCompare(b.nom);
   });
 
   const stats = {

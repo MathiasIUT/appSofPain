@@ -45,6 +45,7 @@ export default function ClientHome({ navigation }) {
           .from('products')
           .select('*, category:categories(id, nom, slug)')
           .eq('actif', true)
+          .order('ordre', { ascending: true })
           .order('nom', { ascending: true }),
         supabase
           .from('client_prices')

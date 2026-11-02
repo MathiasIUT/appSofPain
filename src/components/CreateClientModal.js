@@ -53,7 +53,7 @@ export default function CreateClientModal({ visible, onClose, onCreated }) {
     (async () => {
       const [livRes, prodRes] = await Promise.all([
         supabase.from('livreurs').select('id, nom, prenom, type_livreur').eq('actif', true),
-        supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('nom'),
+        supabase.from('products').select('id, nom, prix_unitaire_ht').eq('actif', true).order('ordre').order('nom'),
       ]);
       setLivreurs(livRes.data || []);
       const prods = prodRes.data || [];
