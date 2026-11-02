@@ -3,8 +3,8 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { getAccountingDate } from './accountingDate';
 
-export async function generateMonthlyBonPdf(client, date, orders) {
-  const html = buildHtml(client, date, orders);
+export async function generateMonthlyBonPdf(client, date, orders, adjustments = []) {
+  const html = buildHtml(client, date, orders, adjustments);
 
   if (Platform.OS === 'web') {
     const printWindow = window.open('', '_blank', 'width=960,height=760');
@@ -38,8 +38,8 @@ export async function generateMonthlyBonPdf(client, date, orders) {
   return uri;
 }
 
-export async function generateMonthlyBonPdfBase64(client, date, orders) {
-  const html = buildHtml(client, date, orders);
+export async function generateMonthlyBonPdfBase64(client, date, orders, adjustments = []) {
+  const html = buildHtml(client, date, orders, adjustments);
 
   if (Platform.OS === 'web') {
     try {
@@ -89,7 +89,7 @@ const LOGO = 'https://zoemyisrqqfybgfnnlay.supabase.co/storage/v1/object/public/
 const COLOR_PRIMARY = '#C4924A';
 const COLOR_PRIMARY_LIGHT = '#FFF6EC';
 
-function buildHtml(client, date, orders) {
+function buildHtml(client, date, orders, adjustments = []) {
   const clientName = client.nom_societe
     || [client.prenom, client.nom].filter(Boolean).join(' ')
     || 'Client inconnu';
@@ -97,7 +97,8 @@ function buildHtml(client, date, orders) {
   const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
   const printDate = fmtDate(new Date());
-  const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
+  const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0)
+    + adjustments.reduce((acc, item) => acc + Number(item.quantity || 0) * Number(item.unit_price_ht || 0), 0);
 
   let ordersRows = '';
   orders.forEach((o) => {
@@ -151,6 +152,7 @@ function buildHtml(client, date, orders) {
             </tr>
         `;
       });
+
     }
 
     ordersRows += `
@@ -163,6 +165,18 @@ function buildHtml(client, date, orders) {
       </tr>
     `;
   });
+
+  const adjustmentRows = adjustments.map((item) => {
+    const amount = Number(item.quantity || 0) * Number(item.unit_price_ht || 0);
+    return `
+      <tr>
+        <td style="padding:7px 12px;font-size:10px;color:#1A1A1A;border-bottom:1px solid #F5F5F5;">${esc(item.label)}</td>
+        <td style="padding:7px 12px;font-size:10px;color:#1A1A1A;text-align:center;border-bottom:1px solid #F5F5F5;">${esc(item.quantity)}</td>
+        <td style="padding:7px 12px;font-size:10px;color:#666;text-align:right;border-bottom:1px solid #F5F5F5;">${n2(item.unit_price_ht)} €</td>
+        <td style="padding:7px 12px;font-size:10px;color:#1A1A1A;text-align:right;font-weight:bold;border-bottom:1px solid #F5F5F5;">${n2(amount)} €</td>
+      </tr>
+    `;
+  }).join('');
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -240,6 +254,23 @@ function buildHtml(client, date, orders) {
     <td style="padding:20px;text-align:center;color:#999;font-style:italic;">Aucune commande ce mois-ci.</td>
   </tr>
   `}
+
+  ${adjustments.length > 0 ? `
+  <tr>
+    <td style="padding-top:16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #DDD;border-collapse:collapse;">
+        <tr><td colspan="4" style="padding:8px 12px;background:#F0F0F0;font-size:10px;font-weight:bold;">Ajustements comptables</td></tr>
+        <tr style="background:#F7F7F7;">
+          <td style="padding:6px 12px;font-size:9px;font-weight:bold;">Libellé</td>
+          <td style="padding:6px 12px;font-size:9px;font-weight:bold;text-align:center;">Qté</td>
+          <td style="padding:6px 12px;font-size:9px;font-weight:bold;text-align:right;">PU HT</td>
+          <td style="padding:6px 12px;font-size:9px;font-weight:bold;text-align:right;">Total HT</td>
+        </tr>
+        ${adjustmentRows}
+      </table>
+    </td>
+  </tr>
+  ` : ''}
 
   <!-- Total global -->
   <tr>

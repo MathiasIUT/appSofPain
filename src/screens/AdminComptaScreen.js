@@ -60,6 +60,7 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
         supabase
           .from('orders')
           .select('id, client_id, client_nom, client_uuid_snapshot, total_ht, type_commande, date_commande, date_livraison_souhaitee, date_livraison_reelle, order_items(product_id, quantite, prix_unitaire_ht)')
+          .is('deleted_at', null)
           .neq('statut', 'annulee'),
         currentDate
       );
@@ -572,7 +573,9 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
                 client={bonClient}
                 currentDate={currentDate}
                 products={tableData.displayProducts}
+                clientPrices={clientPrices}
                 comptaType={fixedComptaType}
+                onOrdersChanged={loadData}
                 onClose={closeBon}
               />
             )}
@@ -583,13 +586,23 @@ export default function AdminComptaScreen({ fixedComptaType = 'frais' }) {
   );
 }
 
-function BonMensuelModal({ client, currentDate, products, comptaType, onClose }) {
+function BonMensuelModal({ client, currentDate, products, clientPrices, comptaType, onOrdersChanged, onClose }) {
   const [orders, setOrders] = useState([]);
+  const [adjustments, setAdjustments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [adjustmentEditorVisible, setAdjustmentEditorVisible] = useState(false);
+  const [editingAdjustment, setEditingAdjustment] = useState(null);
+  const [adjustmentLabel, setAdjustmentLabel] = useState('');
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState('1');
+  const [adjustmentPrice, setAdjustmentPrice] = useState('');
+  const [savingAdjustment, setSavingAdjustment] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [orderDraftItems, setOrderDraftItems] = useState([]);
+  const [savingOrderItems, setSavingOrderItems] = useState(false);
 
   const isOrphan = String(client.id).startsWith('deleted-');
 
@@ -600,7 +613,8 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
   const monthLabel = currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
-  const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0);
+  const totalMois = orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0)
+    + adjustments.reduce((acc, item) => acc + Number(item.quantity || 0) * Number(item.unit_price_ht || 0), 0);
   const n2 = (v) => Number(v ?? 0).toFixed(2);
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
@@ -611,7 +625,8 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
         let query = applyAccountingMonthFilter(
           supabase
             .from('orders')
-            .select('id, numero, date_commande, date_livraison_souhaitee, date_livraison_reelle, total_ht, order_items(product_id, quantite, prix_unitaire_ht, products(nom))')
+            .select('id, numero, date_commande, date_livraison_souhaitee, date_livraison_reelle, total_ht, order_items(product_id, product_nom, quantite, increment, prix_unitaire_ht, tva_pourcent, products(nom))')
+            .is('deleted_at', null)
             .neq('statut', 'annulee')
             .eq('type_commande', comptaType),
           currentDate
@@ -627,18 +642,159 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
           query = query.eq('client_id', client.id);
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
-        setOrders(filterOrdersByAccountingMonth(data || [], currentDate).sort((a, b) => (
+        const monthStart = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`;
+        let adjustmentQuery = supabase
+            .from('monthly_bill_adjustments')
+            .select('*')
+            .eq('bill_month', monthStart)
+            .eq('compta_type', comptaType)
+            .order('created_at', { ascending: true });
+        if (isOrphan) {
+          adjustmentQuery = adjustmentQuery.is('client_id', null);
+          adjustmentQuery = client._orphan_uuid
+            ? adjustmentQuery.eq('client_uuid_snapshot', client._orphan_uuid)
+            : adjustmentQuery.eq('client_name', clientName);
+        } else {
+          adjustmentQuery = adjustmentQuery.eq('client_id', client.id);
+        }
+        const [ordersResult, adjustmentsResult] = await Promise.all([query, adjustmentQuery]);
+        if (ordersResult.error) throw ordersResult.error;
+        if (adjustmentsResult.error) throw adjustmentsResult.error;
+        setOrders(filterOrdersByAccountingMonth(ordersResult.data || [], currentDate).sort((a, b) => (
           new Date(getAccountingDate(a)) - new Date(getAccountingDate(b))
         )));
+        setAdjustments(adjustmentsResult.data || []);
       } catch (err) {
         console.error('Erreur chargement bon mensuel:', err);
+        showAlert('Erreur', 'Impossible de charger le bon mensuel.');
       } finally {
         setLoading(false);
       }
     })();
-  }, [client.id, currentDate]);
+  }, [client.id, client._orphan_name, client._orphan_uuid, currentDate, comptaType, isOrphan]);
+
+  const openAdjustmentEditor = (adjustment = null) => {
+    setEditingAdjustment(adjustment);
+    setAdjustmentLabel(adjustment?.label || '');
+    setAdjustmentQuantity(String(adjustment?.quantity ?? 1));
+    setAdjustmentPrice(adjustment ? String(adjustment.unit_price_ht) : '');
+    setAdjustmentEditorVisible(true);
+  };
+
+  const handleSaveAdjustment = async () => {
+    const quantity = Number(adjustmentQuantity.replace(',', '.'));
+    const unitPrice = Number(adjustmentPrice.replace(',', '.'));
+    if (!adjustmentLabel.trim() || !Number.isFinite(quantity) || quantity <= 0
+      || !Number.isFinite(unitPrice)) {
+      showAlert('Valeurs invalides', 'Saisis un libellé, une quantité positive et un prix HT valide. Un prix négatif permet de déduire un montant.');
+      return;
+    }
+
+    setSavingAdjustment(true);
+    try {
+      const monthStart = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const payload = {
+        client_id: isOrphan ? null : client.id,
+        client_uuid_snapshot: isOrphan ? client._orphan_uuid || null : null,
+        client_name: clientName,
+        bill_month: monthStart,
+        compta_type: comptaType,
+        label: adjustmentLabel.trim(),
+        quantity,
+        unit_price_ht: unitPrice,
+        updated_at: new Date().toISOString(),
+      };
+      const result = editingAdjustment
+        ? await supabase.from('monthly_bill_adjustments').update(payload).eq('id', editingAdjustment.id).select('*').single()
+        : await supabase.from('monthly_bill_adjustments').insert(payload).select('*').single();
+      if (result.error) throw result.error;
+      setAdjustments((previous) => editingAdjustment
+        ? previous.map((item) => item.id === result.data.id ? result.data : item)
+        : [...previous, result.data]);
+      setAdjustmentEditorVisible(false);
+    } catch (err) {
+      console.error('Erreur enregistrement ajustement du bon:', err);
+      showAlert('Erreur', "Impossible d'enregistrer l'ajustement comptable.");
+    } finally {
+      setSavingAdjustment(false);
+    }
+  };
+
+  const handleDeleteAdjustment = async (adjustment) => {
+    const message = `Supprimer l'ajustement « ${adjustment.label} » de ce bon mensuel ?`;
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(message)
+      : await new Promise((resolve) => Alert.alert('Supprimer l’ajustement', message, [
+        { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) },
+      ]));
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase.from('monthly_bill_adjustments').delete().eq('id', adjustment.id);
+      if (error) throw error;
+      setAdjustments((previous) => previous.filter((item) => item.id !== adjustment.id));
+    } catch (err) {
+      console.error('Erreur suppression ajustement du bon:', err);
+      showAlert('Erreur', "Impossible de supprimer l'ajustement comptable.");
+    }
+  };
+
+  const startOrderEdit = (order) => {
+    setEditingOrderId(order.id);
+    setOrderDraftItems((order.order_items || []).map((item) => ({
+      product_id: item.product_id,
+      product_nom: item.product_nom || item.products?.nom || `Produit #${item.product_id}`,
+      quantite: String(item.quantite),
+      increment: item.increment || 1,
+      prix_unitaire_ht: String(item.prix_unitaire_ht ?? 0),
+      tva_pourcent: item.tva_pourcent ?? 0,
+    })));
+  };
+
+  const handleSaveOrderItems = async (order) => {
+    const items = orderDraftItems.map((item) => ({
+      product_id: item.product_id || null,
+      product_nom: item.product_nom.trim(),
+      quantite: Number(item.quantite),
+      increment: Number(item.increment),
+      prix_unitaire_ht: Number(String(item.prix_unitaire_ht).replace(',', '.')),
+      tva_pourcent: Number(item.tva_pourcent),
+    }));
+    if (!items.length || items.some((item) => !item.product_nom || !Number.isInteger(item.quantite)
+      || item.quantite <= 0 || !Number.isFinite(item.prix_unitaire_ht) || item.prix_unitaire_ht < 0
+      || !Number.isFinite(item.tva_pourcent) || item.tva_pourcent < 0)) {
+      showAlert('Valeurs invalides', 'Vérifie les articles : quantité entière positive, prix HT positif ou nul et TVA valide.');
+      return;
+    }
+
+    setSavingOrderItems(true);
+    try {
+      const { error } = await supabase.rpc('replace_order_items', {
+        p_order_id: order.id,
+        p_items: items,
+      });
+      if (error) throw error;
+
+      const totalHt = items.reduce((sum, item) => sum + item.quantite * item.prix_unitaire_ht, 0);
+      const updatedItems = items.map((item) => ({
+        ...item,
+        sous_total_ht: Number((item.quantite * item.prix_unitaire_ht).toFixed(2)),
+      }));
+      setOrders((previous) => previous.map((current) => current.id === order.id
+        ? { ...current, total_ht: Number(totalHt.toFixed(2)), order_items: updatedItems }
+        : current));
+      await onOrdersChanged();
+      setEditingOrderId(null);
+      setOrderDraftItems([]);
+      showAlert('Commande corrigée', 'Les modifications sont enregistrées sur la commande et seront visibles dans les autres vues.');
+    } catch (err) {
+      console.error('Erreur correction commande depuis le bon mensuel:', err);
+      showAlert('Erreur', 'Impossible de modifier la commande.');
+    } finally {
+      setSavingOrderItems(false);
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -650,7 +806,7 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
           product_nom: it.products?.nom || `Produit #${it.product_id}`,
         })),
       }));
-      await generateMonthlyBonPdf(client, currentDate, enriched);
+      await generateMonthlyBonPdf(client, currentDate, enriched, adjustments);
     } catch (err) {
       console.error('Erreur export PDF:', err);
     } finally {
@@ -661,7 +817,7 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
   const handleExportExcel = async () => {
     setExportingExcel(true);
     try {
-      exportMonthlyBonExcel(client, monthLabelCap, orders, products);
+      exportMonthlyBonExcel(client, monthLabelCap, orders, products, adjustments);
     } catch (err) {
       console.error('Erreur export Excel:', err);
     } finally {
@@ -681,7 +837,7 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
         })),
       }));
 
-      const pdfBase64 = await generateMonthlyBonPdfBase64(client, currentDate, enriched);
+      const pdfBase64 = await generateMonthlyBonPdfBase64(client, currentDate, enriched, adjustments);
 
       const { data, error } = await supabase.functions.invoke('send-monthly-bill', {
         body: {
@@ -690,6 +846,7 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
           monthLabel: monthLabelCap,
           pdfBase64: pdfBase64,
           orders: enriched,
+          adjustments,
           totalMois: totalMois,
         }
       });
@@ -764,6 +921,14 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
             : <Text style={bon.exportBtnText}>Envoyer</Text>
           }
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[bon.exportBtn, { backgroundColor: '#455A64' }, loading && { opacity: 0.5 }]}
+          onPress={() => openAdjustmentEditor()}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          <Text style={bon.exportBtnText}>+ Ajustement au bon</Text>
+        </TouchableOpacity>
         <View style={bon.totalPill}>
           <Text style={bon.totalPillLabel}>Total du mois</Text>
           <Text style={bon.totalPillValue}>{n2(totalMois)} € HT</Text>
@@ -775,9 +940,9 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={bon.loadingText}>Chargement...</Text>
         </View>
-      ) : orders.length === 0 ? (
+      ) : orders.length === 0 && adjustments.length === 0 ? (
         <View style={bon.centered}>
-          <Text style={bon.emptyText}>Aucune commande ce mois-ci.</Text>
+          <Text style={bon.emptyText}>Aucune commande ni ajustement ce mois-ci.</Text>
         </View>
       ) : (
         <ScrollView style={bon.body} contentContainerStyle={bon.bodyContent} showsVerticalScrollIndicator={false}>
@@ -787,8 +952,26 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
             return (
               <View key={o.id} style={bon.orderCard}>
                 <View style={bon.orderCardHeader}>
-                  <Text style={bon.orderNum}>Commande N° {o.numero}</Text>
-                  <Text style={bon.orderDate}>{fmtDate(getAccountingDate(o))}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={bon.orderNum}>Commande N° {o.numero}</Text>
+                    <Text style={bon.orderDate}>{fmtDate(getAccountingDate(o))}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={bon.editButton}
+                    onPress={() => {
+                      if (editingOrderId === o.id) {
+                        setEditingOrderId(null);
+                        setOrderDraftItems([]);
+                      } else {
+                        startOrderEdit(o);
+                      }
+                    }}
+                    disabled={savingOrderItems}
+                  >
+                    <Text style={bon.editButtonText}>
+                      {editingOrderId === o.id ? 'Fermer' : 'Corriger la commande'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 <View style={bon.itemsTable}>
                   <View style={bon.itemsTableHeader}>
@@ -798,7 +981,7 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
                     <Text style={[bon.thText, bon.thRight, { flex: 1 }]}>Total HT</Text>
                   </View>
                   {items.map((it, idx) => {
-                    const nom = it.products?.nom || `Produit #${it.product_id}`;
+                    const nom = it.product_nom || it.products?.nom || `Produit #${it.product_id}`;
                     const pu = Number(it.prix_unitaire_ht || 0);
                     const ligneTotal = pu * it.quantite;
                     return (
@@ -815,9 +998,119 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
                     <Text style={bon.sousTotalValue}>{n2(sousTotal)} € HT</Text>
                   </View>
                 </View>
+                {editingOrderId === o.id && (
+                  <View style={bon.orderEditor}>
+                    <Text style={bon.editorNotice}>
+                      Ces changements modifient la vraie commande et se répercutent dans les autres vues.
+                    </Text>
+                    {orderDraftItems.map((item, index) => (
+                      <View key={`${item.product_id || item.product_nom}-${index}`} style={bon.editLine}>
+                        <Text style={[bon.tdText, { flex: 2 }]} numberOfLines={2}>{item.product_nom}</Text>
+                        <TextInput
+                          style={bon.editInput}
+                          value={String(item.quantite)}
+                          onChangeText={(value) => setOrderDraftItems((previous) => previous.map((line, lineIndex) => (
+                            lineIndex === index ? { ...line, quantite: value.replace(/[^0-9]/g, '') } : line
+                          )))}
+                          keyboardType="numeric"
+                          accessibilityLabel={`Quantité ${item.product_nom}`}
+                        />
+                        <TextInput
+                          style={bon.editInput}
+                          value={String(item.prix_unitaire_ht)}
+                          onChangeText={(value) => setOrderDraftItems((previous) => previous.map((line, lineIndex) => (
+                            lineIndex === index ? { ...line, prix_unitaire_ht: value.replace(/[^0-9.,]/g, '') } : line
+                          )))}
+                          keyboardType="decimal-pad"
+                          accessibilityLabel={`Prix HT ${item.product_nom}`}
+                        />
+                        <TouchableOpacity
+                          style={bon.removeLineButton}
+                          onPress={() => setOrderDraftItems((previous) => previous.filter((_, lineIndex) => lineIndex !== index))}
+                        >
+                          <Text style={bon.removeLineText}>Retirer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <Text style={bon.addProductLabel}>Ajouter un produit à cette commande :</Text>
+                    <View style={bon.productChoices}>
+                      {products.map((product) => (
+                        <TouchableOpacity
+                          key={product.id}
+                          style={bon.productChoice}
+                          onPress={() => setOrderDraftItems((previous) => {
+                            const existingIndex = previous.findIndex((line) => line.product_id === product.id);
+                            if (existingIndex >= 0) {
+                              return previous.map((line, index) => index === existingIndex
+                                ? { ...line, quantite: String(Number(line.quantite || 0) + 1) }
+                                : line);
+                            }
+                            const clientPrice = clientPrices.find((price) => (
+                              price.client_id === client.id && price.product_id === product.id
+                            ));
+                            return [...previous, {
+                              product_id: product.id,
+                              product_nom: product.nom,
+                              quantite: '1',
+                              increment: product.increment || 1,
+                              prix_unitaire_ht: String(clientPrice?.prix_unitaire_ht ?? product.prix_unitaire_ht ?? 0),
+                              tva_pourcent: product.tva_pourcent || 0,
+                            }];
+                          })}
+                        >
+                          <Text style={bon.productChoiceText}>+ {product.nom}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View style={bon.editorActions}>
+                      <TouchableOpacity
+                        style={bon.cancelEditButton}
+                        onPress={() => { setEditingOrderId(null); setOrderDraftItems([]); }}
+                        disabled={savingOrderItems}
+                      >
+                        <Text style={bon.cancelEditText}>Annuler</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[bon.saveEditButton, savingOrderItems && { opacity: 0.6 }]}
+                        onPress={() => handleSaveOrderItems(o)}
+                        disabled={savingOrderItems}
+                      >
+                        {savingOrderItems
+                          ? <ActivityIndicator size="small" color={colors.white} />
+                          : <Text style={bon.saveEditText}>Enregistrer la commande</Text>
+                        }
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
             );
           })}
+          {adjustments.length > 0 && (
+            <View style={bon.adjustmentsSection}>
+              <Text style={bon.adjustmentsTitle}>Ajustements comptables (bon uniquement)</Text>
+              {adjustments.map((adjustment) => {
+                const amount = Number(adjustment.quantity) * Number(adjustment.unit_price_ht);
+                return (
+                  <View key={adjustment.id} style={bon.adjustmentRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={bon.adjustmentLabel}>{adjustment.label}</Text>
+                      <Text style={bon.adjustmentDetails}>
+                        {adjustment.quantity} × {n2(adjustment.unit_price_ht)} € HT
+                      </Text>
+                    </View>
+                    <Text style={bon.adjustmentAmount}>{n2(amount)} €</Text>
+                    <TouchableOpacity onPress={() => openAdjustmentEditor(adjustment)} style={bon.adjustmentAction}>
+                      <Text style={bon.adjustmentActionText}>Modifier</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteAdjustment(adjustment)} style={bon.adjustmentAction}>
+                      <Text style={[bon.adjustmentActionText, { color: colors.error }]}>Supprimer</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
           <View style={bon.totalGlobal}>
             <Text style={bon.totalGlobalLabel}>TOTAL DU MOIS</Text>
             <Text style={bon.totalGlobalValue}>{n2(totalMois)} € HT</Text>
@@ -825,6 +1118,67 @@ function BonMensuelModal({ client, currentDate, products, comptaType, onClose })
           <View style={{ height: spacing.xl }} />
         </ScrollView>
       )}
+
+      <Modal
+        visible={adjustmentEditorVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAdjustmentEditorVisible(false)}
+      >
+        <View style={bon.editorOverlay}>
+          <View style={bon.adjustmentForm}>
+            <Text style={bon.adjustmentsTitle}>
+              {editingAdjustment ? 'Modifier l’ajustement' : 'Ajouter un ajustement au bon'}
+            </Text>
+            <Text style={bon.editorNotice}>
+              Cet ajustement apparaîtra uniquement sur ce bon et ses exports. Il ne crée ni ne modifie une commande.
+            </Text>
+            <TextInput
+              style={bon.formInput}
+              value={adjustmentLabel}
+              onChangeText={setAdjustmentLabel}
+              placeholder="Libellé (ex. complément de livraison)"
+              placeholderTextColor={colors.textLight}
+            />
+            <View style={bon.formRow}>
+              <TextInput
+                style={[bon.formInput, { flex: 1 }]}
+                value={adjustmentQuantity}
+                onChangeText={(value) => setAdjustmentQuantity(value.replace(/[^0-9.,]/g, ''))}
+                keyboardType="decimal-pad"
+                placeholder="Quantité"
+              />
+              <TextInput
+                style={[bon.formInput, { flex: 1 }]}
+                value={adjustmentPrice}
+                onChangeText={(value) => setAdjustmentPrice(value.replace(/[^0-9.,-]/g, ''))}
+                keyboardType="decimal-pad"
+                placeholder="Prix unitaire HT"
+              />
+            </View>
+            <Text style={bon.editorNotice}>Un prix HT négatif sert à déduire un montant du bon.</Text>
+            <View style={bon.editorActions}>
+              <TouchableOpacity
+                style={bon.cancelEditButton}
+                onPress={() => setAdjustmentEditorVisible(false)}
+                disabled={savingAdjustment}
+              >
+                <Text style={bon.cancelEditText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[bon.saveEditButton, savingAdjustment && { opacity: 0.6 }]}
+                onPress={handleSaveAdjustment}
+                disabled={savingAdjustment}
+              >
+                {savingAdjustment
+                  ? <ActivityIndicator size="small" color={colors.white} />
+                  : <Text style={bon.saveEditText}>Enregistrer</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <ConfirmModal
         visible={confirmVisible}
@@ -1287,4 +1641,108 @@ const bon = StyleSheet.create({
   },
   totalGlobalLabel: { fontSize: fontSizes.sm, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 1 },
   totalGlobalValue: { fontSize: fontSizes.xl, fontWeight: '900', color: colors.primary },
+  editButton: {
+    backgroundColor: colors.secondary,
+    borderWidth: 1,
+    borderColor: colors.primary + '55',
+    borderRadius: borderRadius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+  },
+  editButtonText: { color: colors.primary, fontWeight: '700', fontSize: 11 },
+  orderEditor: {
+    padding: spacing.md,
+    backgroundColor: '#FFF9F2',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  editorNotice: { fontSize: fontSizes.xs, color: colors.textSecondary, lineHeight: 18 },
+  editLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: 4 },
+  editInput: {
+    width: 76,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 6,
+    color: colors.textPrimary,
+    textAlign: 'right',
+  },
+  removeLineButton: { paddingVertical: 6, paddingHorizontal: spacing.xs },
+  removeLineText: { color: colors.error, fontSize: 11, fontWeight: '700' },
+  addProductLabel: { marginTop: spacing.xs, fontSize: fontSizes.sm, fontWeight: '700', color: colors.textPrimary },
+  productChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  productChoice: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.white,
+  },
+  productChoiceText: { fontSize: 11, color: colors.primary, fontWeight: '600' },
+  editorActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  cancelEditButton: { paddingVertical: 9, paddingHorizontal: spacing.md },
+  cancelEditText: { color: colors.textSecondary, fontWeight: '700', fontSize: fontSizes.sm },
+  saveEditButton: {
+    minWidth: 145,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  saveEditText: { color: colors.white, fontWeight: '700', fontSize: fontSizes.sm },
+  adjustmentsSection: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  adjustmentsTitle: { fontSize: fontSizes.md, fontWeight: '800', color: colors.textPrimary },
+  adjustmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  adjustmentLabel: { color: colors.textPrimary, fontSize: fontSizes.sm, fontWeight: '700' },
+  adjustmentDetails: { color: colors.textSecondary, fontSize: fontSizes.xs, marginTop: 2 },
+  adjustmentAmount: { minWidth: 75, textAlign: 'right', color: colors.textPrimary, fontWeight: '700' },
+  adjustmentAction: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
+  adjustmentActionText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+  editorOverlay: {
+    flex: 1,
+    padding: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adjustmentForm: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  formRow: { flexDirection: 'row', gap: spacing.sm },
+  formInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    color: colors.textPrimary,
+    fontSize: fontSizes.sm,
+  },
 });

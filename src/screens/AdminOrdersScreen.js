@@ -46,6 +46,7 @@ export default function AdminOrdersScreen() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [selectingAll, setSelectingAll] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
   const [takeOrderVisible, setTakeOrderVisible] = useState(false);
   const [takeOrderRecurring, setTakeOrderRecurring] = useState(false);
   const [recurringOrdersVisible, setRecurringOrdersVisible] = useState(false);
@@ -59,10 +60,10 @@ export default function AdminOrdersScreen() {
       const from = reset ? 0 : currentLength;
       const to = from + PAGE_SIZE - 1;
 
-      const { data, error, count } = await supabase
+      let ordersQuery = supabase
         .from('orders')
         .select(`
-          id, numero, client_id, client_nom, statut, date_commande, created_at, date_livraison_souhaitee,
+          id, numero, client_id, client_nom, statut, date_commande, created_at, date_livraison_souhaitee, deleted_at,
           total_ht, total_tva, total_ttc, livreur_id, notes_client,
           adresse_livraison, type_commande,
           order_admin_notes(note),
@@ -70,8 +71,12 @@ export default function AdminOrdersScreen() {
             id, nom, prenom, nom_societe, email, telephone
           )
         `, { count: 'exact' })
-        .order('date_commande', { ascending: false })
-        .range(from, to);
+        .order('date_commande', { ascending: false });
+      ordersQuery = showTrash
+        ? ordersQuery.not('deleted_at', 'is', null)
+        : ordersQuery.is('deleted_at', null);
+
+      const { data, error, count } = await ordersQuery.range(from, to);
 
       if (error) throw error;
 
@@ -93,8 +98,11 @@ export default function AdminOrdersScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
-  useEffect(() => { loadOrders(true); }, []);
+  }, [showTrash]);
+  useEffect(() => {
+    setSelectedIds(new Set());
+    loadOrders(true);
+  }, [loadOrders]);
 
   const hasMore = orders.length < totalCount;
 
@@ -131,12 +139,18 @@ export default function AdminOrdersScreen() {
     }
     setSelectingAll(true);
     try {
-      const { data } = await supabase
+      let query = supabase
         .from('orders')
         .select('id');
+      query = showTrash
+        ? query.not('deleted_at', 'is', null)
+        : query.is('deleted_at', null);
+      const { data, error } = await query;
+      if (error) throw error;
       if (data) setSelectedIds(new Set(data.map((o) => o.id)));
     } catch (err) {
       console.error('Erreur sélection totale :', err);
+      showAlert('Erreur', 'Impossible de sélectionner les commandes.');
     } finally {
       setSelectingAll(false);
     }
@@ -148,52 +162,46 @@ export default function AdminOrdersScreen() {
 
     setBulkActionLoading(true);
     try {
-      const { data: nonTraite } = await supabase
-        .from('orders')
-        .select('numero, livreur_id, livreur:livreurs(nom, prenom)')
-        .in('id', ids)
-        .neq('statut', 'traite');
-
-      let msg = `Vous allez supprimer définitivement ${ids.length} commande(s).\nCette action est irréversible et les données seront perdues, faites un export au préalable si vous souhaitez garder ces données.`;
-
-      if (nonTraite?.length > 0) {
-        const list = nonTraite.map((o) => {
-          const livreurName = o.livreur
-            ? `tournée de ${[o.livreur.prenom, o.livreur.nom].filter(Boolean).join(' ')}`
-            : 'non assignée à un livreur';
-          return `"¢ N° ${o.numero} (${livreurName})`;
-        }).join('\n');
-        msg += `\n\nATTENTION : ${nonTraite.length} commande(s) pas encore traitée(s) :\n${list}\n\nSupprimez quand même ?`;
-      }
+      const msg = `Placer ${ids.length} commande(s) dans la corbeille ?\n\nElles disparaîtront des listes et des documents. Vous pourrez les restaurer pendant 7 jours, après quoi elles seront supprimées définitivement.`;
 
       const confirmed = await new Promise((resolve) => {
         if (Platform.OS === 'web') {
           resolve(window.confirm(msg));
         } else {
-          Alert.alert('Supprimer définitivement', msg, [
+          Alert.alert('Placer dans la corbeille', msg, [
             { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) },
+            { text: 'Continuer', style: 'destructive', onPress: () => resolve(true) },
           ]);
         }
       });
 
       if (!confirmed) return;
-      const { error: itemsErr } = await supabase
-        .from('order_items')
-        .delete()
-        .in('order_id', ids);
-      if (itemsErr) throw itemsErr;
-      const { error: ordersErr } = await supabase
-        .from('orders')
-        .delete()
-        .in('id', ids);
-      if (ordersErr) throw ordersErr;
+      const { error } = await supabase.rpc('trash_orders', { p_order_ids: ids });
+      if (error) throw error;
 
       setSelectedIds(new Set());
-      loadOrders(true);
+      await loadOrders(true);
     } catch (err) {
       console.error(err);
       showAlert('Erreur', 'Impossible de supprimer les commandes.');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase.rpc('restore_orders', {
+        p_order_ids: Array.from(selectedIds),
+      });
+      if (error) throw error;
+      setSelectedIds(new Set());
+      await loadOrders(true);
+    } catch (err) {
+      console.error('Erreur restauration commandes :', err);
+      showAlert('Erreur', 'Impossible de restaurer les commandes sélectionnées.');
     } finally {
       setBulkActionLoading(false);
     }
@@ -218,10 +226,19 @@ export default function AdminOrdersScreen() {
       {/* Barre du haut */}
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
-          <Text style={styles.screenTitle}>Commandes</Text>
+          <Text style={styles.screenTitle}>{showTrash ? 'Corbeille des commandes' : 'Commandes'}</Text>
           <Text style={styles.screenCount}>{`${orders.length} / ${totalCount}`}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TouchableOpacity
+            onPress={() => setShowTrash(value => !value)}
+            style={styles.refreshBtn}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.refreshText}>{showTrash ? '← Commandes actives' : 'Corbeille'}</Text>
+          </TouchableOpacity>
+          {!showTrash && (
+            <>
           <TouchableOpacity
             onPress={() => {
               setTakeOrderRecurring(true);
@@ -251,8 +268,15 @@ export default function AdminOrdersScreen() {
           <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
             <Text style={styles.refreshText}>↻ Actualiser</Text>
           </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
+      {showTrash && (
+        <Text style={styles.trashNotice}>
+          Les commandes archivées disparaissent des documents et peuvent être restaurées pendant 7 jours avant leur suppression définitive.
+        </Text>
+      )}
 
       {/* Barre d'actions en masse */}
       {selectedIds.size > 0 && (
@@ -266,22 +290,35 @@ export default function AdminOrdersScreen() {
             <Text style={styles.bulkActionText}>{selectedIds.size} sélectionnée(s)</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Button
-              title="Exporter Excel"
-              variant="secondary"
-              size="sm"
-              onPress={handleBulkExportExcel}
-              loading={bulkActionLoading}
-              disabled={bulkActionLoading}
-            />
-            <Button
-              title="Supprimer définitivement"
-              variant="danger"
-              size="sm"
-              onPress={handleBulkDelete}
-              loading={bulkActionLoading}
-              disabled={bulkActionLoading}
-            />
+            {showTrash ? (
+              <Button
+                title="Restaurer"
+                variant="secondary"
+                size="sm"
+                onPress={handleBulkRestore}
+                loading={bulkActionLoading}
+                disabled={bulkActionLoading}
+              />
+            ) : (
+              <>
+                <Button
+                  title="Exporter Excel"
+                  variant="secondary"
+                  size="sm"
+                  onPress={handleBulkExportExcel}
+                  loading={bulkActionLoading}
+                  disabled={bulkActionLoading}
+                />
+                <Button
+                  title="Mettre à la corbeille"
+                  variant="danger"
+                  size="sm"
+                  onPress={handleBulkDelete}
+                  loading={bulkActionLoading}
+                  disabled={bulkActionLoading}
+                />
+              </>
+            )}
           </View>
         </View>
       )}
@@ -311,7 +348,7 @@ export default function AdminOrdersScreen() {
           renderItem={({ item }) => (
             <OrderRow
               item={item}
-              onPress={openOrder}
+              onPress={showTrash ? null : openOrder}
               isDesktop={isDesktop}
               selected={selectedIds.has(item.id)}
               onToggle={() => toggleSelection(item.id)}
@@ -475,10 +512,11 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
     || item.client_nom
     || '"” Client supprimé "”';
 
-  const orderDate = new Date(item.date_commande);
-  const diffDays = Math.floor((new Date() - orderDate) / (1000 * 60 * 60 * 24));
-  const daysLeft = Math.max(0, 45 - diffDays);
-  const warningColor = daysLeft <= 7 ? colors.error : colors.textLight;
+  const retentionDate = new Date(item.deleted_at || item.date_commande);
+  const diffDays = Math.floor((new Date() - retentionDate) / (1000 * 60 * 60 * 24));
+  const retentionDays = item.deleted_at ? 7 : 45;
+  const daysLeft = Math.max(0, retentionDays - diffDays);
+  const warningColor = daysLeft <= (item.deleted_at ? 2 : 7) ? colors.error : colors.textLight;
   const noLivreur = !item.livreur_id;
 
   return (
@@ -490,7 +528,8 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.row, { flex: 1, marginLeft: 0 }, noLivreur && { borderColor: colors.error, borderWidth: 1.5 }]}
-        onPress={() => onPress(item)}
+        onPress={onPress ? () => onPress(item) : undefined}
+        disabled={!onPress}
         activeOpacity={0.75}
       >
         <View style={styles.rowCol}>
@@ -511,7 +550,9 @@ const OrderRow = React.memo(({ item, onPress, isDesktop, selected, onToggle }) =
             </View>
           )}
           <Text style={[styles.rowDeleteWarning, { color: warningColor }]}>
-            Suppression dans {daysLeft} j
+            {item.deleted_at
+              ? `Suppression définitive dans ${daysLeft} j`
+              : `Suppression automatique dans ${daysLeft} j`}
           </Text>
         </View>
 
@@ -1355,6 +1396,12 @@ const styles = StyleSheet.create({
   topBarLeft: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
   screenTitle: { fontSize: fontSizes.lg, fontWeight: '800', color: colors.textPrimary },
   screenCount: { fontSize: fontSizes.sm, color: colors.textSecondary },
+  trashNotice: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    color: colors.textSecondary,
+    backgroundColor: colors.secondary,
+  },
   refreshBtn: { ...Platform.select({ web: { cursor: 'pointer' } }) },
   refreshText: { fontSize: fontSizes.sm, color: colors.primary, fontWeight: '600' },
   excelBtn: {

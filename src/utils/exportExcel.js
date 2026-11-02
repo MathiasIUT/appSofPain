@@ -116,9 +116,10 @@ export async function exportOrdersExcel(ids = null) {
   let ordersQ = supabase
     .from('orders')
     .select(`
-      id, numero, client_nom, date_commande, total_ht, livreur_id,
+      id, numero, client_nom, date_commande, total_ht, livreur_id, deleted_at,
       client:profiles!client_id(nom, prenom, nom_societe, email, telephone, role)
     `)
+    .is('deleted_at', null)
     .order('date_commande', { ascending: false });
   if (ids && ids.length > 0) {
     ordersQ = ordersQ.in('id', ids);
@@ -206,6 +207,7 @@ export async function exportSage50CSV(monthLabel, periodDate = new Date()) {
         total_ht, type_commande, client_nom,
         client:profiles!client_id(nom_societe, nom, prenom, code_sage)
       `)
+      .is('deleted_at', null)
       .neq('statut', 'annulee'),
     monthDate
   );
@@ -244,7 +246,7 @@ export async function exportSage50CSV(monthLabel, periodDate = new Date()) {
   URL.revokeObjectURL(url);
 }
 
-export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
+export function exportMonthlyBonExcel(client, monthLabel, orders, products, adjustments = []) {
   const clientName = client.nom_societe || [client.prenom, client.nom].filter(Boolean).join(' ') || 'Client';
   
   const headers = ['Date', 'N° Commande'];
@@ -295,7 +297,26 @@ export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
     });
     totalRow.push(totalQty > 0 ? totalQty : '', '');
   });
-  totalRow.push(n2(orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0)));
+  const adjustmentTotal = adjustments.reduce(
+    (sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_price_ht || 0),
+    0
+  );
+  totalRow.push(n2(orders.reduce((acc, o) => acc + Number(o.total_ht || 0), 0) + adjustmentTotal));
+
+  const adjustmentRows = adjustments.length > 0
+    ? [
+      [],
+      ['AJUSTEMENTS COMPTABLES (BON UNIQUEMENT)'],
+      ['Libellé', 'Quantité', 'Prix unitaire HT (€)', 'Total HT (€)'],
+      ...adjustments.map((item) => [
+        item.label,
+        Number(item.quantity),
+        n2(item.unit_price_ht),
+        n2(Number(item.quantity) * Number(item.unit_price_ht)),
+      ]),
+      ['TOTAL AJUSTEMENTS', '', '', n2(adjustmentTotal)],
+    ]
+    : [];
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([
@@ -305,7 +326,8 @@ export function exportMonthlyBonExcel(client, monthLabel, orders, products) {
     headers,
     ...dataRows,
     [],
-    totalRow
+    totalRow,
+    ...adjustmentRows
   ]);
   
   ws['!merges'] = [

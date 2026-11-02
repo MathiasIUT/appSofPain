@@ -431,6 +431,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
       await supabase.from('orders')
         .update({ livreur_id: livId || null })
         .eq('client_id', client.id)
+        .is('deleted_at', null)
         .in('statut', ['nouvelle', 'en_preparation'])
         .neq('type_commande', 'surgele');
 
@@ -451,6 +452,7 @@ function ClientDetailModal({ client, onClose, onUpdated, onDeleted }) {
       await supabase.from('orders')
         .update({ livreur_id: livId || null })
         .eq('client_id', client.id)
+        .is('deleted_at', null)
         .in('statut', ['nouvelle', 'en_preparation'])
         .eq('type_commande', 'surgele');
 

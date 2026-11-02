@@ -44,6 +44,7 @@ export default function MyOrdersScreen({ navigation }) {
         .from('orders')
         .select('*', { count: 'exact' })
         .eq('client_id', user.id)
+        .is('deleted_at', null)
         .neq('statut', 'annulee')
         .order('date_commande', { ascending: false })
         .range(from, to);

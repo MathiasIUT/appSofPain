@@ -411,6 +411,7 @@ function LivreurDetail({ livreur, onClose, onDeleted, onUpdated }) {
         const { data } = await supabase
           .from('orders').select('*, client:profiles(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*), order_admin_notes(note)')
           .eq('livreur_id', livreur.id).in('statut', ['nouvelle'])
+          .is('deleted_at', null)
           .order('numero', { ascending: true });
         const fetched = (data || []).map(order => ({
           ...order,

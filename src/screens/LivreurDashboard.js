@@ -86,6 +86,7 @@ export default function LivreurDashboard({ navigation }) {
         .from('orders')
         .select('*, client:profiles!client_id(nom_societe, nom, prenom, telephone, ordre_tournee), order_items(*)')
         .eq('livreur_id', livreurRow.id)
+        .is('deleted_at', null)
         .in('statut', ['nouvelle', 'traite', 'en_preparation', 'en_livraison'])
         .order('date_commande', { ascending: true });
 

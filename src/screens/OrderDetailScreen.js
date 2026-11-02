@@ -57,6 +57,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             .select('*')
             .eq('id', order.id)
             .eq('client_id', user.id)
+            .is('deleted_at', null)
             .single(),
           supabase
             .from('order_items')
@@ -136,14 +137,14 @@ export default function OrderDetailScreen({ navigation, route }) {
   };
 
   const handleDeleteOrder = async () => {
-    const msg = `Êtes-vous sûr de vouloir supprimer la commande N° ${order.numero} ?\n\nCette action est irréversible.`;
+    const msg = `Placer la commande N° ${order.numero} dans la corbeille ?\n\nElle sera masquée des listes et des documents. L’administrateur pourra la restaurer pendant 7 jours, après quoi elle sera supprimée définitivement.`;
     const proceed = Platform.OS === 'web' ? window.confirm(msg) : await new Promise(resolve => {
       Alert.alert(
-        'Supprimer la commande',
+        'Placer la commande dans la corbeille',
         msg,
         [
           { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-          { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) }
+          { text: 'Continuer', style: 'destructive', onPress: () => resolve(true) }
         ]
       );
     });
@@ -152,20 +153,12 @@ export default function OrderDetailScreen({ navigation, route }) {
 
     setDeleting(true);
     try {
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('order_id', order.id);
+      const { error } = await supabase.rpc('trash_my_order', {
+        p_order_id: order.id,
+      });
+      if (error) throw error;
 
-      if (itemsError) throw new Error('Erreur items : ' + itemsError.message);
-      const { error: orderError } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', order.id);
-
-      if (orderError) throw new Error('Erreur commande : ' + orderError.message);
-
-      showAlert('Succès', 'La commande a été supprimée.');
+      showAlert('Succès', 'La commande a été placée dans la corbeille.');
       navigation.goBack();
     } catch (err) {
       console.error('Erreur suppression commande :', err);
